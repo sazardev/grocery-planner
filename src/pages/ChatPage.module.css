@@ -1,0 +1,132 @@
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-3);
+  max-height: 62vh;
+  overflow-y: auto;
+  padding: var(--gp-space-2);
+  border-radius: var(--gp-radius-lg);
+  background: var(--gp-background);
+}
+
+.bubbleRow {
+  display: flex;
+  gap: var(--gp-space-2);
+  align-items: flex-end;
+}
+
+.bubbleRow.mine {
+  flex-direction: row-reverse;
+}
+
+.bubble {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-1);
+  max-width: 82%;
+  padding: var(--gp-space-2) var(--gp-space-3);
+  border-radius: var(--gp-radius-lg);
+  background: var(--gp-surface);
+}
+
+.bubbleMine {
+  background: var(--gp-primary-subtle);
+}
+
+.photo {
+  width: 100%;
+  max-width: 280px;
+  border-radius: var(--gp-radius-md);
+  display: block;
+}
+
+.photoPreview img {
+  width: 120px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: var(--gp-radius-md);
+}
+
+.photoPreview {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-3);
+}
+
+.system {
+  align-self: center;
+  padding: var(--gp-space-1) var(--gp-space-3);
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-touch);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+}
+
+.pinBtn,
+.emojiBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--gp-text-tertiary);
+  cursor: pointer;
+  padding: 0;
+  min-width: var(--gp-touch-min);
+  min-height: var(--gp-touch-min);
+  font-size: 16px;
+}
+
+.pinBtn:hover,
+.emojiBtn:hover {
+  color: var(--gp-primary);
+}
+
+.reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gp-space-1);
+}
+
+.reaction {
+  padding: 2px var(--gp-space-2);
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-touch);
+  font-size: var(--gp-text-xs);
+}
+
+.emojiRow {
+  display: flex;
+  gap: var(--gp-space-1);
+}
+
+.composer {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  position: sticky;
+  bottom: 0;
+  padding: var(--gp-space-2) 0;
+  background: var(--gp-background);
+}
+
+.input {
+  flex: 1;
+  min-height: var(--gp-touch-min);
+  border: 0;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-surface);
+  color: var(--gp-text-primary);
+  padding: 0 var(--gp-space-4);
+  font: inherit;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--gp-primary);
+  outline-offset: 2px;
+}

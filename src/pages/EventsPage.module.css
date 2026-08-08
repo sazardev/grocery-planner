@@ -1,0 +1,18 @@
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+}
+
+.rowFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gp-space-3);
+}
+
+.switchRow {
+  display: flex;
+  gap: var(--gp-space-4);
+  flex-wrap: wrap;
+}

@@ -1,0 +1,77 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gp-space-1);
+  border: none;
+  border-radius: var(--gp-radius-pill);
+  font-family: var(--gp-font-sans);
+  font-weight: var(--gp-weight-medium);
+  letter-spacing: var(--gp-tracking-label);
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform-origin: center;
+  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-spring);
+  transition:
+    background-color var(--gp-duration-instant) var(--gp-ease-out),
+    color var(--gp-duration-instant) var(--gp-ease-out),
+    transform var(--gp-duration-fast) var(--gp-ease-spring);
+}
+
+button.chip:hover:not(:disabled) {
+  animation: none;
+  transform: translateY(-1px) rotate(-2deg);
+}
+
+button.chip:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+button.chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.sm {
+  padding: var(--gp-space-1) var(--gp-space-2);
+  font-size: var(--gp-text-xs);
+  line-height: 1.4;
+}
+
+.md {
+  min-height: 32px;
+  padding: var(--gp-space-1) var(--gp-space-3);
+  font-size: var(--gp-text-sm);
+  line-height: 1.4;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  animation: gp-bounce 1.8s var(--gp-ease-out) infinite;
+}
+
+.default {
+  background: var(--gp-primary-subtle);
+  color: var(--gp-primary-hover);
+}
+
+.warning {
+  background: var(--gp-warning-subtle);
+  color: var(--gp-warning-text);
+}
+
+.danger {
+  background: var(--gp-danger-subtle);
+  color: var(--gp-danger-text);
+}
+
+.info {
+  background: var(--gp-info-subtle);
+  color: var(--gp-info-text);
+}
+
+.muted {
+  background: var(--gp-surface-raised);
+  color: var(--gp-text-primary);
+}

@@ -1,0 +1,118 @@
+/* --- Contenedor --- */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-3);
+  padding: var(--gp-space-3) var(--gp-space-4);
+  border-radius: var(--gp-radius-lg);
+  background: var(--gp-surface);
+  transform-origin: center;
+  animation: gp-rise 0.4s var(--gp-ease-out) backwards;
+  transition:
+    background-color var(--gp-duration-fast) var(--gp-ease-out),
+    transform var(--gp-duration-normal) var(--gp-ease-spring);
+}
+
+.row:hover {
+  background: var(--gp-surface-raised);
+  transform: translateY(-1px);
+}
+
+.carried {
+  background: var(--gp-primary-subtle);
+  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-bounce);
+}
+
+.carried:hover {
+  background: var(--gp-primary-subtle);
+}
+
+/* Sobre la fila menta, los textos secundarios necesitan un verde más oscuro (AA) */
+.carried .meta {
+  color: var(--gp-primary-hover);
+}
+
+.carried .meta .assign {
+  color: var(--gp-primary-pressed);
+}
+
+.carried .meta .note {
+  color: var(--gp-primary-hover);
+}
+
+.carried .line .numeric {
+  color: var(--gp-primary-hover);
+}
+
+.done {
+  background: var(--gp-surface-raised);
+}
+
+.done .name {
+  color: var(--gp-text-secondary);
+}
+
+.done .meta,
+.done .line .numeric {
+  color: var(--gp-text-secondary);
+}
+
+/* --- Cuerpo --- */
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-1);
+}
+
+.line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gp-space-2);
+  min-width: 0;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+}
+
+.struck {
+  text-decoration: line-through;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  min-width: 0;
+  font-size: var(--gp-text-xs);
+  color: var(--gp-text-secondary);
+}
+
+.assign {
+  color: var(--gp-primary-hover);
+  font-weight: var(--gp-weight-medium);
+}
+
+.note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* --- Chips --- */
+.chips {
+  display: flex;
+  flex-direction: row;
+  gap: var(--gp-space-1);
+  flex-shrink: 0;
+}
+
+/* --- Densidad --- */
+.compact {
+  padding: var(--gp-space-2) var(--gp-space-3);
+  border-radius: var(--gp-radius-md);
+}

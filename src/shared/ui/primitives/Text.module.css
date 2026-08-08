@@ -1,0 +1,148 @@
+.text {
+  margin: 0;
+  color: var(--gp-text-primary);
+  transform-origin: left center;
+}
+
+/* Título con un pequeño "saludo" al aparecer */
+.display {
+  font-size: var(--gp-text-3xl);
+  font-weight: var(--gp-weight-semibold);
+  letter-spacing: var(--gp-tracking-heading);
+  line-height: var(--gp-line-xl);
+  animation: gp-rise 0.4s var(--gp-ease-out);
+}
+
+.h1 {
+  font-size: var(--gp-text-2xl);
+  font-weight: var(--gp-weight-semibold);
+  letter-spacing: var(--gp-tracking-heading);
+  line-height: var(--gp-line-xl);
+}
+
+.h2 {
+  font-size: var(--gp-text-xl);
+  font-weight: var(--gp-weight-semibold);
+  letter-spacing: var(--gp-tracking-heading);
+  line-height: var(--gp-line-lg);
+}
+
+.h3 {
+  font-size: var(--gp-text-lg);
+  font-weight: var(--gp-weight-semibold);
+  letter-spacing: var(--gp-tracking-heading);
+  line-height: var(--gp-line-lg);
+}
+
+.section {
+  font-size: var(--gp-text-lg);
+  font-weight: var(--gp-weight-semibold);
+  letter-spacing: var(--gp-tracking-heading);
+  line-height: var(--gp-line-lg);
+}
+
+.item {
+  font-size: var(--gp-text-md);
+  font-weight: var(--gp-weight-medium);
+  line-height: var(--gp-line-md);
+}
+
+.body {
+  font-size: var(--gp-text-base);
+  font-weight: var(--gp-weight-regular);
+  line-height: var(--gp-line-base);
+}
+
+.label {
+  font-size: var(--gp-text-sm);
+  font-weight: var(--gp-weight-medium);
+  letter-spacing: var(--gp-tracking-label);
+  line-height: var(--gp-line-sm);
+}
+
+.note {
+  font-size: var(--gp-text-xs);
+  font-weight: var(--gp-weight-regular);
+  line-height: var(--gp-line-sm);
+}
+
+/* --- Tones --- */
+.default {
+  color: var(--gp-text-primary);
+}
+
+.secondary {
+  color: var(--gp-text-secondary);
+}
+
+.tertiary {
+  color: var(--gp-text-tertiary);
+}
+
+.inverse {
+  color: var(--gp-text-inverse);
+}
+
+.primary {
+  color: var(--gp-primary);
+}
+
+.success {
+  color: var(--gp-primary-hover);
+}
+
+.warning {
+  color: var(--gp-warning);
+}
+
+.danger {
+  color: var(--gp-danger);
+}
+
+.info {
+  color: var(--gp-info);
+}
+
+/* --- Weights --- */
+.weight-regular {
+  font-weight: var(--gp-weight-regular);
+}
+
+.weight-medium {
+  font-weight: var(--gp-weight-medium);
+}
+
+.weight-semibold {
+  font-weight: var(--gp-weight-semibold);
+}
+
+.weight-bold {
+  font-weight: var(--gp-weight-bold);
+}
+
+/* --- Modificadores --- */
+.numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.align-left {
+  text-align: left;
+}
+
+.align-center {
+  text-align: center;
+}
+
+.align-right {
+  text-align: right;
+}

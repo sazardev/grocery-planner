@@ -1,0 +1,24 @@
+.container {
+  margin: 0 auto;
+  width: 100%;
+}
+
+.sm {
+  max-width: var(--gp-container-md);
+}
+
+.md {
+  max-width: var(--gp-content-max);
+}
+
+.lg {
+  max-width: var(--gp-container-lg);
+}
+
+.xl {
+  max-width: var(--gp-container-xl);
+}
+
+.padded {
+  padding-inline: var(--gp-space-4);
+}

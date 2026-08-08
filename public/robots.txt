@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+
+# Sitemap: ajusta el dominio al de tu hogar self-hosted
+Sitemap: https://grocery.example/sitemap.xml

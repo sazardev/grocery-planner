@@ -1,0 +1,43 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-1);
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+}
+
+.headerTitle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-1);
+  min-width: 0;
+}
+
+.chipRow {
+  display: flex;
+  gap: var(--gp-space-2);
+  flex-wrap: wrap;
+}
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+}
+
+.searchWrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.projRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gp-space-2);
+  color: var(--gp-text-secondary);
+}

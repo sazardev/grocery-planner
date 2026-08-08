@@ -1,0 +1,17 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  width: 100%;
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--gp-content-max);
+  margin: 0 auto;
+  padding: var(--gp-space-6) var(--gp-space-4) calc(var(--gp-space-12) + var(--gp-safe-bottom) + var(--gp-nav-height));
+  animation: gp-page-in 0.32s var(--gp-ease-out);
+  transform-origin: top center;
+  will-change: opacity, transform;
+}

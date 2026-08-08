@@ -1,0 +1,130 @@
+.nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--gp-z-nav);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  gap: var(--gp-space-3);
+  padding: var(--gp-space-2) var(--gp-space-2) calc(var(--gp-space-2) + var(--gp-safe-bottom));
+  background: var(--gp-surface);
+}
+
+/* Píldora deslizante: viaja al ítem activo con rebote.
+   El ancho lo fija JS (medición real del item) y solo se anima transform
+   (translateX) + width → GPU en el deslizamiento, radio siempre intacto. */
+.pill {
+  position: absolute;
+  top: var(--gp-space-2);
+  bottom: calc(var(--gp-space-2) + var(--gp-safe-bottom));
+  left: 0;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-touch);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, width;
+  transition:
+    transform var(--gp-duration-normal) var(--gp-ease-spring),
+    width var(--gp-duration-normal) var(--gp-ease-spring),
+    opacity var(--gp-duration-normal) var(--gp-ease-out);
+}
+
+.pillReady {
+  opacity: 1;
+}
+
+/* --- Item base (móvil): columna icono + label --- */
+.item {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gp-space-1);
+  min-width: 56px;
+  min-height: 56px;
+  padding: var(--gp-space-1) var(--gp-space-3);
+  border: none;
+  background: transparent;
+  color: var(--gp-text-secondary);
+  font-family: var(--gp-font-sans);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color var(--gp-duration-instant) var(--gp-ease-out),
+    background-color var(--gp-duration-instant) var(--gp-ease-out),
+    transform var(--gp-duration-fast) var(--gp-ease-spring);
+}
+
+.item:active {
+  transform: scale(0.88);
+}
+
+.active {
+  color: var(--gp-primary-pressed);
+  font-weight: var(--gp-weight-semibold);
+}
+
+.active .icon svg {
+  animation: gp-bounce 1.6s var(--gp-ease-out) infinite;
+}
+
+.icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.label {
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--gp-space-1);
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-danger);
+  color: var(--gp-text-inverse);
+  font-size: 10px;
+  font-weight: var(--gp-weight-bold);
+  line-height: 1;
+}
+
+/* --- Tablet y superior (≥768px): misma barra fija, ítems en píldoras --- */
+@media (min-width: 768px) {
+  .nav {
+    justify-content: center;
+    gap: var(--gp-space-3);
+    padding: var(--gp-space-2) var(--gp-space-4) calc(var(--gp-space-2) + var(--gp-safe-bottom));
+  }
+
+  .item {
+    flex-direction: row;
+    height: 56px;
+    padding: 0 var(--gp-space-5);
+    border-radius: var(--gp-radius-pill);
+  }
+
+  .item:not(.active):hover {
+    background: var(--gp-touch);
+  }
+}

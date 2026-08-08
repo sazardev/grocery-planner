@@ -1,0 +1,50 @@
+.spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dot {
+  display: block;
+  border-radius: var(--gp-radius-pill);
+  background: currentColor;
+  animation: gp-spinner-bounce 0.9s var(--gp-ease-bounce) infinite;
+}
+
+.sm .dot {
+  width: 12px;
+  height: 12px;
+}
+
+.md .dot {
+  width: 16px;
+  height: 16px;
+}
+
+.lg .dot {
+  width: 24px;
+  height: 24px;
+}
+
+.default {
+  color: var(--gp-primary);
+}
+
+.inverse {
+  color: var(--gp-text-inverse);
+}
+
+@keyframes gp-spinner-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  30% {
+    transform: translateY(-6px) scale(1.1);
+  }
+  55% {
+    transform: translateY(0) scale(0.85);
+    opacity: 0.7;
+  }
+}

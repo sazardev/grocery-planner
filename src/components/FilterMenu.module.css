@@ -1,0 +1,113 @@
+.menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gp-space-1);
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--gp-space-3);
+  border: none;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-touch);
+  color: var(--gp-text-secondary);
+  cursor: pointer;
+  transition: background-color var(--gp-duration-fast) var(--gp-ease-out);
+}
+
+.button:hover {
+  background: var(--gp-surface-raised);
+}
+
+.button:active {
+  transform: scale(0.97);
+}
+
+.buttonActive {
+  background: var(--gp-primary);
+  color: var(--gp-text-inverse);
+}
+
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--gp-space-1);
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-primary-strong);
+  color: #fff;
+  font-size: 11px;
+  font-weight: var(--gp-weight-semibold);
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + var(--gp-space-2));
+  right: 0;
+  z-index: var(--gp-z-raised);
+  min-width: 210px;
+  background: var(--gp-surface);
+  border-radius: var(--gp-radius-lg);
+  padding: var(--gp-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+  animation: gp-rise 0.2s var(--gp-ease-out);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-1);
+}
+
+.section + .section {
+  border-top: 1px solid var(--gp-touch);
+  padding-top: var(--gp-space-2);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  padding: var(--gp-space-1);
+  border-radius: var(--gp-radius-md);
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--gp-surface-raised);
+}
+
+.optionActive {
+  color: var(--gp-primary);
+}
+
+.radio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--gp-text-tertiary);
+  flex-shrink: 0;
+  transition: border-color var(--gp-duration-fast) var(--gp-ease-out);
+}
+
+.optionActive .radio {
+  border-color: var(--gp-primary);
+}
+
+.radioDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gp-primary);
+}

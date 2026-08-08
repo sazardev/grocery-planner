@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Marca -->
+    <title>Grocery Planner — ¿Qué falta? Lista de compras de la familia</title>
+    <meta
+      name="description"
+      content="¿Qué falta? La lista de compras de tu familia, en tiempo real y en todos tus dispositivos. Self-hosted, simple y sin ruido: anota, comparte y marca lo que llevas."
+    />
+    <meta name="author" content="Grocery Planner" />
+    <meta name="keywords" content="lista de compras, compras, mandado, familia, self-hosted, qué falta, supermercado, planificador" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#16A34A" />
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- Canonical y Open Graph: los inyecta useMeta por página (self-hosted,
+         dominio configurable con VITE_BASE_URL). Sin href estático para no
+         apuntar a un directorio ni a un dominio fijo. -->
+
+    <!-- Favicons e iconos -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Grocery Planner" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:title" content="Grocery Planner — ¿Qué falta?" />
+    <meta
+      property="og:description"
+      content="La lista de compras de tu familia, en tiempo real y en todos tus dispositivos. Self-hosted, simple y sin ruido."
+    />
+    <meta property="og:url" content="/" />
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Grocery Planner — la lista de compras de tu familia" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Grocery Planner — ¿Qué falta?" />
+    <meta
+      name="twitter:description"
+      content="La lista de compras de tu familia, en tiempo real y en todos tus dispositivos."
+    />
+    <meta name="twitter:image" content="/og-image.png" />
+    <meta name="twitter:image:alt" content="Grocery Planner — la lista de compras de tu familia" />
+
+    <!-- PWA: color del tema y splash -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Grocery" />
+    <meta name="application-name" content="Grocery Planner" />
+
+    <!-- Datos estructurados (JSON-LD) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Grocery Planner",
+        "alternateName": "¿Qué falta?",
+        "url": "/",
+        "description": "La lista de compras de tu familia, en tiempo real y en todos tus dispositivos. Self-hosted, simple y sin ruido.",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "Android, iOS, Web, Linux, Windows, macOS",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+        "image": "/og-image.png",
+        "inLanguage": "es"
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

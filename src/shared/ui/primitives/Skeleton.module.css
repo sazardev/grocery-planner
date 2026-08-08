@@ -1,0 +1,38 @@
+.skeleton {
+  display: inline-block;
+  background: var(--gp-surface-raised);
+  border-radius: var(--gp-radius-sm);
+  animation: gp-skeleton-pulse 1.8s var(--gp-ease-in-out) infinite;
+}
+
+.text {
+  height: 1em;
+  border-radius: var(--gp-radius-sm);
+}
+
+.circle {
+  border-radius: var(--gp-radius-pill);
+}
+
+.rect {
+  border-radius: var(--gp-radius-md);
+}
+
+/* Placeholder plano: pulso suave de opacidad, sin gradientes (§1 y §11 DESIGN). */
+@keyframes gp-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    opacity: 0.6;
+  }
+}

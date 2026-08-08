@@ -1,0 +1,131 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--gp-space-2);
+  border: none;
+  border-radius: var(--gp-radius-pill);
+  font-family: var(--gp-font-sans);
+  font-weight: var(--gp-weight-semibold);
+  line-height: 1;
+  white-space: nowrap;
+  position: relative;
+  transition:
+    background-color var(--gp-duration-instant) var(--gp-ease-out),
+    color var(--gp-duration-instant) var(--gp-ease-out),
+    transform var(--gp-duration-fast) var(--gp-ease-spring);
+}
+
+.button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(0) scale(0.94);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Onda de presión al hacer clic (sutil, sin cubrir el color) */
+.button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.button:active:not(:disabled)::before {
+  animation: gp-ripple 0.4s var(--gp-ease-out);
+}
+
+.full {
+  width: 100%;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: transform var(--gp-duration-normal) var(--gp-ease-spring);
+}
+
+.button:hover:not(:disabled) .icon {
+  transform: scale(1.15);
+}
+
+/* --- Sizes --- */
+.sm {
+  height: 32px;
+  padding: 0 var(--gp-space-3);
+  font-size: var(--gp-text-sm);
+}
+
+.md {
+  height: var(--gp-touch-min);
+  padding: 0 var(--gp-space-5);
+  font-size: var(--gp-text-base);
+}
+
+.lg {
+  height: 52px;
+  padding: 0 var(--gp-space-6);
+  font-size: var(--gp-text-md);
+}
+
+.xl {
+  height: 60px;
+  padding: 0 var(--gp-space-8);
+  font-size: var(--gp-text-lg);
+}
+
+/* --- Variants --- */
+.primary {
+  background: var(--gp-primary-strong);
+  color: var(--gp-text-inverse);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--gp-primary);
+}
+
+.primary:active:not(:disabled) {
+  background: var(--gp-primary-pressed);
+}
+
+.secondary {
+  background: var(--gp-touch);
+  color: var(--gp-primary);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--gp-primary-subtle);
+}
+
+.secondary:active:not(:disabled) {
+  background: var(--gp-mint);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--gp-text-secondary);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--gp-touch);
+  color: var(--gp-text-primary);
+}
+
+.danger {
+  background: transparent;
+  color: var(--gp-danger);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--gp-danger-subtle);
+}

@@ -1,0 +1,16 @@
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gp-space-3);
+}
+
+.headerSpacer {
+  flex: 1;
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--gp-space-2);
+}

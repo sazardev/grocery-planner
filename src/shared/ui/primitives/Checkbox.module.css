@@ -1,0 +1,66 @@
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  cursor: pointer;
+}
+
+.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-surface-raised);
+  color: var(--gp-text-inverse);
+  transition:
+    background-color var(--gp-duration-fast) var(--gp-ease-out),
+    transform var(--gp-duration-normal) var(--gp-ease-spring);
+  flex-shrink: 0;
+}
+
+.box svg {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: gp-draw 0.28s var(--gp-ease-out) forwards;
+}
+
+.sm {
+  width: 24px;
+  height: 24px;
+}
+
+.md {
+  width: 32px;
+  height: 32px;
+}
+
+.lg {
+  width: 40px;
+  height: 40px;
+}
+
+.checked {
+  background: var(--gp-primary);
+  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-bounce);
+}
+
+.input:focus-visible + .box {
+  outline: 2px solid var(--gp-primary);
+  outline-offset: 2px;
+}
+
+.input:active + .box {
+  transform: scale(0.8) rotate(-10deg);
+}

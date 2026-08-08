@@ -1,0 +1,76 @@
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gp-space-3);
+  padding: var(--gp-space-3) var(--gp-space-4);
+  border-radius: var(--gp-radius-md);
+  transform-origin: top left;
+  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-spring);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  animation: gp-bounce 2s var(--gp-ease-out) infinite;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: var(--gp-text-base);
+  font-weight: var(--gp-weight-semibold);
+  line-height: var(--gp-line-base);
+}
+
+.body {
+  font-size: var(--gp-text-sm);
+  line-height: var(--gp-line-sm);
+  opacity: 0.9;
+}
+
+.title + .body {
+  margin-top: var(--gp-space-1);
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  padding: var(--gp-space-1);
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  transition: opacity var(--gp-duration-instant) var(--gp-ease-out);
+}
+
+.close:hover {
+  opacity: 1;
+}
+
+/* --- Tonos --- */
+.info {
+  background: var(--gp-info-subtle);
+  color: var(--gp-info-text);
+}
+
+.warning {
+  background: var(--gp-warning-subtle);
+  color: var(--gp-warning-text);
+}
+
+.danger {
+  background: var(--gp-danger-subtle);
+  color: var(--gp-danger-text);
+}
+
+.success {
+  background: var(--gp-primary-subtle);
+  color: var(--gp-primary-hover);
+}

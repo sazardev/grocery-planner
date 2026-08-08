@@ -1,0 +1,56 @@
+{
+  "name": "Grocery Planner",
+  "short_name": "Grocery",
+  "description": "¿Qué falta? La lista de compras de tu familia, en tiempo real y en todos tus dispositivos. Self-hosted, plano y sencillo.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F8FAF9",
+  "theme_color": "#16A34A",
+  "lang": "es",
+  "dir": "ltr",
+  "categories": ["food", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "¿Qué falta?",
+      "short_name": "Lista",
+      "description": "Ver la lista de compras",
+      "url": "/",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Listas",
+      "short_name": "Listas",
+      "description": "Ver listas de la familia",
+      "url": "/lists"
+    },
+    {
+      "name": "Ajustes",
+      "short_name": "Ajustes",
+      "description": "Configuración de la familia",
+      "url": "/settings"
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+[package]
+name = "grocery-planner"
+version = "0.1.0"
+description = "Grocery Planner - Familyself-hosted shopping planner"
+authors = ["Omar"]
+license = ""
+repository = ""
+edition = "2021"
+rust-version = "1.77.2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "grocery_planner_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+default = []
+# Servidor HTTP self-hosted (fase 2 preview). Se compila con:
+#   cargo run --features server --bin server
+server = ["dep:axum", "dep:tokio", "dep:tower-http"]
+
+[[bin]]
+name = "server"
+path = "src/bin/server.rs"
+required-features = ["server"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.11.3", features = [] }
+tauri-plugin-log = "2"
+time = { version = "0.3", features = ["formatting"] }
+uuid = { version = "1", features = ["v4"] }
+argon2 = "0.5"
+axum = { version = "0.8", optional = true }
+tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros", "net", "time"] }
+tower-http = { version = "0.6", optional = true, features = ["cors"] }

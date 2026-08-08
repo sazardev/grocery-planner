@@ -1,0 +1,75 @@
+.strip {
+  position: relative;
+  display: inline-flex;
+  align-self: flex-start;
+}
+
+.avatars {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.avatarWrap {
+  position: relative;
+  display: inline-flex;
+  border: 2px solid var(--gp-background);
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-background);
+}
+
+.avatarWrap + .avatarWrap {
+  margin-left: -10px;
+}
+
+.dot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gp-primary);
+  border: 2px solid var(--gp-background);
+}
+
+.popover {
+  position: absolute;
+  top: 0;
+  right: calc(100% + var(--gp-space-2));
+  z-index: var(--gp-z-raised);
+  min-width: 200px;
+  background: var(--gp-surface);
+  border-radius: var(--gp-radius-lg);
+  padding: var(--gp-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+  animation: gp-rise 0.2s var(--gp-ease-out);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}

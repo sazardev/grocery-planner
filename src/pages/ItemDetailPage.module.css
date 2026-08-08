@@ -1,0 +1,55 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-3);
+}
+
+.headerSpacer {
+  flex: 1;
+}
+
+.itemName {
+  font-size: var(--gp-text-xl);
+}
+
+.sectionTitle {
+  margin-bottom: var(--gp-space-2);
+}
+
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gp-space-2);
+}
+
+.chipActive {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+.rowFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gp-space-3);
+}
+
+.moveRow {
+  display: flex;
+  gap: var(--gp-space-3);
+}
+
+.historyRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gp-space-2);
+}
+
+.historyDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-primary);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+

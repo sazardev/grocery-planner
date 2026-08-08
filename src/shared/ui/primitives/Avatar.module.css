@@ -1,0 +1,53 @@
+.avatar {
+  border-radius: var(--gp-radius-pill);
+  object-fit: cover;
+  flex-shrink: 0;
+  transform-origin: center;
+  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-spring);
+  transition: transform var(--gp-duration-normal) var(--gp-ease-spring);
+}
+
+.avatar:hover {
+  transform: translateY(-2px) scale(1.08);
+  animation: none;
+}
+
+.initial {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gp-primary-subtle);
+  color: var(--gp-primary);
+  font-weight: var(--gp-weight-semibold);
+  letter-spacing: var(--gp-tracking-label);
+}
+
+.xs {
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+}
+
+.sm {
+  width: 24px;
+  height: 24px;
+  font-size: var(--gp-text-xs);
+}
+
+.md {
+  width: 40px;
+  height: 40px;
+  font-size: var(--gp-text-base);
+}
+
+.lg {
+  width: 56px;
+  height: 56px;
+  font-size: var(--gp-text-lg);
+}
+
+.xl {
+  width: 80px;
+  height: 80px;
+  font-size: var(--gp-text-xl);
+}

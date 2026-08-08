@@ -1,0 +1,49 @@
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+}
+
+.inviteRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+}
+
+.inviteRow select {
+  padding: var(--gp-space-2) var(--gp-space-3);
+  border-radius: var(--gp-radius-full);
+  font: inherit;
+  color: inherit;
+  background: var(--gp-surface);
+  border: none;
+}
+
+.memberRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+  flex-wrap: wrap;
+}
+
+.memberActions {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+}
+
+.rowFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gp-space-3);
+}
+

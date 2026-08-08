@@ -1,0 +1,60 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--gp-space-1);
+  border-radius: var(--gp-radius-pill);
+  font-size: 11px;
+  font-weight: var(--gp-weight-bold);
+  line-height: 1;
+  transform-origin: center;
+  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-bounce);
+}
+
+.badge:hover {
+  animation: gp-attention var(--gp-duration-normal) var(--gp-ease-out);
+}
+
+.dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--gp-radius-pill);
+}
+
+.dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: gp-ping 1.6s var(--gp-ease-out) infinite;
+}
+
+.default {
+  background: var(--gp-primary);
+  color: var(--gp-text-inverse);
+}
+
+.warning {
+  background: var(--gp-warning);
+  color: var(--gp-text-inverse);
+}
+
+.danger {
+  background: var(--gp-danger);
+  color: var(--gp-text-inverse);
+}
+
+.info {
+  background: var(--gp-info);
+  color: var(--gp-text-inverse);
+}
+
+.muted {
+  background: var(--gp-surface-raised);
+  color: var(--gp-text-secondary);
+}
