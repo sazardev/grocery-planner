@@ -41,10 +41,10 @@
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Listas",
-      "short_name": "Listas",
-      "description": "Ver listas de la familia",
-      "url": "/lists"
+      "name": "Mandado",
+      "short_name": "Mandado",
+      "description": "Ver los mandados de la familia",
+      "url": "/trips"
     },
     {
       "name": "Ajustes",

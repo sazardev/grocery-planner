@@ -11,12 +11,17 @@ despensa, otro va al mandado, y nadie se duplica.
 </div>
 
 ![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
+![CI](https://img.shields.io/github/actions/workflow/status/sazardev/grocery-planner/ci.yml?label=CI)
 ![Rust](https://img.shields.io/badge/Rust-1.77+-orange.svg)
 ![React](https://img.shields.io/badge/React-19-61dafb.svg)
 ![Tauri](https://img.shields.io/badge/Tauri-v2-24c8db.svg)
 ![PRs: bienvenidas](https://img.shields.io/badge/PRs-bienvenidas-brightgreen.svg)
 
 ---
+
+## 🖼️ Captura
+
+![Grocery Planner — lista de compras](screenshots/home.png)
 
 ## ✨ Características
 

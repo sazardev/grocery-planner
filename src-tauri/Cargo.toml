@@ -1,10 +1,11 @@
 [package]
 name = "grocery-planner"
 version = "0.1.0"
-description = "Grocery Planner - Familyself-hosted shopping planner"
-authors = ["Omar"]
-license = ""
-repository = ""
+description = "Grocery Planner - family self-hosted shopping planner"
+authors = ["Omar Flores Salazar"]
+license = "Apache-2.0"
+repository = "https://github.com/sazardev/grocery-planner"
+homepage = "https://github.com/sazardev/grocery-planner"
 edition = "2021"
 rust-version = "1.77.2"
 
