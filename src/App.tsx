@@ -3,6 +3,8 @@ import { Routes, Route } from 'react-router-dom'
 import AuthProvider from './lib/auth/AuthProvider.tsx'
 import RequireAuth from './lib/auth/RequireAuth.tsx'
 import Layout from './components/Layout.tsx'
+import { OnboardingProvider } from './components/onboarding/OnboardingProvider.tsx'
+import TourOverlay from './components/onboarding/TourOverlay.tsx'
 import Skeleton from './shared/ui/primitives/Skeleton.tsx'
 import { Stack } from './shared/ui/index.ts'
 
@@ -49,53 +51,56 @@ function PageLoader() {
 export default function App() {
   return (
     <AuthProvider>
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route
-            element={
-              <RequireAuth>
-                <Layout />
-              </RequireAuth>
-            }
-          >
-            <Route path="/" element={<HomePage />} />
-            <Route path="/items/new" element={<NewItemPage />} />
-            <Route path="/items/:id" element={<ItemDetailPage />} />
-            <Route path="/trips" element={<TripsPage />} />
-            <Route path="/trips/:id" element={<TripDetailPage />} />
-            <Route path="/plans" element={<PlansPage />} />
-            <Route path="/plans/new" element={<NewPlanPage />} />
-            <Route path="/plans/:id" element={<PlanDetailPage />} />
-            <Route path="/events" element={<EventsPage />} />
-            <Route path="/events/:id" element={<EventDetailPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="/mine" element={<MinePage />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/family" element={<FamilyPage />} />
-            <Route path="/family/members" element={<MembersPage />} />
-            <Route path="/family/invite" element={<InvitePage />} />
-            <Route path="/family/join" element={<JoinPage />} />
-            <Route path="/trips/stores" element={<StoresPage />} />
-            <Route path="/trips/sections" element={<SectionsPage />} />
-            <Route path="/rules" element={<RulesPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
-          <Route
-            path="/kiosk"
-            element={
-              <RequireAuth>
-                <KioskPage />
-              </RequireAuth>
-            }
-          />
-        </Routes>
-      </Suspense>
+      <OnboardingProvider>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route
+              element={
+                <RequireAuth>
+                  <Layout />
+                </RequireAuth>
+              }
+            >
+              <Route path="/" element={<HomePage />} />
+              <Route path="/items/new" element={<NewItemPage />} />
+              <Route path="/items/:id" element={<ItemDetailPage />} />
+              <Route path="/trips" element={<TripsPage />} />
+              <Route path="/trips/:id" element={<TripDetailPage />} />
+              <Route path="/plans" element={<PlansPage />} />
+              <Route path="/plans/new" element={<NewPlanPage />} />
+              <Route path="/plans/:id" element={<PlanDetailPage />} />
+              <Route path="/events" element={<EventsPage />} />
+              <Route path="/events/:id" element={<EventDetailPage />} />
+              <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/chat" element={<ChatPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/mine" element={<MinePage />} />
+              <Route path="/history" element={<HistoryPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/family" element={<FamilyPage />} />
+              <Route path="/family/members" element={<MembersPage />} />
+              <Route path="/family/invite" element={<InvitePage />} />
+              <Route path="/family/join" element={<JoinPage />} />
+              <Route path="/trips/stores" element={<StoresPage />} />
+              <Route path="/trips/sections" element={<SectionsPage />} />
+              <Route path="/rules" element={<RulesPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+            <Route
+              path="/kiosk"
+              element={
+                <RequireAuth>
+                  <KioskPage />
+                </RequireAuth>
+              }
+            />
+          </Routes>
+        </Suspense>
+        <TourOverlay />
+      </OnboardingProvider>
     </AuthProvider>
   )
 }

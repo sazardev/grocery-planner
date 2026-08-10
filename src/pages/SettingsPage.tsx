@@ -13,11 +13,12 @@ import Alert from '../shared/ui/feedback/Alert.tsx'
 import EmptyState from '../shared/ui/feedback/EmptyState.tsx'
 import { Card, Input, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { useOnboarding } from '../components/onboarding/onboarding.ts'
 import { useTheme } from '../lib/theme.ts'
 import type { ThemeMode } from '../lib/theme.ts'
 import TabBar from '../shared/ui/navigation/TabBar.tsx'
 import { useNavigate } from 'react-router-dom'
-import { Home as HomeIcon, KeyRound, LogOut, MonitorSmartphone, Moon, Sun, Tv } from 'lucide-react'
+import { Home as HomeIcon, KeyRound, LogOut, MonitorSmartphone, Moon, Sparkles, Sun, Tv } from 'lucide-react'
 import NotificationsSection from '../components/settings/NotificationsSection.tsx'
 import PinSection from '../components/settings/PinSection.tsx'
 import BackupSection from '../components/settings/BackupSection.tsx'
@@ -42,6 +43,7 @@ export default function SettingsPage() {
   const navigate = useNavigate()
   const { user, token, signOut } = useAuth()
   const { mode: themeMode, setMode: setThemeMode } = useTheme()
+  const { start: startOnboarding } = useOnboarding()
   const [homeName, setHomeName] = useState('')
   const [homeError, setHomeError] = useState<string | null>(null)
   useDocumentTitle('Ajustes · Grocery Planner')
@@ -231,6 +233,22 @@ export default function SettingsPage() {
           </Text>
           <Button variant="secondary" full onClick={() => navigate('/kiosk')}>
             Abrir pantalla de host
+          </Button>
+        </Stack>
+      </Card>
+
+      <Card padding="md">
+        <Stack gap="2">
+          <div className={styles.line}>
+            <Text variant="section">
+              <Sparkles size={18} aria-hidden="true" /> Guía de la app
+            </Text>
+          </div>
+          <Text as="p" variant="note" tone="secondary">
+            Recorre todas las pantallas y sus acciones con un tour guiado.
+          </Text>
+          <Button variant="secondary" full onClick={() => startOnboarding()}>
+            <Sparkles size={18} strokeWidth={2} aria-hidden="true" /> Ver la guía otra vez
           </Button>
         </Stack>
       </Card>
