@@ -4,12 +4,13 @@ import { listPlans } from '../lib/api'
 import type { Plan } from '../domain/plan'
 import Text from '../shared/ui/primitives/Text.tsx'
 import Button from '../shared/ui/primitives/Button.tsx'
+import IconButton from '../shared/ui/primitives/IconButton.tsx'
 import Chip from '../shared/ui/primitives/Chip.tsx'
 import Skeleton from '../shared/ui/primitives/Skeleton.tsx'
 import EmptyState from '../shared/ui/feedback/EmptyState.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
-import { CalendarClock, Plus } from 'lucide-react'
+import { ArrowLeft, CalendarClock, Plus } from 'lucide-react'
 import styles from './PlansPage.module.css'
 
 const planStatusLabel: Record<Plan['status'], string> = {
@@ -25,12 +26,22 @@ export default function PlansPage() {
 
   const plans = useQuery({ queryKey: ['plans'], queryFn: listPlans })
 
+  const goBack = () => {
+    if (window.history.length > 1) navigate(-1)
+    else navigate('/calendar')
+  }
+
   return (
     <Stack gap="6">
       <header>
-        <Text as="h1" variant="h1">
-          Plan de compras
-        </Text>
+        <div className={styles.headerRow}>
+          <IconButton label="Volver al calendario" onClick={goBack}>
+            <ArrowLeft size={22} strokeWidth={2} />
+          </IconButton>
+          <Text as="h1" variant="h1">
+            Plan de compras
+          </Text>
+        </div>
         <Text as="p" variant="note" tone="secondary">
           Elige cuándo ir a comprar, a qué tienda y quién se encarga.
         </Text>

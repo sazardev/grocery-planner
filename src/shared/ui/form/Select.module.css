@@ -1,18 +1,25 @@
 .wrapper {
   position: relative;
+  min-width: 0;
 }
 
+/* --- Trigger (parece el input relleno, pero es un botón) --- */
 .select {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
   width: 100%;
-  appearance: none;
+  min-width: 0;
   border: none;
   border-radius: var(--gp-radius-md);
   background: var(--gp-surface-raised);
   color: var(--gp-text-primary);
+  font-family: var(--gp-font-sans);
   font-size: var(--gp-text-base);
   line-height: var(--gp-line-base);
-  padding: 0 var(--gp-space-10) 0 var(--gp-space-4);
+  padding: 0 var(--gp-space-4);
   cursor: pointer;
+  text-align: left;
   transition:
     background-color var(--gp-duration-fast) var(--gp-ease-out),
     transform var(--gp-duration-fast) var(--gp-ease-spring);
@@ -22,11 +29,14 @@
   background: var(--gp-surface);
 }
 
-.select:focus {
+.select:focus-visible {
   outline: 2px solid var(--gp-primary);
+  outline-offset: 2px;
   background: var(--gp-surface);
-  transform: translateY(-1px);
-  animation: gp-attention 0.5s var(--gp-ease-out);
+}
+
+.select:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .select.error {
@@ -39,18 +49,28 @@
   opacity: 0.5;
 }
 
+.value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--gp-weight-medium);
+}
+
+.placeholder {
+  color: var(--gp-text-tertiary);
+  font-weight: var(--gp-weight-regular);
+}
+
 .chevron {
-  position: absolute;
-  right: var(--gp-space-3);
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
+  flex-shrink: 0;
   color: var(--gp-text-tertiary);
   transition: transform var(--gp-duration-normal) var(--gp-ease-spring);
 }
 
-.select:focus + .chevron {
-  transform: translateY(-50%) rotate(180deg);
+.chevronOpen {
+  transform: rotate(180deg);
 }
 
 /* --- Sizes --- */
@@ -60,4 +80,74 @@
 
 .lg {
   height: 56px;
+}
+
+/* --- Desplegable (mismo lenguaje que el menú de filtros) --- */
+.dropdown {
+  position: absolute;
+  top: calc(100% + var(--gp-space-2));
+  z-index: var(--gp-z-raised);
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--gp-surface);
+  border-radius: var(--gp-radius-lg);
+  padding: var(--gp-space-1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: gp-rise 0.2s var(--gp-ease-out);
+}
+
+.alignLeft {
+  left: 0;
+}
+
+.alignRight {
+  right: 0;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--gp-space-3);
+  border: none;
+  border-radius: var(--gp-radius-md);
+  background: transparent;
+  color: var(--gp-text-primary);
+  font-family: var(--gp-font-sans);
+  font-size: var(--gp-text-base);
+  cursor: pointer;
+  text-align: left;
+}
+
+.option:hover,
+.optionActive {
+  background: var(--gp-surface-raised);
+}
+
+.optionSelected {
+  color: var(--gp-primary);
+  font-weight: var(--gp-weight-medium);
+}
+
+.optionDisabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.optionLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.optionCheck {
+  flex-shrink: 0;
+  color: var(--gp-primary);
 }

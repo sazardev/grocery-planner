@@ -192,7 +192,7 @@ export function recoverItem(id: string, by: string): Promise<GroceryItem> {
   return request<GroceryItem>('item_recover', { id, by })
 }
 
-/** Ítems que se compraron en una fecha (AAAA-MM-DD) — "comprar lo mismo de la semana pasada" (§8.2). */
-export function getItemsPurchasedOn(date: string): Promise<GroceryItem[]> {
-  return request<GroceryItem[]>('items_purchased_on', { date })
+/** Ítems comprados entre dos marcas ISO — "comprar lo mismo de la semana pasada" (§8.2). */
+export function getItemsPurchasedBetween(start: string, end: string): Promise<GroceryItem[]> {
+  return request<GroceryItem[]>('items_purchased_between', { start, end })
 }

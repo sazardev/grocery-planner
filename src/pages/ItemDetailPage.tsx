@@ -1,19 +1,24 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, Trash2, ArrowLeft, MessageSquare, History } from 'lucide-react'
+import { ArrowDown, ArrowUp, Trash2, ArrowLeft, MessageSquare, History, Camera, Undo2 } from 'lucide-react'
 import {
   addItemComment,
+  addItemPhoto,
   assignItem,
   changeItemStatus,
   deleteItem,
   getHome,
   getItem,
   getItemHistory,
+  getRules,
   listSections,
   moveItem,
+  recoverItem,
+  removeItemPhoto,
   setItemPrice,
   setItemSection,
+  setItemStore,
   updateItem,
 } from '../lib/api'
 import { ME } from '../lib/me'
@@ -33,6 +38,7 @@ import { Card, Stack } from '../shared/ui/index.ts'
 import { PRIORITY_LABEL, PRIORITY_TONE } from './itemPriority.ts'
 import { useMeta } from '../lib/hooks/useMeta.ts'
 import ShareButton from '../shared/ui/navigation/ShareButton.tsx'
+import { readFileAsDataURL } from '../lib/readFile.ts'
 import styles from './ItemDetailPage.module.css'
 
 function historyText(kind: ItemEventKind): string {
@@ -74,6 +80,7 @@ export default function ItemDetailPage() {
 
   const homeQuery = useQuery({ queryKey: ['home'], queryFn: getHome, retry: false })
   const sectionsQuery = useQuery({ queryKey: ['sections'], queryFn: listSections })
+  const rulesQuery = useQuery({ queryKey: ['rules'], queryFn: getRules })
   const historyQuery = useQuery({
     queryKey: ['item', id, 'history'],
     queryFn: () => getItemHistory(id ?? ''),
@@ -178,6 +185,41 @@ export default function ItemDetailPage() {
       setCommentBody('')
     },
   })
+
+  const photoFileRef = useRef<HTMLInputElement>(null)
+  const [photoError, setPhotoError] = useState<string | null>(null)
+  const photoMutation = useMutation({
+    mutationFn: (photo: string) => addItemPhoto(item!.id, photo),
+    onSuccess: () => {
+      invalidateItem()
+      setPhotoError(null)
+    },
+    onError: (err) => setPhotoError(err instanceof Error ? err.message : 'No se pudo subir la foto'),
+  })
+  const removePhotoMutation = useMutation({
+    mutationFn: (index: number) => removeItemPhoto(item!.id, index),
+    onSuccess: invalidateItem,
+  })
+  const recoverMutation = useMutation({
+    mutationFn: () => recoverItem(item!.id, ME),
+    onSuccess: () => {
+      invalidateItem()
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+    },
+  })
+  const storeMutation = useMutation({
+    mutationFn: (storeName: string) => setItemStore(item!.id, storeName),
+    onSuccess: invalidateItem,
+  })
+
+  const pickPhoto = async (file?: File) => {
+    if (!file) return
+    try {
+      photoMutation.mutate(await readFileAsDataURL(file))
+    } catch (e) {
+      setPhotoError(e instanceof Error ? e.message : 'No se pudo leer la foto')
+    }
+  }
 
   const goBack = () => {
     if (window.history.length > 1) navigate(-1)
@@ -345,8 +387,61 @@ export default function ItemDetailPage() {
               </Select>
             </Field>
           )}
+
+          {(rulesQuery.data?.stores.length ?? 0) > 0 && (
+            <Field label="Tienda donde se consigue">
+              <Select
+                value={item.store ?? ''}
+                onChange={(e) => e.target.value && storeMutation.mutate(e.target.value)}
+              >
+                <option value="">Sin tienda</option>
+                {rulesQuery.data!.stores.map((s) => (
+                  <option key={s.name} value={s.name}>
+                    {s.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
         </Stack>
       </Card>
+
+      <section>
+        <Text as="h2" variant="section" className={styles.sectionTitle}>
+          <Camera size={16} aria-hidden="true" /> Fotos ({item.photos?.length ?? 0})
+        </Text>
+        <Stack gap="2">
+          {photoError && <Alert tone="danger">{photoError}</Alert>}
+          <input
+            ref={photoFileRef}
+            type="file"
+            accept="image/*"
+            hidden
+            aria-hidden="true"
+            onChange={(e) => pickPhoto(e.target.files?.[0])}
+          />
+          {(item.photos ?? []).length > 0 && (
+            <div className={styles.photoRow}>
+              {item.photos.map((src, i) => (
+                <div key={`${src.slice(0, 32)}-${i}`} className={styles.photoWrap}>
+                  <img className={styles.photo} src={src} alt={`Foto ${i + 1} de ${item.name}`} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removePhotoMutation.mutate(i)}
+                    aria-label="Quitar foto"
+                  >
+                    <Trash2 size={14} aria-hidden="true" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <Button variant="secondary" onClick={() => photoFileRef.current?.click()} loading={photoMutation.isPending}>
+            <Camera size={16} aria-hidden="true" /> Subir foto
+          </Button>
+        </Stack>
+      </section>
 
       <section>
         <Text as="h2" variant="section" className={styles.sectionTitle}>
@@ -378,6 +473,19 @@ export default function ItemDetailPage() {
           ))}
         </div>
       </section>
+
+      {item.status === 'cancelado' && (
+        <Alert tone="info">
+          <div className={styles.recoverRow}>
+            <Text variant="note">
+              Cancelado por error? Tráelo de vuelta a la lista con su historial intacto.
+            </Text>
+            <Button size="sm" onClick={() => recoverMutation.mutate()} loading={recoverMutation.isPending}>
+              <Undo2 size={14} aria-hidden="true" /> Recuperar
+            </Button>
+          </div>
+        </Alert>
+      )}
 
       <section>
         <Text as="h2" variant="section" className={styles.sectionTitle}>

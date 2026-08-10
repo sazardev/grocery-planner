@@ -29,7 +29,7 @@ impl ItemStatus {
         match self {
             Self::Falta => &[Self::Pedido, Self::Llevo, Self::Comprado, Self::Cancelado],
             Self::Pedido => &[Self::Falta, Self::Llevo, Self::Comprado, Self::Cancelado],
-            Self::Llevo => &[Self::Comprado, Self::Cancelado],
+            Self::Llevo => &[Self::Falta, Self::Comprado, Self::Cancelado],
             Self::Comprado => &[Self::Cancelado],
             Self::Cancelado => &[Self::Falta],
         }
@@ -561,6 +561,7 @@ mod tests {
         assert!(ItemStatus::Falta.can_transition(ItemStatus::Llevo));
         assert!(ItemStatus::Pedido.can_transition(ItemStatus::Comprado));
         assert!(ItemStatus::Llevo.can_transition(ItemStatus::Comprado));
+        assert!(ItemStatus::Llevo.can_transition(ItemStatus::Falta));
         assert!(ItemStatus::Cancelado.can_transition(ItemStatus::Falta));
         assert_eq!(
             ItemStatus::Falta.transition(ItemStatus::Pedido).unwrap(),

@@ -1,0 +1,36 @@
+.toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-touch);
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 38px;
+  border: none;
+  border-radius: var(--gp-radius-pill);
+  background: transparent;
+  color: var(--gp-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--gp-duration-fast) var(--gp-ease-out),
+    color var(--gp-duration-fast) var(--gp-ease-out);
+}
+
+.button:hover {
+  background: var(--gp-surface-raised);
+}
+
+.active {
+  background: var(--gp-primary);
+  color: var(--gp-text-inverse);
+}
+
+.active:hover {
+  background: var(--gp-primary);
+}

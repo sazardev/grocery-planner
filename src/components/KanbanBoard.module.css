@@ -1,0 +1,159 @@
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(230px, 1fr));
+  gap: var(--gp-space-3);
+  align-items: start;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding: var(--gp-space-1) var(--gp-space-1) var(--gp-space-3);
+  scroll-snap-type: x proximity;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+  min-height: 120px;
+  min-width: 0;
+  padding: var(--gp-space-3);
+  border-radius: var(--gp-radius-lg);
+  background: var(--gp-touch);
+  scroll-snap-align: start;
+  transition: background-color var(--gp-duration-fast) var(--gp-ease-out);
+}
+
+.columnOver {
+  background: var(--gp-mint);
+}
+
+.columnHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+}
+
+.columnCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 var(--gp-space-2);
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-surface);
+  color: var(--gp-text-secondary);
+  font-size: var(--gp-text-xs);
+  font-weight: var(--gp-weight-medium);
+}
+
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+  min-height: 40px;
+}
+
+.empty {
+  margin: 0;
+  padding: var(--gp-space-3) 0;
+  text-align: center;
+  font-size: var(--gp-text-xs);
+  color: var(--gp-text-tertiary);
+}
+
+/* --- Tarjeta --- */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-1);
+  padding: var(--gp-space-3);
+  border-radius: var(--gp-radius-md);
+  background: var(--gp-surface);
+  min-width: 0;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    background-color var(--gp-duration-fast) var(--gp-ease-out),
+    transform var(--gp-duration-fast) var(--gp-ease-out);
+}
+
+.card:hover {
+  background: var(--gp-surface-raised);
+}
+
+.card:active {
+  cursor: grabbing;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--gp-primary);
+  outline-offset: 2px;
+}
+
+.cardDragging {
+  opacity: 0.4;
+}
+
+.cardCarried {
+  background: var(--gp-primary-subtle);
+}
+
+.cardCarried:hover {
+  background: var(--gp-primary-subtle);
+}
+
+.cardDone {
+  background: var(--gp-surface-raised);
+}
+
+.cardDone .meta {
+  color: var(--gp-text-secondary);
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gp-space-2);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  font-size: var(--gp-text-xs);
+  color: var(--gp-text-secondary);
+}
+
+.moves {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--gp-space-1);
+  margin-top: var(--gp-space-1);
+}
+
+.moveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-touch);
+  color: var(--gp-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--gp-duration-instant) var(--gp-ease-out),
+    color var(--gp-duration-instant) var(--gp-ease-out);
+}
+
+.moveBtn:hover {
+  background: var(--gp-mint);
+  color: var(--gp-primary-strong);
+}
+
+.moveBtn:active {
+  transform: scale(0.92);
+}

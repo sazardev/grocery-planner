@@ -1,0 +1,66 @@
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  margin-top: var(--gp-space-3);
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-3);
+}
+
+.rangeTitle {
+  flex: 1;
+  min-width: 140px;
+  text-align: center;
+}
+
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--gp-surface);
+  color: var(--gp-text-primary);
+  cursor: pointer;
+}
+
+.navBtn:hover {
+  background: var(--gp-touch);
+}
+
+.modes {
+  display: flex;
+  gap: var(--gp-space-2);
+  margin-top: var(--gp-space-3);
+  flex-wrap: wrap;
+}
+
+.dayLabel {
+  margin-top: var(--gp-space-4);
+}
+
+.row {
+  display: flex;
+  gap: var(--gp-space-3);
+  align-items: flex-start;
+  padding: var(--gp-space-2) 0;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gp-primary);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.rowBody {
+  min-width: 0;
+}

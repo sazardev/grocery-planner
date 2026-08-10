@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::domain::notification::AppNotification;
+use crate::domain::notification::{AppNotification, NotificationKind};
 use crate::domain::rules::{HomeRules, NotificationSettings};
 
 /// Repositorio en memoria de las reglas del hogar, los avisos y las decisiones
@@ -57,6 +57,23 @@ impl RulesStore {
             .iter()
             .filter(|n| n.for_member == member && !n.read)
             .count()
+    }
+
+    /// Menciones sin leer (@Nombre en el chat) para el badge del chat.
+    pub fn mentions_unread_count(&self, member: &str) -> usize {
+        self.notifications
+            .iter()
+            .filter(|n| n.for_member == member && !n.read && n.kind == NotificationKind::Mention)
+            .count()
+    }
+
+    /// Marca las menciones sin leer como leídas (al abrir el chat).
+    pub fn mark_mentions_read(&mut self, member: &str) {
+        for n in self.notifications.iter_mut() {
+            if n.for_member == member && n.kind == NotificationKind::Mention {
+                n.read = true;
+            }
+        }
     }
 
     pub fn mark_read(&mut self, id: &str, member: &str) {
@@ -144,6 +161,38 @@ mod tests {
         store.mark_all_read("Ana");
         assert_eq!(store.unread_count("Ana"), 0);
         assert_eq!(store.unread_count("Juan"), 1);
+    }
+
+    #[test]
+    fn menciones_sin_leer_se_cuentan_y_marcan() {
+        let mut store = RulesStore::new();
+        store.push_notification(AppNotification::new(
+            NotificationKind::Urgent,
+            "Ana",
+            "Pide pollo",
+            "pollo urgente",
+            None,
+        ));
+        store.push_notification(AppNotification::new(
+            NotificationKind::Mention,
+            "Ana",
+            "@Ana",
+            "te mencionaron",
+            Some("/chat"),
+        ));
+        store.push_notification(AppNotification::new(
+            NotificationKind::Mention,
+            "Ana",
+            "@Ana",
+            "te mencionaron otra vez",
+            Some("/chat"),
+        ));
+        // Solo cuenta menciones sin leer (no el urgente)
+        assert_eq!(store.mentions_unread_count("Ana"), 2);
+        store.mark_mentions_read("Ana");
+        assert_eq!(store.mentions_unread_count("Ana"), 0);
+        // El aviso urgente sigue sin leer
+        assert_eq!(store.unread_count("Ana"), 1);
     }
 
     #[test]

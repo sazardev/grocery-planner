@@ -1,6 +1,6 @@
 # Memory — Grocery Planner
 
-Registro de lo hecho en la sesión del 2026-08-07.
+Bitácora de lo hecho por sesión (primera sesión: 2026-08-07).
 
 ## Contexto del proyecto
 
@@ -114,7 +114,7 @@ npm run tauri:build  # empaquetar desktop (deb/rpm/appimage…)
 - AppImage (linuxdeploy) y builds para Windows/macOS desde CI.
 - Móvil: reinstalar decisión + instalar Java/Android SDK (en CachyOS falló la firma de pacman;
   `pacman-key --init/--refresh-keys` quedó a medio correr y el usuario lo abortó).
-- Repo git: la carpeta **aún no es repositorio git** (decisión del usuario pendiente).
+- Repo git: **resuelto** — el proyecto quedó inicializado como repositorio git (rama `main`).
 
 ---
 
@@ -435,6 +435,118 @@ protección de rutas en React y autenticación real del API HTTP. `cargo test` *
 - **Skill creada**: `.agents/skills/grocery-planner/SKILL.md` — cómo levantar el proyecto
   (backend HTTP + Vite, desktop), entrar al sistema, verificación y gotchas.
 - `cargo test` 77 ✓ · `cargo check --features server` ✓ · `npm run build` ✓ · `npm run lint` ✓.
+
+---
+
+## Feature completa de SPEC (chat, fotos, calendario, lo mío, historial, PIN, reglas, respaldo) (2026-08-07)
+
+Se implementaron en la UI todos los apartados del SPEC que faltaban (antes solo backend o nada).
+`cargo test` **96 passed** · `cargo check --features server` ✓ · `npm run build` ✓ ·
+`npm run lint` ✓ · **smoke HTTP 31/31** · **E2E headless 19/19**.
+
+### Backend (`src-tauri/src/`)
+- **Chat (§11)** — `domain/chat.rs` + `store/chat.rs` + `commands/chat.rs`: mensajes de la
+  familia con fotos, **menciones `@Nombre`** (detectadas contra los miembros), **reacciones**
+  (toggle por miembro) y **fijados**. Los **mensajes del sistema** se derivan del historial
+  de ítems/mandados en `compute_chat` (no se duplican en el store). Las menciones generan avisos.
+- **Reglas de la familia (§14)** — `domain/rules.rs` + `store/rules.rs` + `commands/rules.rs`:
+  `HomeRules` (nombre, tiendas+pasillos, unidades, categorías, límite de fotos, modo host,
+  privacidad de fotos/precios, idioma, zona horaria, preferencias de notificación por miembro).
+- **Notificaciones (§13)** — `domain/notification.rs`: avisos por miembro (`AppNotification`,
+  kind, leída, link). Se generan en `chat_send` (menciones) y `trips_confirm_received`.
+  Commands: list/unread/mark-read/mark-all-read/settings-get/settings-update.
+- **Fotos de ítem (§10)** — `GroceryItem.photos: Vec<String>` (data URLs), `item_add_photo`
+  (respeta `photo_limit` de reglas), `item_remove_photo`; filtro `only_photos` en `ItemQuery`.
+- **Proyección confirmar/descartar (§7.2)** — `projection_decide`; `Projection` incluye
+  `decided`/`confirmed` (decisiones en `RulesStore.projection_choices`).
+- **Recuperar ítem cancelado (§8.2)** — `item_recover` (solo desde Cancelado → Falta).
+- **Repetir compra (§8.2)** — `items_purchased_between(start, end)` (rango ISO).
+- **Timeline (§8.3)** — `commands/timeline.rs` + endpoint `/api/timeline?start&end` (ISO).
+- **Confirmar recibo (§6)** — `ShoppingTrip.received_at/received_by` + `trips_confirm_received`
+  (notifica al que compró).
+- **Orden §4.4** — `ItemSort` (manual/priority/name/category/requestedBy/price/store) en
+  `ItemQuery`; `store` en el ítem (`item_set_store`); `section_move` (subir/bajar secciones).
+- **PIN rápido (§2.3)** — `User.pin_hash` (argon2id), `auth_set_pin/remove_pin/has_pin/login_pin`
+  (público: `/api/auth/has-pin`, `/api/auth/login-pin`).
+- **Respaldo (§15)** — `commands/backup.rs` `backup_export/import` (JSON completo del hogar).
+
+### Frontend
+- `domain/`: `chat.ts`, `rules.ts`, `notification.ts`, `timeline.ts`; `item.ts` (+photos/store/
+  event kinds), `report.ts` (+decided/confirmed), `trip.ts` (+receivedAt/receivedBy).
+- `lib/api/`: `chat.ts`, `rules.ts` (reglas+notificaciones+proyección), `timeline.ts`,
+  `backup.ts`; items/trips/sections/auth/reports ampliados. `lib/dates.ts` nuevo (helpers de
+  fecha y **conversión local→UTC** para el historial).
+- **Páginas nuevas**: `ChatPage` (burbujas, reacciones, fijar, adjuntar foto), `CalendarPage`
+  (día/semana/mes/año con eventos+planes+mandados), `MinePage` ("Lo mío" agrupado por tienda +
+  confirmar recibo + barra de progreso), `HistoryPage` (línea de tiempo con ventanas), 
+  `NotificationsPage`, `KioskPage` (host con botón gigante + presencia).
+- **Settings**: secciones nuevas como componentes (`components/settings/`): RulesSection,
+  StoresSection, SectionsSection, NotificationsSection, PinSection, BackupSection.
+- **HomePage**: selector de orden, filtro "Con foto", decisiones de proyección ("Sí, falta"/"No"),
+  accesos rápidos a Calendario/Historial/Avisos.
+- **ItemDetailPage**: sección de fotos (subir/ver/quitar), tienda, botón "Recuperar" en cancelados.
+- **ReportsPage**: tarjeta "Repetir compra" (elige día → recrea la lista).
+- **Login**: entrada con **PIN rápido** (detecta `hasPin` al escribir el nombre).
+- **Rutas**: `/chat`, `/calendar`, `/mine`, `/history`, `/notifications`, `/kiosk`.
+  **Nav** según DESIGN §10.5: Inicio · Mandado · Chat · Lo mío · Ajustes (badge de avisos sin leer
+  en Ajustes). Plan/Eventos quedan accesibles desde Calendario; Historial/Reportes desde Inicio.
+
+### Fix importante
+- **UTC vs local**: el backend guarda `at` en UTC; `timeline_get` e `items_purchased_between`
+  ahora comparan **rangos ISO RFC3339 completos** (no prefijo de fecha). El frontend convierte
+  el día local a límites UTC con `localDayRangeISO`/`localWindowRangeISO` en `lib/dates.ts`.
+
+### Deudas / notas
+- Los avisos se generan solo donde hay touchpoints (menciones, recibo). Faltan generadores para
+  urgentes/asignaciones/eventos y los **push reales** (WebSocket/fase 2); la bandeja y la
+  configuración ya están.
+- La biometría (§2.3) queda como decisión de dispositivo (WebAuthn/nativo) — no implementada.
+- Fotos en memoria como data URLs (fase 1); en fase 2 pasan a disco/DB.
+- `pkill` con `-f` y el patrón "target/debug/server" mata al propio shell del tool (el patrón
+  aparece en su propia línea de comandos): usar `target/debug/serve[r]` para matar el server.
+
+---
+
+## Endurecimiento: vuelta determinista, persistencia y actor real (2026-08-10)
+
+### Vuelta determinista (UI)
+- Nuevo hook `useGoBack(fallback)` en `src/lib/hooks/useGoBack.ts`: vuelve atrás en el historial
+  y si la página se abrió directo navega al destino por defecto. Aplicado a las páginas que
+  usaban `navigate(-1)` sin fallback (NewItemPage, NewPlanPage, RulesPage). Los detalles ya lo
+  tenían.
+
+### Persistencia en disco (backend)
+- **`src-tauri/src/persist.rs`** (nuevo): el estado completo (auth+datos, sin presencia) se
+  serializa a JSON y se guarda en disco. El servidor **carga** al arrancar (en `AppState::default()`)
+  y **guarda cada 5s** en un hilo en segundo plano (en `lib.rs` y `server.rs`).
+- **Ubicación estable**: `GROCERY_PLANNER_DATA`, luego `$XDG_DATA_HOME/grocery-planner/data.json`,
+  luego `~/.grocery-planner/data.json` (ya no depende del directorio actual). Los handlers de auth
+  (register/login/pin/logout/revoke/change-password/pin) guardan **al instante** para no perder
+  una sesión nueva si el server se reinicia en el intervalo.
+- **Escritura segura**: archivo temporal único por escritor (nanos) + `rename`, para que el
+  guardado periódico y el inmediato no corrompan el archivo.
+- **Respaldo completo**: `BackupData` ahora incluye `notifications` y `projectionChoices`, así el
+  seed/reset limpia también los avisos.
+- Resultado: **reiniciar el servidor ya no borra datos ni sesiones**. `grocery-planner-data.json`
+  se agregó a `.gitignore`.
+
+### Actor derivado del token (seguridad)
+- **HTTP**: ya no se confía en el `by`/`owner`/`member`/`createdBy` que manda el cliente. Se
+  eliminaron esos campos de los body structs del server; `auth_guard` resuelve la cuenta del token
+  e inyecta `AuthActor(name)` en la request; los ~20 handlers de mutación usan `actor.0`.
+- **Tauri IPC** queda igual (app local de confianza; el cliente manda `by` = usuario de la sesión).
+- **Seed** (`scripts/seed.mjs`) reescrito: crea cuenta real por miembro y cada acción se hace con
+  la **sesión de ese miembro** (el actor sale del token, no de `by`). Además reinicia avisos.
+
+### Verificación
+- `cargo test` **102 passed** · `cargo check --features server --bin server` sin warnings ·
+  `npm run build` ✓ · `npm run lint` ✓.
+- Persistencia comprobada en vivo: sesión creada antes de reiniciar sigue válida (200) tras
+  restart; ítems/hogar intactos; sin `.tmp` residuales.
+- Actor: ítem/evento creados por la UI se atribuyen al usuario de la sesión (Papá), aunque el
+  cliente mande otro nombre.
+- E2E final: **7/7** (lista+proyección, crear ítem → actor correcto, toggle → historial correcto,
+  tiles Familia/Mandado navegan y vuelven).
 
 
 

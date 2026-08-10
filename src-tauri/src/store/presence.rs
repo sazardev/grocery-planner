@@ -12,6 +12,7 @@ const OFFLINE_AFTER_SECS: i64 = 30;
 struct PresenceEntry {
     name: String,
     last_seen: OffsetDateTime,
+    screen: Option<String>,
 }
 
 pub struct PresenceStore {
@@ -25,7 +26,7 @@ impl PresenceStore {
         }
     }
 
-    pub fn heartbeat(&mut self, name: &str) -> Result<PresenceView, AppError> {
+    pub fn heartbeat(&mut self, name: &str, screen: Option<&str>) -> Result<PresenceView, AppError> {
         let name = name.trim();
         if name.is_empty() {
             return Err(AppError::invalid_input(
@@ -37,6 +38,7 @@ impl PresenceStore {
             PresenceEntry {
                 name: name.to_string(),
                 last_seen: OffsetDateTime::now_utc(),
+                screen: screen.map(str::to_string),
             },
         );
         self.view(name)
@@ -74,6 +76,7 @@ fn to_view(entry: &PresenceEntry, now: OffsetDateTime) -> PresenceView {
         name: entry.name.clone(),
         online: (now - entry.last_seen).whole_seconds() < OFFLINE_AFTER_SECS,
         last_seen: entry.last_seen.format(&Rfc3339).unwrap_or_default(),
+        screen: entry.screen.clone(),
     }
 }
 
@@ -84,16 +87,30 @@ mod tests {
     #[test]
     fn heartbeat_registra_online() {
         let mut store = PresenceStore::new();
-        let view = store.heartbeat("Ana").unwrap();
+        let view = store.heartbeat("Ana", None).unwrap();
         assert!(view.online);
         assert_eq!(store.list().len(), 1);
         assert_eq!(store.list()[0].name, "Ana");
     }
 
     #[test]
+    fn heartbeat_declara_pantalla() {
+        let mut store = PresenceStore::new();
+        store.heartbeat("Ana", Some("chat")).unwrap();
+        store.heartbeat("Juan", None).unwrap();
+        let views = store.list();
+        let chat: Vec<_> = views
+            .iter()
+            .filter(|v| v.screen.as_deref() == Some("chat"))
+            .collect();
+        assert_eq!(chat.len(), 1);
+        assert_eq!(chat[0].name, "Ana");
+    }
+
+    #[test]
     fn vencimiento_y_purga() {
         let mut store = PresenceStore::new();
-        store.heartbeat("Ana").unwrap();
+        store.heartbeat("Ana", None).unwrap();
         let now = OffsetDateTime::now_utc();
         store.members.get_mut("Ana").unwrap().last_seen = now - time::Duration::seconds(60);
         let views = store.list();
@@ -106,7 +123,7 @@ mod tests {
     #[test]
     fn leave_elimina() {
         let mut store = PresenceStore::new();
-        store.heartbeat("Ana").unwrap();
+        store.heartbeat("Ana", None).unwrap();
         store.leave("Ana");
         assert!(store.list().is_empty());
     }
@@ -114,6 +131,6 @@ mod tests {
     #[test]
     fn heartbeat_con_nombre_vacio_es_error() {
         let mut store = PresenceStore::new();
-        assert!(store.heartbeat("  ").is_err());
+        assert!(store.heartbeat("  ", None).is_err());
     }
 }

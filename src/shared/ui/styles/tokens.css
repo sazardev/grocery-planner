@@ -25,6 +25,10 @@
   --gp-text-tertiary: #8a988f;
   --gp-text-inverse: #ffffff;
 
+  /* --- Scrollbars (nativos, consistentes con el tema) --- */
+  --gp-scrollbar-thumb: #c7d0ca;
+  --gp-scrollbar-thumb-hover: #9aa8a0;
+
   /* --- Color: semáforo funcional --- */
   --gp-warning: #d97706;
   --gp-warning-subtle: #fef3c7;
@@ -142,6 +146,9 @@
     --gp-text-secondary: #9aa8a0;
     --gp-text-tertiary: #5b6a61;
     --gp-text-inverse: #0c1510;
+
+    --gp-scrollbar-thumb: #33423a;
+    --gp-scrollbar-thumb-hover: #5b6a61;
 
     --gp-warning: #f59e0b;
     --gp-warning-subtle: #422006;

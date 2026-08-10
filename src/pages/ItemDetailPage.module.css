@@ -8,6 +8,33 @@
   flex: 1;
 }
 
+.photoRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gp-space-3);
+}
+
+.photoWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-1);
+}
+
+.photo {
+  width: 140px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: var(--gp-radius-md);
+}
+
+.recoverRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+  flex-wrap: wrap;
+}
+
 .itemName {
   font-size: var(--gp-text-xl);
 }

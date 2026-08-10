@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { login as apiLogin, logout as apiLogout, me, registerAccount } from '../api'
+import { login as apiLogin, loginPin as apiLoginPin, logout as apiLogout, me, registerAccount } from '../api'
 import { onUnauthorized } from '../api/transport'
 import { setMe } from '../me'
 import { loadToken, clearToken, saveToken } from './storage'
@@ -78,6 +78,14 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setStatus('authenticated')
     }
 
+    async function signInWithPin(name: string, pin: string): Promise<void> {
+      const view = await apiLoginPin(name, pin, deviceLabel())
+      applySession(view.token, view.user)
+      setUser(view.user)
+      setToken(view.token)
+      setStatus('authenticated')
+    }
+
     async function signUp(name: string, password: string): Promise<void> {
       const view = await registerAccount(name, password)
       applySession(view.token, view.user)
@@ -99,7 +107,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setMe(null)
     }
 
-    return { status, user, token, signIn, signUp, signOut }
+    return { status, user, token, signIn, signInWithPin, signUp, signOut }
   }, [status, user, token])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

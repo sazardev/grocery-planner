@@ -13,7 +13,8 @@ import EmptyState from '../shared/ui/feedback/EmptyState.tsx'
 import { Card, Input, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
 import ShareButton from '../shared/ui/navigation/ShareButton.tsx'
-import { ShoppingCart } from 'lucide-react'
+import SectionLink from '../components/SectionLink.tsx'
+import { ListTree, ShoppingCart, Store } from 'lucide-react'
 import styles from './TripsPage.module.css'
 
 const tripTone: Record<TripStatus, ChipTone> = {
@@ -128,6 +129,22 @@ export default function TripsPage() {
           description="Crea el primero arriba para empezar."
         />
       )}
+
+      <Text as="h2" variant="section">
+        Organiza tu mandado
+      </Text>
+      <SectionLink
+        icon={<Store size={22} strokeWidth={2} aria-hidden="true" />}
+        title="Tiendas y pasillos"
+        subtitle="Dónde hace el mandado la familia"
+        onClick={() => navigate('/trips/stores')}
+      />
+      <SectionLink
+        icon={<ListTree size={22} strokeWidth={2} aria-hidden="true" />}
+        title="Secciones de la lista"
+        subtitle="Agrupa la lista para el mandado"
+        onClick={() => navigate('/trips/sections')}
+      />
     </Stack>
   )
 }

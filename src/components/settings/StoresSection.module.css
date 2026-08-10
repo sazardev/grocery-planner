@@ -1,0 +1,28 @@
+.addRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--gp-space-3);
+  flex-wrap: wrap;
+}
+
+.storeLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+}
+
+.actions {
+  display: flex;
+  gap: var(--gp-space-2);
+}
+
+.aisles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gp-space-2);
+}
+
+.addAisle {
+  max-width: 260px;
+}

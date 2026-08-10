@@ -322,10 +322,14 @@ pub fn item_recover(state: AppStateRef, id: String, by: String) -> Result<Grocer
     store.items.change_status(&id, ItemStatus::Falta, &by)
 }
 
-/// Ítems que se compraron en una fecha dada (SPEC §8.2: "comprar lo mismo de
-/// la semana pasada"). Devuelve cada ítem con su historial de compras en `date`.
+/// Ítems que se compraron entre dos marcas ISO (SPEC §8.2: "comprar lo mismo
+/// de la semana pasada"). Devuelve cada ítem con su compra dentro del rango.
 #[tauri::command]
-pub fn items_purchased_on(state: AppStateRef, date: String) -> Result<Vec<GroceryItem>, AppError> {
+pub fn items_purchased_between(
+    state: AppStateRef,
+    start: String,
+    end: String,
+) -> Result<Vec<GroceryItem>, AppError> {
     let store = store::lock(&state.store)?;
     Ok(store
         .items
@@ -339,7 +343,7 @@ pub fn items_purchased_on(state: AppStateRef, date: String) -> Result<Vec<Grocer
                         to: ItemStatus::Comprado,
                         ..
                     }
-                ) && ev.at.starts_with(&date)
+                ) && ev.at >= start && ev.at <= end
             })
         })
         .collect())

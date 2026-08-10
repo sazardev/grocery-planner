@@ -1,0 +1,22 @@
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+}
+
+.presence {
+  margin-top: var(--gp-space-3);
+}
+
+.miniRow {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-3);
+  min-width: 0;
+}
+
+.miniDate {
+  flex-shrink: 0;
+  min-width: 74px;
+}

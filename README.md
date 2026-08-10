@@ -1,32 +1,42 @@
-# React + TypeScript + Vite
+# Grocery Planner
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Planeador de compras **self-hosted** para una familia: lista de compras compartida,
+mandados, planes, calendario, chat, historial y reportes. Todo en español.
 
-Currently, two official plugins are available:
+- **Stack**: React 19 + TypeScript + Vite (SPA), Tauri v2 (desktop) y backend Rust
+  compartido entre desktop (IPC) y web (HTTP axum self-hosted).
+- **Documentos**: producto `SPEC.md`, diseño `DESIGN.md`, bitácora `MEMORY.md`,
+  guía para agentes `AGENTS.md`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Quickstart
 
-## React Compiler
+```bash
+# Backend HTTP (necesario para probar en el navegador)
+cargo run --features server --bin server   # en src-tauri/ → http://localhost:8787
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+# Web en el navegador
+npm run dev                                 # http://localhost:5173
 
-## Expanding the Oxlint configuration
+# Desktop
+npm run tauri:dev
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+# Datos de demostración (familia con sesiones reales)
+npm run seed
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Entra con la cuenta de prueba `admin` / `admin123` (o el botón en `/login`).
+Los datos se persisten en disco y sobreviven al reinicio del servidor.
+
+## Verificación
+
+```bash
+npm run build        # tsc -b + vite build
+npm run lint         # oxlint
+cargo test           # en src-tauri/ (102 tests)
+cargo check --features server --bin server   # en src-tauri/ (valida el binario HTTP)
+```
+
+## Alcance
+
+Fase 1 completa (todos los apartados del SPEC en UI + API). Fase 2 (fuera de alcance
+por ahora): DB real (sqlx/diesel), docker self-hosting, tiempo real por SSE/websockets.

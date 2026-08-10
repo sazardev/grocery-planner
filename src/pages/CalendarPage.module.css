@@ -1,0 +1,197 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-3);
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-3);
+}
+
+.headerSpacer {
+  flex: 1;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  flex-wrap: wrap;
+}
+
+.rangeTitle {
+  flex: 1;
+  min-width: 160px;
+  text-align: center;
+}
+
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--gp-surface);
+  color: var(--gp-text-primary);
+  cursor: pointer;
+}
+
+.navBtn:hover {
+  background: var(--gp-touch);
+}
+
+.modes {
+  display: flex;
+  gap: var(--gp-space-2);
+  flex-wrap: wrap;
+}
+
+.weekRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--gp-space-1);
+  margin-bottom: var(--gp-space-2);
+}
+
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--gp-space-1);
+}
+
+.dayCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 84px;
+  padding: 6px;
+  border: 0;
+  border-radius: var(--gp-radius-md);
+  background: var(--gp-surface);
+  color: var(--gp-text-primary);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+}
+
+.dayCell:hover {
+  background: var(--gp-touch);
+}
+
+.today {
+  background: var(--gp-primary-subtle);
+}
+
+.dayNum {
+  font-weight: var(--gp-weight-semibold);
+}
+
+.cellItems {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.itemChip {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 6px;
+  border-radius: var(--gp-radius-pill);
+  font-size: var(--gp-text-xs);
+  background: var(--gp-touch);
+  color: var(--gp-text-secondary);
+}
+
+.itemChip[data-kind='event'] {
+  background: var(--gp-info-subtle);
+  color: var(--gp-info-text);
+}
+
+.itemChip[data-kind='plan'] {
+  background: var(--gp-primary-subtle);
+  color: var(--gp-primary-strong);
+}
+
+.weekGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--gp-space-2);
+}
+
+.weekCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+  min-height: 180px;
+  padding: var(--gp-space-2);
+  border: 0;
+  border-radius: var(--gp-radius-lg);
+  background: var(--gp-surface);
+  color: var(--gp-text-primary);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+}
+
+.yearGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--gp-space-3);
+}
+
+.yearCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--gp-space-3);
+  border: 0;
+  border-radius: var(--gp-radius-lg);
+  background: var(--gp-surface);
+  color: var(--gp-text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.yearCard:hover {
+  background: var(--gp-touch);
+}
+
+.dayRow {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-3);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gp-touch);
+  flex-shrink: 0;
+}
+
+.dot[data-kind='event'] {
+  background: var(--gp-info);
+}
+
+.dot[data-kind='plan'] {
+  background: var(--gp-primary);
+}
+
+@media (max-width: 640px) {
+  .dayCell {
+    min-height: 56px;
+  }
+  .weekGrid {
+    grid-template-columns: 1fr;
+  }
+}

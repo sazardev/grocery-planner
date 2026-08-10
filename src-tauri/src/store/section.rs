@@ -4,6 +4,9 @@ use crate::domain::section::Section;
 use crate::error::AppError;
 
 /// Repositorio en memoria de las secciones de la lista (SPEC §4.4).
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SectionStore {
     sections: HashMap<String, Section>,
     next_position: u32,

@@ -1,0 +1,50 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-3);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  flex-wrap: wrap;
+}
+
+.notifRow {
+  display: flex;
+  gap: var(--gp-space-3);
+  align-items: flex-start;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gp-primary);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.dotRead {
+  background: var(--gp-text-tertiary);
+}
+
+.notifBody {
+  min-width: 0;
+  gap: 4px;
+}
+
+.notifTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-2);
+  flex-wrap: wrap;
+}

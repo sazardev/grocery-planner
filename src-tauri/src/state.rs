@@ -2,6 +2,7 @@ use std::sync::Mutex;
 use std::time::Instant;
 use tauri::State;
 
+use crate::persist;
 use crate::store::AppStore;
 
 pub struct AppState {
@@ -23,6 +24,8 @@ impl AppState {
 impl Default for AppState {
     fn default() -> Self {
         let mut store = AppStore::new();
+        // Restaura el estado guardado (datos + sesiones) si existe.
+        persist::restore_into(&mut store, &persist::default_data_path());
         // Cuenta fija de desarrollo para entrar sin registrar (ver store::auth).
         store.auth.seed_default_account();
         Self {

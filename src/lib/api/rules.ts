@@ -72,6 +72,14 @@ export function markAllNotificationsRead(member: string): Promise<void> {
   return request<void>('notifications_mark_all_read', { member })
 }
 
+export function getUnreadMentions(member: string): Promise<number> {
+  return request<number>('notifications_mentions_unread_count', { member })
+}
+
+export function markMentionsRead(member: string): Promise<void> {
+  return request<void>('notifications_mentions_mark_read', { member })
+}
+
 export function getNotificationSettings(member: string): Promise<NotificationSettings> {
   return request<NotificationSettings>('notifications_settings_get', { member })
 }

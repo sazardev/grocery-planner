@@ -1,0 +1,128 @@
+.kiosk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-6);
+  min-height: 100vh;
+  padding: clamp(16px, 4vw, 48px);
+  background: var(--gp-background);
+  position: relative;
+}
+
+.exit {
+  position: fixed;
+  top: var(--gp-space-4);
+  right: var(--gp-space-4);
+  z-index: var(--gp-z-raised);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  padding: var(--gp-space-2) var(--gp-space-4);
+  border: 0;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-surface);
+  color: var(--gp-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.exit:hover {
+  background: var(--gp-touch);
+  color: var(--gp-text-primary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-6);
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: clamp(28px, 4.5vw, 40px);
+}
+
+.presence {
+  display: flex;
+  gap: var(--gp-space-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  padding: 6px var(--gp-space-3);
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-surface);
+}
+
+.userName {
+  font-size: var(--gp-text-lg);
+  font-weight: var(--gp-weight-medium);
+}
+
+.bigBtn {
+  min-height: 88px;
+  font-size: clamp(20px, 2.5vw, 28px);
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-3);
+  padding: 0;
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-4);
+  padding: var(--gp-space-3) var(--gp-space-4);
+  border-radius: var(--gp-radius-lg);
+  background: var(--gp-surface);
+}
+
+.check {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--gp-touch);
+  color: var(--gp-primary-strong);
+  font-size: 28px;
+  font-weight: var(--gp-weight-bold);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.check:active {
+  background: var(--gp-primary-subtle);
+}
+
+.rowBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--gp-text-primary);
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.name {
+  font-size: clamp(20px, 2vw, 26px);
+  font-weight: var(--gp-weight-medium);
+}
+
+.qty {
+  font-size: var(--gp-text-lg);
+  color: var(--gp-text-secondary);
+}

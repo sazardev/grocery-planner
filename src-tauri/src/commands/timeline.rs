@@ -32,16 +32,13 @@ pub struct TimelineEntry {
     pub by: String,
 }
 
-/// Línea de tiempo con todo lo que pasó entre `start` y `end` (días
-/// `AAAA-MM-DD`, inclusivo): compras, mandados, eventos, comentarios y cambios.
+/// Línea de tiempo con todo lo que pasó entre `start` y `end` (marcas ISO
+/// RFC3339 UTC, inclusivo): compras, mandados, eventos, comentarios y cambios.
 #[tauri::command]
 pub fn timeline_get(state: AppStateRef, start: String, end: String) -> Result<Vec<TimelineEntry>, AppError> {
     let store = store::lock(&state.store)?;
     let mut entries = compute_timeline(&store);
-    entries.retain(|e| {
-        let day = &e.at[..e.at.len().min(10)];
-        day >= start.as_str() && day <= end.as_str()
-    });
+    entries.retain(|e| e.at >= start && e.at <= end);
     entries.sort_by(|a, b| a.at.cmp(&b.at));
     Ok(entries)
 }

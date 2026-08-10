@@ -5,6 +5,12 @@
   gap: var(--gp-space-3);
 }
 
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-3);
+}
+
 .rowFields {
   display: grid;
   grid-template-columns: 1fr 1fr;

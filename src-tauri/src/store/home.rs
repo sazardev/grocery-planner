@@ -2,6 +2,9 @@ use crate::domain::home::{Home, Invitation, Member, Role};
 use crate::error::AppError;
 
 /// Repositorio en memoria del hogar (fase 1: un solo hogar por instancia).
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HomeStore {
     home: Option<Home>,
 }

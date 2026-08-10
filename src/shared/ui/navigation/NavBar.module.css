@@ -8,8 +8,8 @@
   flex-direction: row;
   align-items: center;
   justify-content: space-around;
-  gap: var(--gp-space-3);
-  padding: var(--gp-space-2) var(--gp-space-2) calc(var(--gp-space-2) + var(--gp-safe-bottom));
+  gap: var(--gp-space-1);
+  padding: var(--gp-space-2) var(--gp-space-1) calc(var(--gp-space-2) + var(--gp-safe-bottom));
   background: var(--gp-surface);
 }
 
@@ -45,9 +45,9 @@
   align-items: center;
   justify-content: center;
   gap: var(--gp-space-1);
-  min-width: 56px;
+  min-width: 46px;
   min-height: 56px;
-  padding: var(--gp-space-1) var(--gp-space-3);
+  padding: var(--gp-space-1) var(--gp-space-2);
   border: none;
   background: transparent;
   color: var(--gp-text-secondary);

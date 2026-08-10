@@ -9,6 +9,9 @@ pub const DEFAULT_ACCOUNT: &str = "admin";
 pub const DEFAULT_PASSWORD: &str = "admin123";
 
 /// Repositorio de cuentas y sesiones (fase 1: en memoria, persistencia en fase 2).
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthStore {
     /// Cuentas indexadas por id.
     users: HashMap<String, User>,

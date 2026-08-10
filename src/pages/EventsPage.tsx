@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { createEvent, listEvents } from '../lib/api'
 import { ME } from '../lib/me'
 import { EVENT_TYPE_LABEL, type Event, type EventType } from '../domain/event'
 import Text from '../shared/ui/primitives/Text.tsx'
 import Button from '../shared/ui/primitives/Button.tsx'
+import IconButton from '../shared/ui/primitives/IconButton.tsx'
 import Chip, { type ChipTone } from '../shared/ui/primitives/Chip.tsx'
 import Skeleton from '../shared/ui/primitives/Skeleton.tsx'
 import Alert from '../shared/ui/feedback/Alert.tsx'
@@ -13,7 +14,7 @@ import EmptyState from '../shared/ui/feedback/EmptyState.tsx'
 import Switch from '../shared/ui/form/Switch.tsx'
 import { Card, Input, Select, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
-import { CalendarDays } from 'lucide-react'
+import { CalendarDays, ArrowLeft } from 'lucide-react'
 import styles from './EventsPage.module.css'
 
 const EVENT_TYPES = Object.keys(EVENT_TYPE_LABEL) as EventType[]
@@ -40,9 +41,11 @@ function errorMessage(err: unknown, fallback: string): string {
 export default function EventsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [searchParams] = useSearchParams()
+  const preselect = searchParams.get('date') ?? ''
 
   const [title, setTitle] = useState('')
-  const [date, setDate] = useState('')
+  const [date, setDate] = useState(preselect)
   const [time, setTime] = useState('')
   const [kind, setKind] = useState<EventType>('comida')
   const [place, setPlace] = useState('')
@@ -53,6 +56,11 @@ export default function EventsPage() {
   useDocumentTitle('Eventos · Grocery Planner')
 
   const eventsQuery = useQuery({ queryKey: ['events'], queryFn: listEvents })
+
+  const goBack = () => {
+    if (window.history.length > 1) navigate(-1)
+    else navigate('/calendar')
+  }
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -117,9 +125,14 @@ export default function EventsPage() {
   return (
     <Stack gap="6">
       <header>
-        <Text as="h1" variant="h1">
-          Eventos
-        </Text>
+        <div className={styles.headerRow}>
+          <IconButton label="Volver al calendario" onClick={goBack}>
+            <ArrowLeft size={22} strokeWidth={2} />
+          </IconButton>
+          <Text as="h1" variant="h1">
+            Eventos
+          </Text>
+        </div>
         <Text as="p" variant="note" tone="secondary">
           Cumpleaños, comidas y ocasiones de la familia.
         </Text>

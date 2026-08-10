@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod domain;
 pub mod error;
+pub mod persist;
 pub mod state;
 pub mod store;
 
@@ -20,6 +21,21 @@ pub fn run() {
                 let app_state = handle.state::<state::AppState>().inner();
                 if let Ok(mut store) = app_state.store.lock() {
                     store.presence.prune();
+                }
+            });
+
+            // Guardado en segundo plano (no pierde datos al cerrar/reiniciar).
+            let saver_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let path = crate::persist::default_data_path();
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+                    let app_state = saver_handle.state::<state::AppState>().inner();
+                    if let Ok(store) = app_state.store.lock() {
+                        if let Err(e) = crate::persist::save(&store, &path) {
+                            eprintln!("persist: {e}");
+                        }
+                    }
                 }
             });
 
@@ -47,6 +63,8 @@ pub fn run() {
             commands::chat::chat_react,
             commands::chat::chat_pin,
             commands::chat::chat_count,
+            commands::chat::chat_page,
+            commands::chat::chat_search,
             commands::rules::rules_get,
             commands::rules::rules_update,
             commands::rules::rules_store_add,
@@ -58,6 +76,8 @@ pub fn run() {
             commands::rules::notifications_unread_count,
             commands::rules::notifications_mark_read,
             commands::rules::notifications_mark_all_read,
+            commands::rules::notifications_mentions_unread_count,
+            commands::rules::notifications_mentions_mark_read,
             commands::rules::notifications_settings_get,
             commands::rules::notifications_settings_update,
             commands::rules::projection_decide,
@@ -84,7 +104,7 @@ pub fn run() {
             commands::items::item_add_photo,
             commands::items::item_remove_photo,
             commands::items::item_recover,
-            commands::items::items_purchased_on,
+            commands::items::items_purchased_between,
             commands::timeline::timeline_get,
             commands::presence::presence_list,
             commands::presence::presence_heartbeat,

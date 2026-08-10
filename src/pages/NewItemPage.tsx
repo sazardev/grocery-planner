@@ -12,12 +12,14 @@ import Field from '../shared/ui/form/Field.tsx'
 import Alert from '../shared/ui/feedback/Alert.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import styles from './NewItemPage.module.css'
 
 const ITEMS_KEY = ['items']
 
 export default function NewItemPage() {
   const navigate = useNavigate()
+  const goBack = useGoBack('/')
   const queryClient = useQueryClient()
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -46,7 +48,7 @@ export default function NewItemPage() {
   return (
     <Stack gap="6">
       <header className={styles.header}>
-        <IconButton label="Volver a la lista" onClick={() => navigate(-1)}>
+        <IconButton label="Volver a la lista" onClick={goBack}>
           <ArrowLeft size={22} strokeWidth={2} />
         </IconButton>
         <Text as="h1" variant="h1">
@@ -72,7 +74,7 @@ export default function NewItemPage() {
           </Field>
           {error && <Alert tone="danger">{error}</Alert>}
           <div className={styles.actions}>
-            <Button variant="secondary" onClick={() => navigate(-1)}>
+            <Button variant="secondary" onClick={goBack}>
               Cancelar
             </Button>
             <Button onClick={submit} loading={addMutation.isPending}>

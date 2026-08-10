@@ -8,6 +8,7 @@ export interface AuthContextValue {
   user: User | null
   token: string | null
   signIn: (name: string, password: string) => Promise<void>
+  signInWithPin: (name: string, pin: string) => Promise<void>
   signUp: (name: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }

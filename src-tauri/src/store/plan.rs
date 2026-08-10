@@ -4,6 +4,9 @@ use crate::domain::plan::{Plan, PlanStatus};
 use crate::error::AppError;
 
 /// Repositorio en memoria de planes de compra (SPEC §7.1).
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlanStore {
     plans: HashMap<String, Plan>,
 }

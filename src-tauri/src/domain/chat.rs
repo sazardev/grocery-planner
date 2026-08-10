@@ -23,6 +23,33 @@ pub struct Reaction {
     pub at: String,
 }
 
+/// Tipo de referencia a un recurso del hogar citado en el chat
+/// (más allá de las menciones `@Nombre`, SPEC §11.1/§11.3).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MessageRefKind {
+    Item,
+    Event,
+    Trip,
+}
+
+/// Referencia estructurada a un ítem, evento o mandado (SPEC §11.3).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MessageRef {
+    pub kind: MessageRefKind,
+    pub id: String,
+    pub name: String,
+}
+
+/// Entrada de referencia que manda el cliente; el servidor resuelve el nombre.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RefInput {
+    pub kind: MessageRefKind,
+    pub id: String,
+}
+
 /// Un mensaje del chat compartido del hogar (SPEC §11.1).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,6 +66,8 @@ pub struct ChatMessage {
     pub photo: Option<String>,
     /// Miembros mencionados con @Nombre (SPEC §11.1).
     pub mentions: Vec<String>,
+    /// Ítems, eventos y mandados citados (SPEC §11.1/§11.3).
+    pub refs: Vec<MessageRef>,
     pub reactions: Vec<Reaction>,
     /// Mensajes importantes fijados arriba del chat (SPEC §11.1).
     pub pinned: bool,
@@ -54,6 +83,7 @@ impl ChatMessage {
         item_id: Option<String>,
         item_name: Option<String>,
         members: &[String],
+        refs: Vec<MessageRef>,
     ) -> Result<Self, AppError> {
         let by = by.trim();
         if by.is_empty() {
@@ -83,6 +113,7 @@ impl ChatMessage {
             item_name: item_name.filter(|n| !n.trim().is_empty()),
             photo,
             mentions: extract_mentions(&body, members),
+            refs,
             reactions: Vec::new(),
             pinned: false,
         })
@@ -158,6 +189,7 @@ mod tests {
             None,
             None,
             &members(),
+            Vec::new(),
         )
         .unwrap();
         assert_eq!(msg.by, "Ana");
@@ -169,12 +201,12 @@ mod tests {
 
     #[test]
     fn mensaje_vacio_invalido_sin_foto() {
-        assert!(ChatMessage::user_message("Ana", "  ", None, None, None, &members()).is_err());
+        assert!(ChatMessage::user_message("Ana", "  ", None, None, None, &members(), Vec::new()).is_err());
     }
 
     #[test]
     fn foto_sin_texto_es_valida() {
-        let msg = ChatMessage::user_message("Ana", " ", Some("data:image/png;base64,xxx".into()), None, None, &members()).unwrap();
+        let msg = ChatMessage::user_message("Ana", " ", Some("data:image/png;base64,xxx".into()), None, None, &members(), Vec::new()).unwrap();
         assert_eq!(msg.body, "");
         assert!(msg.photo.is_some());
     }
@@ -188,6 +220,7 @@ mod tests {
             None,
             None,
             &members(),
+            Vec::new(),
         )
         .unwrap();
         assert!(msg.mentions.contains(&"Juan".to_string()));
@@ -197,7 +230,7 @@ mod tests {
 
     #[test]
     fn reacciones_toggle() {
-        let mut msg = ChatMessage::user_message("Ana", "hola", None, None, None, &members()).unwrap();
+        let mut msg = ChatMessage::user_message("Ana", "hola", None, None, None, &members(), Vec::new()).unwrap();
         msg.react("👍", "Juan").unwrap();
         assert_eq!(msg.reactions.len(), 1);
         msg.react("👍", "Abuela").unwrap();
@@ -209,7 +242,7 @@ mod tests {
 
     #[test]
     fn pin_toggle() {
-        let mut msg = ChatMessage::user_message("Ana", "hola", None, None, None, &members()).unwrap();
+        let mut msg = ChatMessage::user_message("Ana", "hola", None, None, None, &members(), Vec::new()).unwrap();
         assert!(!msg.pinned);
         msg.toggle_pin();
         assert!(msg.pinned);

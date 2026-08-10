@@ -1,0 +1,87 @@
+/* --- Tarjeta de ítem (vista en cuadrícula) --- */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+  padding: var(--gp-space-3);
+  border-radius: var(--gp-radius-lg);
+  background: var(--gp-surface);
+  min-width: 0;
+  transform-origin: center;
+  animation: gp-rise 0.4s var(--gp-ease-out) backwards;
+  transition:
+    background-color var(--gp-duration-fast) var(--gp-ease-out),
+    transform var(--gp-duration-normal) var(--gp-ease-spring);
+}
+
+.card:hover {
+  background: var(--gp-surface-raised);
+  transform: translateY(-1px);
+}
+
+.carried {
+  background: var(--gp-primary-subtle);
+  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-bounce);
+}
+
+.carried:hover {
+  background: var(--gp-primary-subtle);
+}
+
+.carried .name {
+  color: var(--gp-primary-strong);
+}
+
+.done {
+  background: var(--gp-surface-raised);
+}
+
+.done .name {
+  color: var(--gp-text-secondary);
+}
+
+.struck {
+  text-decoration: line-through;
+}
+
+/* --- Filas internas --- */
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gp-space-2);
+}
+
+.chips {
+  display: flex;
+  gap: var(--gp-space-1);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.name {
+  font-weight: var(--gp-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  margin-top: auto;
+  padding-top: var(--gp-space-1);
+  font-size: var(--gp-text-xs);
+  color: var(--gp-text-secondary);
+}
+
+.metaText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.assign {
+  color: var(--gp-primary-hover);
+  font-weight: var(--gp-weight-medium);
+}

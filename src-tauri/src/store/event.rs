@@ -4,6 +4,9 @@ use crate::domain::event::Event;
 use crate::error::AppError;
 
 /// Repositorio en memoria del calendario familiar (fase 1).
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventStore {
     events: HashMap<String, Event>,
 }

@@ -1,0 +1,5 @@
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gp-space-3);
+}

@@ -14,10 +14,14 @@ version: 1.0.0
 - **Dos transportes, misma lógica**: los `#[tauri::command]` de `src-tauri/src/commands/` se
   llaman por IPC en desktop (`tauri:dev`) y por HTTP en web (binario `server`). El transporte
   se abstrae en `src/lib/api/transport.ts` (`currentTransport()` detecta `__TAURI_INTERNALS__`).
-- **Todo es en memoria** (fase 1, sin DB): reiniciar el backend borra ítems, hogar y cuentas.
-  Solo la cuenta de bypass se siembra al arrancar.
+- **Persistencia en disco**: el estado (datos + sesiones) se guarda cada ~5s y se restaura al
+  arrancar (`GROCERY_PLANNER_DATA` → `$XDG_DATA_HOME/grocery-planner/data.json` →
+  `~/.grocery-planner/data.json`). **Reiniciar el backend ya no borra nada** (solo se siembra la
+  cuenta de bypass `admin` cuando no existe). Si un cambio "se pierde" tras reiniciar, el
+  binario es viejo → recompilar.
 - **El API HTTP exige sesión**: todo `/api/*` responde 401 sin `Authorization: Bearer <token>`
-  salvo `PUBLIC_PATHS` (health, app-info, greet, `auth/register`, `auth/login`).
+  salvo `PUBLIC_PATHS` (health, app-info, greet, `auth/register`, `auth/login`,
+  `auth/login-pin`, `auth/has-pin`). El actor de cada request se deriva del token, no de `by`.
 
 ## Levantar los servidores
 
@@ -72,6 +76,7 @@ src-tauri/src/
 ├── commands/     # #[tauri::command] (IPC desktop + base de los handlers HTTP)
 ├── bin/server.rs # Servidor axum (feature "server"), con middleware auth_guard
 ├── error.rs      # AppError serde-tagged { type, message } + to_http_status
+├── persist.rs    # Guardado/restauración JSON a disco (cada ~5s + auth al instante)
 └── state.rs      # AppState { store: Mutex<AppStore>, ... } — siembra la cuenta admin
 src/
 ├── lib/api/      # Clientes tipados + transport.ts (invoke o fetch + Bearer)
@@ -89,9 +94,9 @@ src/
 
 ## Gotchas
 
-- **Auth**: los commands toman el actor (`by`) del cliente; el server HTTP solo valida el
-  token, no ata `by` a la sesión (deuda fase 2). La autorización por rol (Admin) vive en
-  `domain/home.rs`.
+- **Auth**: el server HTTP deriva el actor del token (`AuthActor` en `auth_guard`); no confía
+  en el `by` del cliente. Tauri IPC sí recibe `by` (app local de confianza). La autorización
+  por rol (Admin) vive en `domain/home.rs`.
 - **Token sin expiración**: se revoca manualmente (Ajustes → Dispositivos conectados).
 - **react-router-dom fijado en 7.11.0** (advisory GHSA-qwww-vcr4-c8h2). No subir.
 - **`cargo check` por defecto NO compila el binario `server`** (feature `server`). Usa el

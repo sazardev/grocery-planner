@@ -3,6 +3,9 @@ use std::collections::HashMap;
 use crate::domain::trip::{ShoppingTrip, TripStatus};
 use crate::error::AppError;
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TripStore {
     trips: HashMap<String, ShoppingTrip>,
 }

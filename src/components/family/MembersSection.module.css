@@ -1,0 +1,29 @@
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+  flex-wrap: wrap;
+}
+
+.memberRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+  flex-wrap: wrap;
+}
+
+.member {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  min-width: 0;
+}
+
+.memberActions {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  flex-wrap: wrap;
+}

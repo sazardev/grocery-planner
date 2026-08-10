@@ -1,0 +1,20 @@
+.addRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--gp-space-3);
+  flex-wrap: wrap;
+}
+
+.sectionLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+  padding: var(--gp-space-1) 0;
+}
+
+.actions {
+  display: flex;
+  gap: var(--gp-space-1);
+  flex-wrap: wrap;
+}

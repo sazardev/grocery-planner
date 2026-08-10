@@ -5,6 +5,9 @@ use crate::error::AppError;
 
 /// Repositorio en memoria de ítems. La persistencia real (sqlx/diesel) llega en
 /// la fase 2; esta capa aísla los commands del almacenamiento.
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ItemStore {
     items: HashMap<String, GroceryItem>,
 }

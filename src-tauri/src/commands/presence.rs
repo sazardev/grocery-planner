@@ -20,10 +20,11 @@ pub fn presence_heartbeat(
     app: AppHandle,
     state: AppStateRef,
     name: String,
+    screen: Option<String>,
 ) -> Result<Vec<PresenceView>, AppError> {
     let views = {
         let mut store = store::lock(&state.store)?;
-        store.presence.heartbeat(&name)?;
+        store.presence.heartbeat(&name, screen.as_deref())?;
         store.presence.list()
     };
     let _ = app.emit(PRESENCE_EVENT, &views);

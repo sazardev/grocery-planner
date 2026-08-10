@@ -23,3 +23,17 @@
 .list > *:nth-child(7) { animation-delay: 0.32s; }
 .list > *:nth-child(8) { animation-delay: 0.37s; }
 .list > *:nth-child(n + 9) { animation-delay: 0.42s; }
+
+/* Dos columnas en pantallas anchas (aprovecha el ancho del escritorio).
+   minmax(0, 1fr) evita que una fila con texto largo desborde el contenedor. */
+.columns2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 1280px) {
+  .columns2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}

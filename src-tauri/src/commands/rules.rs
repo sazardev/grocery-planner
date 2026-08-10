@@ -215,6 +215,21 @@ pub fn notifications_mark_all_read(state: AppStateRef, member: String) -> Result
     Ok(())
 }
 
+/// Menciones de chat sin leer (para el badge "te mencionaron" de la nav).
+#[tauri::command]
+pub fn notifications_mentions_unread_count(state: AppStateRef, member: String) -> Result<usize, AppError> {
+    let store = store::lock(&state.store)?;
+    Ok(store.rules.mentions_unread_count(&member))
+}
+
+/// Marca las menciones del chat como leídas (al entrar al chat).
+#[tauri::command]
+pub fn notifications_mentions_mark_read(state: AppStateRef, member: String) -> Result<(), AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.rules.mark_mentions_read(&member);
+    Ok(())
+}
+
 /// Preferencias de avisos de un miembro (SPEC §13).
 #[tauri::command]
 pub fn notifications_settings_get(

@@ -4,6 +4,7 @@ use crate::domain::chat::ChatMessage;
 use crate::domain::event::Event;
 use crate::domain::home::Home;
 use crate::domain::item::GroceryItem;
+use crate::domain::notification::AppNotification;
 use crate::domain::now_iso;
 use crate::domain::plan::Plan;
 use crate::domain::rules::HomeRules;
@@ -27,6 +28,8 @@ pub struct BackupData {
     pub sections: Vec<Section>,
     pub chat: Vec<ChatMessage>,
     pub rules: HomeRules,
+    pub notifications: Vec<AppNotification>,
+    pub projection_choices: std::collections::HashMap<String, bool>,
 }
 
 /// Exporta todo el hogar como un documento JSON descargable (SPEC §15).
@@ -43,6 +46,8 @@ pub fn backup_export(state: AppStateRef) -> Result<BackupData, AppError> {
         sections: store.sections.list(),
         chat: store.chat.list(),
         rules: store.rules.rules(),
+        notifications: store.rules.notifications.clone(),
+        projection_choices: store.rules.projection_choices.clone(),
     })
 }
 
@@ -58,6 +63,8 @@ pub fn backup_import(state: AppStateRef, data: BackupData) -> Result<(), AppErro
     store.sections.replace_all(data.sections);
     store.chat.replace_all(data.chat);
     store.rules.set_rules(data.rules);
+    store.rules.notifications = data.notifications;
+    store.rules.projection_choices = data.projection_choices;
     if let Some(home) = data.home {
         store.home.replace(home);
     }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { createPlan } from '../lib/api'
 import { ME } from '../lib/me'
@@ -10,6 +10,7 @@ import IconButton from '../shared/ui/primitives/IconButton.tsx'
 import Alert from '../shared/ui/feedback/Alert.tsx'
 import { Card, DatePicker, Grid, Input, Stack, TimePicker } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import styles from './NewPlanPage.module.css'
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -18,9 +19,12 @@ function errorMessage(err: unknown, fallback: string): string {
 
 export default function NewPlanPage() {
   const navigate = useNavigate()
+  const goBack = useGoBack('/plans')
   const queryClient = useQueryClient()
+  const [searchParams] = useSearchParams()
+  const preselect = searchParams.get('date') ?? ''
   const [title, setTitle] = useState('')
-  const [scheduledDate, setScheduledDate] = useState('')
+  const [scheduledDate, setScheduledDate] = useState(preselect)
   const [scheduledTime, setScheduledTime] = useState('')
   const [error, setError] = useState<string | null>(null)
   useDocumentTitle('Nuevo plan · Grocery Planner')
@@ -47,7 +51,7 @@ export default function NewPlanPage() {
   return (
     <Stack gap="6">
       <header className={styles.header}>
-        <IconButton label="Volver a los planes" onClick={() => navigate(-1)}>
+        <IconButton label="Volver a los planes" onClick={goBack}>
           <ArrowLeft size={22} strokeWidth={2} />
         </IconButton>
         <Text as="h1" variant="h1">
@@ -84,7 +88,7 @@ export default function NewPlanPage() {
           </Grid>
           {error && <Alert tone="danger">{error}</Alert>}
           <div className={styles.actions}>
-            <Button variant="secondary" onClick={() => navigate(-1)}>
+            <Button variant="secondary" onClick={goBack}>
               Cancelar
             </Button>
             <Button onClick={submit} loading={addPlan.isPending}>

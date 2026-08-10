@@ -68,7 +68,7 @@ mod tests {
     use crate::domain::chat::ChatMessage;
 
     fn msg(by: &str, body: &str) -> ChatMessage {
-        ChatMessage::user_message(by, body, None, None, None, &[]).unwrap()
+        ChatMessage::user_message(by, body, None, None, None, &[], Vec::new()).unwrap()
     }
 
     #[test]

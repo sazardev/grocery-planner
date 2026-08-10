@@ -3,6 +3,7 @@ import Avatar from '../primitives/Avatar.tsx'
 import Checkbox from '../primitives/Checkbox.tsx'
 import Chip, { type ChipTone } from '../primitives/Chip.tsx'
 import Text from '../primitives/Text.tsx'
+import { STATUS_LABEL, type ItemStatus } from '../../../domain/item'
 import styles from './ItemRow.module.css'
 
 export type ItemRowStatus = 'falta' | 'pedido' | 'llevo' | 'comprado' | 'cancelado'
@@ -18,7 +19,9 @@ interface ItemRowProps {
   status?: ItemRowStatus
   urgent?: boolean
   checked?: boolean
+  disabled?: boolean
   onToggle?: () => void
+  onQuit?: () => void
   onClick?: () => void
   actionLabel?: string
   compact?: boolean
@@ -44,7 +47,9 @@ export default function ItemRow({
   status,
   urgent = false,
   checked = false,
+  disabled = false,
   onToggle,
+  onQuit,
   onClick,
   actionLabel,
   compact = false,
@@ -85,8 +90,13 @@ export default function ItemRow({
         <Checkbox
           checked={checked}
           onChange={onToggle}
+          disabled={disabled}
           size={compact ? 'sm' : 'md'}
-          ariaLabel={`${name}: ${checked ? 'ya lo llevo' : 'marcar como ya lo llevo'}`}
+          ariaLabel={
+            disabled && status
+              ? `${name}: ${STATUS_LABEL[status as ItemStatus]}`
+              : `${name}: ${checked ? 'quitar del carrito' : 'decir que ya lo llevo'}`
+          }
         />
       </span>
       <div className={styles.body}>
@@ -114,7 +124,24 @@ export default function ItemRow({
       </div>
       <div className={styles.chips}>
         {urgent && <Chip tone="warning">Urgente</Chip>}
-        {status && <Chip tone={statusTone[status]}>{actionLabel ?? status.toUpperCase()}</Chip>}
+        {status && (
+          <Chip tone={statusTone[status]}>
+            {actionLabel ?? STATUS_LABEL[status as ItemStatus]}
+          </Chip>
+        )}
+        {carried && onQuit && (
+          <button
+            type="button"
+            className={styles.quit}
+            onClick={(e) => {
+              e.stopPropagation()
+              onQuit()
+            }}
+            aria-label={`Quitar ${name} del carrito`}
+          >
+            Quitar
+          </button>
+        )}
       </div>
     </Tag>
   )

@@ -35,6 +35,7 @@ use grocery_planner_lib::domain::rules::{HomeRules, NotificationSettings};
 use grocery_planner_lib::domain::section::Section;
 use grocery_planner_lib::domain::trip::ShoppingTrip;
 use grocery_planner_lib::error::AppError;
+use grocery_planner_lib::persist;
 use grocery_planner_lib::state::AppState;
 use grocery_planner_lib::store;
 use grocery_planner_lib::store::item::ItemSort;
@@ -42,6 +43,13 @@ use grocery_planner_lib::store::item::MoveDirection;
 use grocery_planner_lib::store::section::MoveDirection as SectionMoveDirection;
 
 type Shared = Arc<AppState>;
+
+/// Guarda el estado a disco (best effort) tras una mutación de auth, para que
+/// una sesión nueva no se pierda si el servidor se reinicia en los segundos del
+/// guardado periódico.
+fn persist_store(store: &grocery_planner_lib::store::AppStore) {
+    let _ = persist::save(store, &persist::default_data_path());
+}
 
 /// Rutas públicas del servidor HTTP. Todo lo demás bajo `/api` exige una
 /// sesión válida (`Authorization: Bearer <token>`), ver `auth_guard`.
@@ -65,6 +73,27 @@ fn bearer_token(headers: &HeaderMap) -> Result<String, AppError> {
         .ok_or_else(|| AppError::unauthorized("Token de sesión faltante"))
 }
 
+/// Actor autenticado (el nombre de la cuenta dueña de la sesión). Lo inyecta
+/// `auth_guard` en las extensions de la request; los handlers lo usan en vez de
+/// confiar en el `by` que manda el cliente (autorización real servidor→usuario).
+#[derive(Clone, Debug)]
+struct AuthActor(String);
+
+impl<S: Send + Sync> axum::extract::FromRequestParts<S> for AuthActor {
+    type Rejection = AppError;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        _state: &S,
+    ) -> Result<Self, Self::Rejection> {
+        parts
+            .extensions
+            .get::<AuthActor>()
+            .cloned()
+            .ok_or_else(|| AppError::unauthorized("Sesión requerida para esta acción"))
+    }
+}
+
 // ----- Bodies de entrada -------------------------------------------------
 
 #[derive(Deserialize)]
@@ -74,7 +103,6 @@ struct CreateItemBody {
     quantity: f64,
     unit: String,
     priority: Priority,
-    requested_by: String,
     note: Option<String>,
     category: Option<String>,
     price: Option<f64>,
@@ -85,27 +113,23 @@ struct CreateItemBody {
 #[serde(rename_all = "camelCase")]
 struct ChangeStatusBody {
     to: ItemStatus,
-    by: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct AssignBody {
     member: String,
-    by: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CancelBody {
-    by: String,
     reason: Option<String>,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct UpdateItemBody {
-    by: String,
     name: Option<String>,
     quantity: Option<f64>,
     unit: Option<String>,
@@ -118,7 +142,6 @@ struct UpdateItemBody {
 #[serde(rename_all = "camelCase")]
 struct SetPriorityBody {
     priority: Priority,
-    by: String,
 }
 
 #[derive(Deserialize)]
@@ -131,6 +154,14 @@ struct MoveItemBody {
 #[serde(rename_all = "camelCase")]
 struct NameBody {
     name: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PresenceHeartbeatBody {
+    name: String,
+    #[serde(default)]
+    screen: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -166,7 +197,6 @@ struct CreateTripBody {
     title: String,
     store: Option<String>,
     assigned_to: Option<String>,
-    by: String,
 }
 
 #[derive(Deserialize)]
@@ -184,7 +214,6 @@ struct TripAssignBody {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CommentBody {
-    by: String,
     body: String,
 }
 
@@ -225,7 +254,6 @@ struct ItemFiltersBody {
 #[serde(rename_all = "camelCase")]
 struct HomeCreateBody {
     name: String,
-    owner: String,
 }
 
 #[derive(Deserialize)]
@@ -233,19 +261,12 @@ struct HomeCreateBody {
 struct MemberBody {
     name: String,
     role: Role,
-    by: String,
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct ByBody {
-    by: String,
-}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct InviteBody {
-    by: String,
     role_granted: Role,
     expires_in_secs: Option<i64>,
     max_uses: Option<u32>,
@@ -255,7 +276,6 @@ struct InviteBody {
 #[serde(rename_all = "camelCase")]
 struct AcceptInviteBody {
     code: String,
-    member: String,
 }
 
 #[derive(Deserialize)]
@@ -273,7 +293,6 @@ struct CreateEventBody {
     note: Option<String>,
     #[serde(default)]
     recurring_yearly: bool,
-    created_by: String,
 }
 
 #[derive(Deserialize)]
@@ -286,7 +305,6 @@ struct CreatePlanBody {
     note: Option<String>,
     #[serde(default)]
     recurrence: Recurrence,
-    created_by: String,
 }
 
 #[derive(Deserialize)]
@@ -332,17 +350,34 @@ struct RangeParams {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SendMessageBody {
-    by: String,
     body: String,
     photo: Option<String>,
     item_id: Option<String>,
+    #[serde(default)]
+    refs: Vec<grocery_planner_lib::domain::chat::RefInput>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ChatPageParams {
+    limit: Option<usize>,
+    before: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ChatSearchParams {
+    query: Option<String>,
+    by: Option<String>,
+    ref_kind: Option<grocery_planner_lib::domain::chat::MessageRefKind>,
+    has_photo: Option<bool>,
+    limit: Option<usize>,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ReactBody {
     emoji: String,
-    by: String,
 }
 
 #[derive(Deserialize)]
@@ -419,11 +454,6 @@ struct DirectionBody {
 }
 
 #[derive(Deserialize)]
-struct DateParams {
-    date: String,
-}
-
-#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PinBody {
     name: String,
@@ -471,6 +501,7 @@ async fn items_list(State(state): State<Shared>) -> Result<Json<Vec<GroceryItem>
 
 async fn item_create(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(body): Json<CreateItemBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut item = GroceryItem::new(
@@ -478,7 +509,7 @@ async fn item_create(
         body.quantity,
         &body.unit,
         body.priority,
-        &body.requested_by,
+        &actor.0,
         body.note.as_deref(),
         body.category.as_deref(),
     )?;
@@ -503,30 +534,33 @@ async fn item_get(
 async fn item_change_status(
     State(state): State<Shared>,
     Path(id): Path<String>,
+    actor: AuthActor,
     Json(body): Json<ChangeStatusBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.change_status(&id, body.to, &body.by)?))
+    Ok(Json(store.items.change_status(&id, body.to, &actor.0)?))
 }
 
 async fn item_assign(
     State(state): State<Shared>,
     Path(id): Path<String>,
+    actor: AuthActor,
     Json(body): Json<AssignBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.assign(&id, &body.member, &body.by)?))
+    Ok(Json(store.items.assign(&id, &body.member, &actor.0)?))
 }
 
 async fn item_cancel(
     State(state): State<Shared>,
     Path(id): Path<String>,
+    actor: AuthActor,
     Json(body): Json<CancelBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
     Ok(Json(store.items.cancel(
         &id,
-        &body.by,
+        &actor.0,
         body.reason.as_deref(),
     )?))
 }
@@ -583,10 +617,11 @@ async fn items_query(
 async fn item_add_comment(
     State(state): State<Shared>,
     Path(id): Path<String>,
+    actor: AuthActor,
     Json(body): Json<CommentBody>,
 ) -> Result<Json<ItemComment>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.add_comment(&id, &body.by, &body.body)?))
+    Ok(Json(store.items.add_comment(&id, &actor.0, &body.body)?))
 }
 
 async fn item_set_price(
@@ -611,12 +646,13 @@ async fn item_set_section(
 async fn item_update(
     State(state): State<Shared>,
     Path(id): Path<String>,
+    actor: AuthActor,
     Json(body): Json<UpdateItemBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
     Ok(Json(store.items.update(
         &id,
-        &body.by,
+        &actor.0,
         body.name.as_deref(),
         body.quantity,
         body.unit.as_deref(),
@@ -629,10 +665,11 @@ async fn item_update(
 async fn item_set_priority(
     State(state): State<Shared>,
     Path(id): Path<String>,
+    actor: AuthActor,
     Json(body): Json<SetPriorityBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.set_priority(&id, body.priority, &body.by)?))
+    Ok(Json(store.items.set_priority(&id, body.priority, &actor.0)?))
 }
 
 async fn item_move(
@@ -662,10 +699,10 @@ async fn presence_list(State(state): State<Shared>) -> Result<Json<Vec<PresenceV
 
 async fn presence_heartbeat(
     State(state): State<Shared>,
-    Json(body): Json<NameBody>,
+    Json(body): Json<PresenceHeartbeatBody>,
 ) -> Result<Json<Vec<PresenceView>>, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.presence.heartbeat(&body.name)?;
+    store.presence.heartbeat(&body.name, body.screen.as_deref())?;
     Ok(Json(store.presence.list()))
 }
 
@@ -687,13 +724,14 @@ async fn trips_list(State(state): State<Shared>) -> Result<Json<Vec<ShoppingTrip
 
 async fn trips_create(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(body): Json<CreateTripBody>,
 ) -> Result<Json<ShoppingTrip>, AppError> {
     let trip = ShoppingTrip::new(
         &body.title,
         body.store.as_deref(),
         body.assigned_to.as_deref(),
-        &body.by,
+        &actor.0,
     )?;
     let mut store = store::lock(&state.store)?;
     Ok(Json(store.trips.create(trip)))
@@ -772,9 +810,10 @@ async fn trips_cancel(
 
 async fn home_create(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(body): Json<HomeCreateBody>,
 ) -> Result<Json<home_cmd::HomeView>, AppError> {
-    let home = Home::create(&body.name, &body.owner)?;
+    let home = Home::create(&body.name, &actor.0)?;
     let mut store = store::lock(&state.store)?;
     let view = home_cmd::HomeView {
         id: home.id.clone(),
@@ -786,7 +825,7 @@ async fn home_create(
         invitations: home.invitations(),
     };
     store.home.create(home);
-    store.auth.link_home(&body.owner, &view.id);
+    store.auth.link_home(&actor.0, &view.id);
     Ok(Json(view))
 }
 
@@ -806,67 +845,71 @@ async fn home_info(State(state): State<Shared>) -> Result<Json<home_cmd::HomeVie
 
 async fn home_add_member(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(body): Json<MemberBody>,
 ) -> Result<Json<grocery_planner_lib::domain::home::Member>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.home.add_member(&body.name, body.role, &body.by)?))
+    Ok(Json(store.home.add_member(&body.name, body.role, &actor.0)?))
 }
 
 async fn home_remove_member(
     State(state): State<Shared>,
     Path(name): Path<String>,
-    Json(body): Json<ByBody>,
+    actor: AuthActor,
 ) -> Result<StatusCode, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.home.remove_member(&name, &body.by)?;
+    store.home.remove_member(&name, &actor.0)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
 async fn home_change_role(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(body): Json<MemberBody>,
 ) -> Result<Json<grocery_planner_lib::domain::home::Member>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.home.change_role(&body.name, body.role, &body.by)?))
+    Ok(Json(store.home.change_role(&body.name, body.role, &actor.0)?))
 }
 
 async fn home_invite_create(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(body): Json<InviteBody>,
 ) -> Result<Json<grocery_planner_lib::domain::home::Invitation>, AppError> {
     let mut store = store::lock(&state.store)?;
     Ok(Json(store
         .home
-        .create_invitation(&body.by, body.role_granted, body.expires_in_secs, body.max_uses)?))
+        .create_invitation(&actor.0, body.role_granted, body.expires_in_secs, body.max_uses)?))
 }
 
 async fn home_invite_revoke(
     State(state): State<Shared>,
     Path(id): Path<String>,
-    Json(body): Json<ByBody>,
+    actor: AuthActor,
 ) -> Result<Json<grocery_planner_lib::domain::home::Invitation>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.home.revoke_invitation(&id, &body.by)?))
+    Ok(Json(store.home.revoke_invitation(&id, &actor.0)?))
 }
 
 async fn home_invite_accept(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(body): Json<AcceptInviteBody>,
 ) -> Result<Json<grocery_planner_lib::domain::home::Member>, AppError> {
     let mut store = store::lock(&state.store)?;
     let home = store.home.get()?;
     let home_id = home.id.clone();
-    let member = store.home.accept_invitation(&body.code, &body.member)?;
-    store.auth.link_home(&member.name, &home_id);
+    let member = store.home.accept_invitation(&body.code, &actor.0)?;
+    store.auth.link_home(&actor.0, &home_id);
     Ok(Json(member))
 }
 
 async fn home_backup_key(
     State(state): State<Shared>,
-    Json(body): Json<ByBody>,
+    actor: AuthActor,
 ) -> Result<Json<String>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.home.regenerate_backup_key(&body.by)?))
+    Ok(Json(store.home.regenerate_backup_key(&actor.0)?))
 }
 
 // ----- Eventos ------------------------------------------------------------
@@ -886,6 +929,7 @@ async fn events_list_range(
 
 async fn event_create(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(body): Json<CreateEventBody>,
 ) -> Result<Json<Event>, AppError> {
     let event = Event::new(
@@ -898,7 +942,7 @@ async fn event_create(
         body.participants,
         body.note.as_deref(),
         body.recurring_yearly,
-        &body.created_by,
+        &actor.0,
     )?;
     let mut store = store::lock(&state.store)?;
     Ok(Json(store.events.create(event)))
@@ -949,6 +993,7 @@ async fn plans_list(State(state): State<Shared>) -> Result<Json<Vec<Plan>>, AppE
 
 async fn plan_create(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(body): Json<CreatePlanBody>,
 ) -> Result<Json<Plan>, AppError> {
     let plan = Plan::new(
@@ -958,7 +1003,7 @@ async fn plan_create(
         body.assigned_to.as_deref(),
         body.note.as_deref(),
         body.recurrence,
-        &body.created_by,
+        &actor.0,
     )?;
     let mut store = store::lock(&state.store)?;
     Ok(Json(store.plans.create(plan)))
@@ -1086,48 +1131,29 @@ async fn chat_list(State(state): State<Shared>) -> Result<Json<Vec<ChatMessage>>
 
 async fn chat_send(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(body): Json<SendMessageBody>,
 ) -> Result<Json<ChatMessage>, AppError> {
     let mut store = store::lock(&state.store)?;
-    let members: Vec<String> = store
-        .home
-        .get()
-        .ok()
-        .map(|h| h.members().iter().map(|m| m.name.clone()).collect())
-        .unwrap_or_default();
-    let item_name = match &body.item_id {
-        Some(id) => store.items.get(id).ok().map(|it| it.name.clone()),
-        None => None,
-    };
-    let message = grocery_planner_lib::domain::chat::ChatMessage::user_message(
-        &body.by,
+    let message = grocery_planner_lib::commands::chat::chat_send_core(
+        &mut store,
+        &actor.0,
         &body.body,
         body.photo,
         body.item_id,
-        item_name,
-        &members,
+        body.refs,
     )?;
-    for mention in &message.mentions {
-        store.rules.push_notification(
-            grocery_planner_lib::domain::notification::AppNotification::new(
-                grocery_planner_lib::domain::notification::NotificationKind::Mention,
-                mention,
-                &format!("@{by} te mencionó", by = message.by),
-                &message.body,
-                Some("/chat"),
-            ),
-        );
-    }
-    Ok(Json(store.chat.push(message)))
+    Ok(Json(message))
 }
 
 async fn chat_react(
     State(state): State<Shared>,
     Path(id): Path<String>,
+    actor: AuthActor,
     Json(body): Json<ReactBody>,
 ) -> Result<Json<ChatMessage>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.chat.react(&id, &body.emoji, &body.by)?))
+    Ok(Json(store.chat.react(&id, &body.emoji, &actor.0)?))
 }
 
 async fn chat_pin(
@@ -1141,6 +1167,33 @@ async fn chat_pin(
 async fn chat_count(State(state): State<Shared>) -> Result<Json<usize>, AppError> {
     let store = store::lock(&state.store)?;
     Ok(Json(grocery_planner_lib::commands::chat::compute_chat(&store).len()))
+}
+
+async fn chat_page_handler(
+    State(state): State<Shared>,
+    Query(params): Query<ChatPageParams>,
+) -> Result<Json<grocery_planner_lib::commands::chat::ChatPage>, AppError> {
+    let store = store::lock(&state.store)?;
+    Ok(Json(grocery_planner_lib::commands::chat::chat_page_core(
+        &store, params.limit, params.before,
+    )))
+}
+
+async fn chat_search_handler(
+    State(state): State<Shared>,
+    Query(params): Query<ChatSearchParams>,
+) -> Result<Json<grocery_planner_lib::commands::chat::ChatSearchResult>, AppError> {
+    let store = store::lock(&state.store)?;
+    Ok(Json(grocery_planner_lib::commands::chat::chat_search_core(
+        &store,
+        grocery_planner_lib::commands::chat::ChatSearchInput {
+            query: params.query,
+            by: params.by,
+            ref_kind: params.ref_kind,
+            has_photo: params.has_photo,
+            limit: params.limit,
+        },
+    )))
 }
 
 // ----- Reglas de la familia (SPEC §14) -------------------------------------
@@ -1329,6 +1382,23 @@ async fn notifications_mark_all_read(
     Ok(StatusCode::NO_CONTENT)
 }
 
+async fn notifications_mentions_unread(
+    State(state): State<Shared>,
+    Query(params): Query<MemberParam>,
+) -> Result<Json<usize>, AppError> {
+    let store = store::lock(&state.store)?;
+    Ok(Json(store.rules.mentions_unread_count(&params.member)))
+}
+
+async fn notifications_mentions_mark_read(
+    State(state): State<Shared>,
+    Json(body): Json<MemberParam>,
+) -> Result<StatusCode, AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.rules.mark_mentions_read(&body.member);
+    Ok(StatusCode::NO_CONTENT)
+}
+
 async fn notifications_settings_get(
     State(state): State<Shared>,
     Query(params): Query<MemberParam>,
@@ -1378,19 +1448,19 @@ async fn item_set_store(
 async fn item_recover(
     State(state): State<Shared>,
     Path(id): Path<String>,
-    Json(body): Json<ByBody>,
+    actor: AuthActor,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
     let item = store.items.get(&id)?;
     if item.status != ItemStatus::Cancelado {
         return Err(AppError::conflict("Solo se recupera un ítem que fue cancelado"));
     }
-    Ok(Json(store.items.change_status(&id, ItemStatus::Falta, &body.by)?))
+    Ok(Json(store.items.change_status(&id, ItemStatus::Falta, &actor.0)?))
 }
 
-async fn items_purchased_on(
+async fn items_purchased_between(
     State(state): State<Shared>,
-    Query(params): Query<DateParams>,
+    Query(params): Query<RangeParams>,
 ) -> Result<Json<Vec<GroceryItem>>, AppError> {
     let store = store::lock(&state.store)?;
     let items: Vec<GroceryItem> = store
@@ -1405,7 +1475,7 @@ async fn items_purchased_on(
                         to: ItemStatus::Comprado,
                         ..
                     }
-                ) && ev.at.starts_with(&params.date)
+                ) && ev.at >= params.start && ev.at <= params.end
             })
         })
         .collect();
@@ -1420,10 +1490,7 @@ async fn timeline_get(
 ) -> Result<Json<Vec<grocery_planner_lib::commands::timeline::TimelineEntry>>, AppError> {
     let store = store::lock(&state.store)?;
     let mut entries = grocery_planner_lib::commands::timeline::compute_timeline(&store);
-    entries.retain(|e| {
-        let day = &e.at[..e.at.len().min(10)];
-        day >= params.start.as_str() && day <= params.end.as_str()
-    });
+    entries.retain(|e| e.at >= params.start && e.at <= params.end);
     entries.sort_by(|a, b| a.at.cmp(&b.at));
     Ok(Json(entries))
 }
@@ -1433,19 +1500,19 @@ async fn timeline_get(
 async fn trips_confirm_received(
     State(state): State<Shared>,
     Path(id): Path<String>,
-    Json(body): Json<ByBody>,
+    actor: AuthActor,
 ) -> Result<Json<ShoppingTrip>, AppError> {
     let mut store = store::lock(&state.store)?;
     let trip = store.trips.get(&id)?;
     let buyer = trip.assigned_to.clone().unwrap_or_else(|| trip.created_by.clone());
     let title = trip.title.clone();
-    let received = store.trips.confirm_received(&id, &body.by)?;
-    if buyer != body.by {
+    let received = store.trips.confirm_received(&id, &actor.0)?;
+    if buyer != actor.0 {
         store.rules.push_notification(
             grocery_planner_lib::domain::notification::AppNotification::new(
                 grocery_planner_lib::domain::notification::NotificationKind::Arrival,
                 &buyer,
-                &format!("{} recibió el mandado", body.by),
+                &format!("{} recibió el mandado", actor.0),
                 &format!("El mandado \"{title}\" ya llegó a casa. ¡Gracias!"),
                 Some(&format!("/trips/{id}")),
             ),
@@ -1479,6 +1546,8 @@ async fn backup_export(State(state): State<Shared>) -> Result<Json<BackupData>, 
         sections: store.sections.list(),
         chat: store.chat.list(),
         rules: store.rules.rules(),
+        notifications: store.rules.notifications.clone(),
+        projection_choices: store.rules.projection_choices.clone(),
     }))
 }
 
@@ -1494,6 +1563,8 @@ async fn backup_import(
     store.sections.replace_all(data.sections);
     store.chat.replace_all(data.chat);
     store.rules.set_rules(data.rules);
+    store.rules.notifications = data.notifications;
+    store.rules.projection_choices = data.projection_choices;
     if let Some(home) = data.home {
         store.home.replace(home);
     }
@@ -1508,6 +1579,7 @@ async fn auth_set_pin(
 ) -> Result<StatusCode, AppError> {
     let mut store = store::lock(&state.store)?;
     store.auth.set_pin(&body.name, &body.pin)?;
+    persist_store(&store);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -1517,6 +1589,7 @@ async fn auth_remove_pin(
 ) -> Result<StatusCode, AppError> {
     let mut store = store::lock(&state.store)?;
     store.auth.remove_pin(&body.name)?;
+    persist_store(&store);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -1534,6 +1607,7 @@ async fn auth_login_pin(
 ) -> Result<Json<auth_cmd::AuthView>, AppError> {
     let mut store = store::lock(&state.store)?;
     let (user, token) = store.auth.login_pin(&body.name, &body.pin, &body.device)?;
+    persist_store(&store);
     Ok(Json(auth_cmd::AuthView {
         user: user_view(&user),
         token,
@@ -1591,6 +1665,7 @@ async fn auth_register(
 ) -> Result<Json<auth_cmd::AuthView>, AppError> {
     let mut store = store::lock(&state.store)?;
     let (user, token) = store.auth.register(&body.name, &body.password, "este dispositivo")?;
+    persist_store(&store);
     Ok(Json(auth_cmd::AuthView {
         user: user_view(&user),
         token,
@@ -1603,6 +1678,7 @@ async fn auth_login(
 ) -> Result<Json<auth_cmd::AuthView>, AppError> {
     let mut store = store::lock(&state.store)?;
     let (user, token) = store.auth.login(&body.name, &body.password, &body.device)?;
+    persist_store(&store);
     Ok(Json(auth_cmd::AuthView {
         user: user_view(&user),
         token,
@@ -1616,6 +1692,7 @@ async fn auth_logout(
     let token = bearer_token(&headers)?;
     let mut store = store::lock(&state.store)?;
     store.auth.revoke(&token)?;
+    persist_store(&store);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -1673,6 +1750,7 @@ async fn auth_revoke_session(
     }
     let is_current = body.target_token == token;
     store.auth.revoke(&body.target_token)?;
+    persist_store(&store);
     Ok(Json(is_current))
 }
 
@@ -1686,6 +1764,7 @@ async fn auth_change_password(
     store
         .auth
         .change_password(&token, &body.current_password, &body.new_password)?;
+    persist_store(&store);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -1693,7 +1772,7 @@ async fn auth_change_password(
 /// un token de sesión válido, salvo las rutas públicas.
 async fn auth_guard(
     State(state): State<Shared>,
-    req: axum::extract::Request,
+    mut req: axum::extract::Request,
     next: Next,
 ) -> Response {
     let path = req.uri().path().to_string();
@@ -1711,7 +1790,14 @@ async fn auth_guard(
         .map(|t| t.trim().to_string());
     let authorized = match token {
         Some(tok) => match store::lock(&state.store) {
-            Ok(mut s) => s.auth.user_by_token(&tok).is_ok(),
+            Ok(mut s) => match s.auth.user_by_token(&tok) {
+                Ok(user) => {
+                    // El actor real de esta request es la cuenta del token.
+                    req.extensions_mut().insert(AuthActor(user.name));
+                    true
+                }
+                Err(_) => false,
+            },
             Err(_) => false,
         },
         None => false,
@@ -1750,6 +1836,9 @@ async fn main() {
         });
     }
 
+    // Guardado en segundo plano: los datos y sesiones sobreviven al reinicio.
+    persist::spawn_saver(state.clone(), std::time::Duration::from_secs(5));
+
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
@@ -1772,6 +1861,8 @@ async fn main() {
         .route("/api/auth/has-pin", get(auth_has_pin))
         .route("/api/auth/login-pin", post(auth_login_pin))
         .route("/api/chat", get(chat_list).post(chat_send))
+        .route("/api/chat/page", get(chat_page_handler))
+        .route("/api/chat/search", get(chat_search_handler))
         .route("/api/chat/count", get(chat_count))
         .route("/api/chat/{id}/react", post(chat_react))
         .route("/api/chat/{id}/pin", post(chat_pin))
@@ -1786,6 +1877,8 @@ async fn main() {
         .route("/api/notifications", get(notifications_list))
         .route("/api/notifications/unread", get(notifications_unread))
         .route("/api/notifications/read-all", post(notifications_mark_all_read))
+        .route("/api/notifications/mentions/unread", get(notifications_mentions_unread))
+        .route("/api/notifications/mentions/read", post(notifications_mentions_mark_read))
         .route("/api/notifications/{id}/read", post(notifications_mark_read))
         .route("/api/notifications/settings", get(notifications_settings_get).put(notifications_settings_update))
         .route("/api/items", get(items_list).post(item_create))
@@ -1808,7 +1901,7 @@ async fn main() {
         .route("/api/items/{id}/photos", post(item_add_photo))
         .route("/api/items/{id}/photos/{index}", delete(item_remove_photo))
         .route("/api/items/{id}/recover", post(item_recover))
-        .route("/api/items/purchased", get(items_purchased_on))
+        .route("/api/items/purchased", get(items_purchased_between))
         .route("/api/presence", get(presence_list))
         .route("/api/presence/heartbeat", post(presence_heartbeat))
         .route("/api/presence/leave", post(presence_leave))

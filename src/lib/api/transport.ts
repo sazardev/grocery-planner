@@ -82,11 +82,34 @@ const ROUTES: Record<string, Route> = {
     body: (a) => pick(a, ['name', 'pin', 'device']),
   },
   chat_list: { method: 'GET', path: () => '/api/chat' },
+  chat_page: {
+    method: 'GET',
+    path: (a) => {
+      const p = new URLSearchParams()
+      if (a['limit'] != null) p.set('limit', String(a['limit']))
+      if (a['before']) p.set('before', String(a['before']))
+      const qs = p.toString()
+      return `/api/chat/page${qs ? `?${qs}` : ''}`
+    },
+  },
+  chat_search: {
+    method: 'GET',
+    path: (a) => {
+      const p = new URLSearchParams()
+      if (a['query']) p.set('query', String(a['query']))
+      if (a['by']) p.set('by', String(a['by']))
+      if (a['refKind']) p.set('refKind', String(a['refKind']))
+      if (a['hasPhoto'] != null) p.set('hasPhoto', String(a['hasPhoto']))
+      if (a['limit'] != null) p.set('limit', String(a['limit']))
+      const qs = p.toString()
+      return `/api/chat/search${qs ? `?${qs}` : ''}`
+    },
+  },
   chat_count: { method: 'GET', path: () => '/api/chat/count' },
   chat_send: {
     method: 'POST',
     path: () => '/api/chat',
-    body: (a) => pick(a, ['by', 'body', 'photo', 'itemId']),
+    body: (a) => pick(a, ['by', 'body', 'photo', 'itemId', 'refs']),
   },
   chat_react: {
     method: 'POST',
@@ -153,6 +176,15 @@ const ROUTES: Record<string, Route> = {
     path: () => '/api/notifications/read-all',
     body: (a) => pick(a, ['member']),
   },
+  notifications_mentions_unread_count: {
+    method: 'GET',
+    path: (a) => `/api/notifications/mentions/unread?member=${encodeURIComponent(String(a['member'] ?? ''))}`,
+  },
+  notifications_mentions_mark_read: {
+    method: 'POST',
+    path: () => '/api/notifications/mentions/read',
+    body: (a) => pick(a, ['member']),
+  },
   notifications_settings_get: {
     method: 'GET',
     path: (a) => `/api/notifications/settings?member=${encodeURIComponent(String(a['member'] ?? ''))}`,
@@ -169,7 +201,7 @@ const ROUTES: Record<string, Route> = {
   },
   timeline_get: {
     method: 'GET',
-    path: (a) => `/api/timeline?start=${a['start']}&end=${a['end']}`,
+    path: (a) => `/api/timeline?start=${encodeURIComponent(String(a['start']))}&end=${encodeURIComponent(String(a['end']))}`,
   },
   backup_export: { method: 'GET', path: () => '/api/backup' },
   backup_import: {
@@ -224,9 +256,9 @@ const ROUTES: Record<string, Route> = {
     path: (a) => `/api/items/${a['id']}/recover`,
     body: (a) => pick(a, ['by']),
   },
-  items_purchased_on: {
+  items_purchased_between: {
     method: 'GET',
-    path: (a) => `/api/items/purchased?date=${a['date']}`,
+    path: (a) => `/api/items/purchased?start=${encodeURIComponent(String(a['start']))}&end=${encodeURIComponent(String(a['end']))}`,
   },
   item_update: {
     method: 'PATCH',
@@ -279,7 +311,7 @@ const ROUTES: Record<string, Route> = {
   presence_heartbeat: {
     method: 'POST',
     path: () => '/api/presence/heartbeat',
-    body: (a) => pick(a, ['name']),
+    body: (a) => pick(a, ['name', 'screen']),
   },
   presence_leave: {
     method: 'POST',

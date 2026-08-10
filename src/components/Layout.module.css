@@ -3,10 +3,59 @@
   flex-direction: column;
   min-height: 100svh;
   width: 100%;
+  --gp-appbar-h: 52px;
+}
+
+/* App bar superior: marca + engrane de Reglas (customización desde cualquier pantalla). */
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--gp-z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+  height: var(--gp-appbar-h);
+  padding: 0 var(--gp-space-4);
+  background: var(--gp-surface);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  color: var(--gp-text-primary);
+  text-decoration: none;
+}
+
+.brandMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--gp-primary-subtle);
+  color: var(--gp-primary-strong);
+}
+
+.brandName {
+  font-weight: var(--gp-weight-semibold);
+  font-size: var(--gp-text-base);
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .appbar {
+    padding: 0 var(--gp-space-6);
+  }
 }
 
 .content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   width: 100%;
   max-width: var(--gp-content-max);
   margin: 0 auto;
@@ -14,4 +63,31 @@
   animation: gp-page-in 0.32s var(--gp-ease-out);
   transform-origin: top center;
   will-change: opacity, transform;
+}
+
+/* En tablet y escritorio (web y app nativa) aprovechamos el ancho de la
+   pantalla: la columna crece y el padding lateral baja. */
+@media (min-width: 768px) {
+  .content {
+    max-width: var(--gp-container-xl);
+    padding-left: var(--gp-space-6);
+    padding-right: var(--gp-space-6);
+  }
+}
+
+@media (min-width: 1280px) {
+  .content {
+    max-width: 1440px;
+    padding-left: var(--gp-space-10);
+    padding-right: var(--gp-space-10);
+  }
+}
+
+/* El chat fija la altura de la ventana: el hilo scrollea por dentro y el
+   compositor queda anclado abajo (la nav ya es `position: fixed`). */
+.contentChat {
+  flex: 0 0 auto;
+  height: calc(100svh - var(--gp-appbar-h));
+  min-height: 0;
+  overflow: hidden;
 }

@@ -74,3 +74,23 @@ export function formatDateTime(iso: string): string {
   const time = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
   return `${date}, ${time}`
 }
+
+/**
+ * Convierte un día local (AAAA-MM-DD) a los límites ISO UTC que lo cubren.
+ * Sirve para consultar el historial: los timestamps del backend son UTC y
+ * el día local puede caer en fechas UTC distintas.
+ */
+export function localDayRangeISO(day: string): { start: string; end: string } {
+  const [y, m, d] = day.split('-').map(Number)
+  const start = new Date(y, (m ?? 1) - 1, d ?? 1, 0, 0, 0, 0)
+  const end = new Date(y, (m ?? 1) - 1, d ?? 1, 23, 59, 59, 999)
+  return { start: start.toISOString(), end: end.toISOString() }
+}
+
+/** Rango ISO UTC de una ventana local [startDay, endDay] inclusive. */
+export function localWindowRangeISO(startDay: string, endDay: string): { start: string; end: string } {
+  const [y, m, d] = endDay.split('-').map(Number)
+  const start = localDayRangeISO(startDay).start
+  const end = new Date(y, (m ?? 1) - 1, d ?? 1, 23, 59, 59, 999).toISOString()
+  return { start, end }
+}
