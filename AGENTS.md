@@ -10,6 +10,7 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
 | Desktop dev | `npm run tauri:dev` (auto-runs `npm run dev`) |
 | Backend HTTP (web/self-hosted) | `cargo run --features server --bin server` (localhost:8787) |
 | Seed (familia demo con sesiones reales) | `npm run seed` (usa `VITE_API_URL` o `GP_API_URL`; default `http://localhost:8787`) |
+| Regenerar SEO (robots/sitemap/og-image) | `npm run seo` (también se genera solo en cada `vite build` vía plugin) |
 | Typecheck + build | `npm run build` (`tsc -b && vite build`) |
 | Lint | `npm run lint` (oxlint) |
 | Package desktop | `npm run tauri:build` (auto-runs `npm run build`) |
@@ -19,6 +20,10 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
 ## Gotchas
 
 - **Git**: repo initialized (branch `main`). `git` commands are fine now.
+- **SEO automatizado**: al terminar `vite build`, un plugin genera `robots.txt`,
+  `sitemap.xml` y `og-image.png` (desde `public/og-image.svg`) en el output. La base
+  usa `VITE_BASE_URL`/`GP_BASE_URL`; si no está, queda el placeholder
+  `https://grocery.example`. `npm run seo` regenera las copias de `public/`.
 - **Web dev needs the HTTP server running**: in the browser, `transport.ts` uses fetch
   against `http://localhost:8787` (override con `VITE_API_URL`). Arranca el backend con
   `cargo run --features server --bin server` antes de probar la UI web; sin él, HomePage

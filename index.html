@@ -27,7 +27,7 @@
     />
     <meta name="author" content="Grocery Planner" />
     <meta name="keywords" content="lista de compras, compras, mandado, familia, self-hosted, qué falta, supermercado, planificador" />
-    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
     <meta name="theme-color" content="#16A34A" />
     <meta name="color-scheme" content="light dark" />
 
@@ -87,6 +87,20 @@
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
         "image": "/og-image.png",
         "inLanguage": "es"
+      }
+    </script>
+
+    <!-- Organización / proyecto (para el share de redes y Google) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Grocery Planner",
+        "alternateName": "¿Qué falta?",
+        "description": "Planeador de compras self-hosted para una familia: lista compartida, mandados, planes, calendario, chat e historial.",
+        "logo": "/logo.svg",
+        "image": "/og-image.png",
+        "sameAs": ["https://github.com/sazardev/grocery-planner"]
       }
     </script>
   </head>

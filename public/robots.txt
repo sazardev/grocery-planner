@@ -1,7 +1,11 @@
+# /robots.txt — generado por scripts/seo.mjs (no edites a mano)
 User-agent: *
 Allow: /
-Disallow: /api/
-Disallow: /admin/
 
-# Sitemap: ajusta el dominio al de tu hogar self-hosted
+# Zonas de la app: el API y las rutas de sesión no se indexan.
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+Disallow: /kiosk
+
 Sitemap: https://grocery.example/sitemap.xml
