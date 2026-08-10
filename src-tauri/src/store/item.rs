@@ -60,6 +60,15 @@ impl ItemStore {
         Ok(item.clone())
     }
 
+    pub fn unassign(&mut self, id: &str, by: &str) -> Result<GroceryItem, AppError> {
+        let item = self
+            .items
+            .get_mut(id)
+            .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
+        item.unassign(by)?;
+        Ok(item.clone())
+    }
+
     pub fn cancel(
         &mut self,
         id: &str,

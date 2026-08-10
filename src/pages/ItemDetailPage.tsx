@@ -7,6 +7,7 @@ import {
   addItemPhoto,
   addItemFallback,
   assignItem,
+  unassignItem,
   changeItemStatus,
   deleteItem,
   getHome,
@@ -114,6 +115,9 @@ export default function ItemDetailPage() {
   const [category, setCategory] = useState('')
   const [price, setPrice] = useState('')
   const [priority, setPriority] = useState<Priority>('media')
+  const [assignedTo, setAssignedTo] = useState('')
+  const [section, setSection] = useState('')
+  const [store, setStore] = useState('')
   const [commentBody, setCommentBody] = useState('')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -141,6 +145,9 @@ export default function ItemDetailPage() {
     setCategory(item.category ?? '')
     setPrice(item.price != null ? String(item.price) : '')
     setPriority(item.priority)
+    setAssignedTo(item.assignedTo ?? '')
+    setSection(item.section ?? '')
+    setStore(item.store ?? '')
     setLoadedFor(item.id)
     setSaved(false)
   }
@@ -190,6 +197,11 @@ export default function ItemDetailPage() {
 
   const assignMutation = useMutation({
     mutationFn: (member: string) => assignItem(item!.id, member, ME),
+    onSuccess: invalidateItem,
+  })
+
+  const unassignMutation = useMutation({
+    mutationFn: () => unassignItem(item!.id, ME),
     onSuccess: invalidateItem,
   })
 
@@ -343,6 +355,11 @@ export default function ItemDetailPage() {
   }
 
   const members = homeQuery.data?.members ?? []
+  // Siempre incluye al usuario actual y el valor ya asignado como opción de
+  // "Quién lo lleva" (puede que ME o el asignado no figuren en los miembros).
+  const assignOptions = Array.from(
+    new Set([...members.map((m) => m.name), ME, ...(item.assignedTo ? [item.assignedTo] : [])]),
+  ).sort((a, b) => a.localeCompare(b, 'es'))
   const sections = sectionsQuery.data ?? []
   const comments: ItemComment[] = item.comments ?? []
   const history: ItemEvent[] = historyQuery.data ?? []
@@ -442,13 +459,17 @@ export default function ItemDetailPage() {
 
           <Field label="Quién lo lleva">
             <Select
-              value={item.assignedTo ?? ''}
-              onChange={(e) => e.target.value && assignMutation.mutate(e.target.value)}
+              value={assignedTo}
+              onChange={(e) => {
+                setAssignedTo(e.target.value)
+                if (e.target.value) assignMutation.mutate(e.target.value)
+                else unassignMutation.mutate()
+              }}
             >
               <option value="">Sin asignar</option>
-              {members.map((m) => (
-                <option key={m.name} value={m.name}>
-                  {m.name}
+              {assignOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
                 </option>
               ))}
             </Select>
@@ -457,8 +478,11 @@ export default function ItemDetailPage() {
           {sections.length > 0 && (
             <Field label="Sección de la lista">
               <Select
-                value={item.section ?? ''}
-                onChange={(e) => e.target.value && sectionMutation.mutate(e.target.value)}
+                value={section}
+                onChange={(e) => {
+                  setSection(e.target.value)
+                  if (e.target.value) sectionMutation.mutate(e.target.value)
+                }}
               >
                 <option value="">Sin sección</option>
                 {sections.map((s) => (
@@ -473,8 +497,11 @@ export default function ItemDetailPage() {
           {(rulesQuery.data?.stores.length ?? 0) > 0 && (
             <Field label="Tienda donde se consigue">
               <Select
-                value={item.store ?? ''}
-                onChange={(e) => e.target.value && storeMutation.mutate(e.target.value)}
+                value={store}
+                onChange={(e) => {
+                  setStore(e.target.value)
+                  if (e.target.value) storeMutation.mutate(e.target.value)
+                }}
               >
                 <option value="">Sin tienda</option>
                 {rulesQuery.data!.stores.map((s) => (

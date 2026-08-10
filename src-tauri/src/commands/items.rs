@@ -209,6 +209,13 @@ pub fn item_assign(
     store.items.assign(&id, &member, &by)
 }
 
+/// Quita la asignación del ítem.
+#[tauri::command]
+pub fn item_unassign(state: AppStateRef, id: String, by: String) -> Result<GroceryItem, AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.items.unassign(&id, &by)
+}
+
 /// Cancela un ítem (transición a Cancelado) con motivo opcional.
 #[tauri::command]
 pub fn item_cancel(

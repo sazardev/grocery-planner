@@ -169,6 +169,10 @@ export function assignItem(id: string, member: string, by: string): Promise<Groc
   return request<GroceryItem>('item_assign', { id, member, by })
 }
 
+export function unassignItem(id: string, by: string): Promise<GroceryItem> {
+  return request<GroceryItem>('item_unassign', { id, by })
+}
+
 export function cancelItem(id: string, by: string, reason?: string): Promise<GroceryItem> {
   return request<GroceryItem>('item_cancel', { id, by, reason: reason ?? null })
 }

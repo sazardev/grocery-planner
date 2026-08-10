@@ -564,6 +564,15 @@ async fn item_assign(
     Ok(Json(store.items.assign(&id, &body.member, &actor.0)?))
 }
 
+async fn item_unassign(
+    State(state): State<Shared>,
+    Path(id): Path<String>,
+    actor: AuthActor,
+) -> Result<Json<GroceryItem>, AppError> {
+    let mut store = store::lock(&state.store)?;
+    Ok(Json(store.items.unassign(&id, &actor.0)?))
+}
+
 async fn item_cancel(
     State(state): State<Shared>,
     Path(id): Path<String>,
@@ -1979,6 +1988,7 @@ async fn main() {
         .route("/api/items/{id}", get(item_get).patch(item_update).delete(item_delete))
         .route("/api/items/{id}/status", patch(item_change_status))
         .route("/api/items/{id}/assign", post(item_assign))
+        .route("/api/items/{id}/assign", delete(item_unassign))
         .route("/api/items/{id}/cancel", post(item_cancel))
         .route("/api/items/{id}/history", get(item_history))
         .route("/api/items/{id}/comment", post(item_add_comment))

@@ -311,6 +311,11 @@ const ROUTES: Record<string, Route> = {
     path: (a) => `/api/items/${a['id']}/assign`,
     body: (a) => pick(a, ['member', 'by']),
   },
+  item_unassign: {
+    method: 'DELETE',
+    path: (a) => `/api/items/${a['id']}/assign`,
+    body: (a) => pick(a, ['by']),
+  },
   item_cancel: {
     method: 'POST',
     path: (a) => `/api/items/${a['id']}/cancel`,

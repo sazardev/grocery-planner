@@ -95,6 +95,7 @@ pub fn run() {
             commands::items::item_delete,
             commands::items::item_change_status,
             commands::items::item_assign,
+            commands::items::item_unassign,
             commands::items::item_cancel,
             commands::items::item_history,
             commands::items::item_add_comment,

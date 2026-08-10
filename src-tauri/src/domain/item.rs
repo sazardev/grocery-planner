@@ -573,6 +573,19 @@ impl GroceryItem {
         Ok(())
     }
 
+    /// Quita la asignación del ítem (vuelve a "sin asignar").
+    pub fn unassign(&mut self, by: &str) -> Result<(), AppError> {
+        self.assigned_to = None;
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::Updated {
+                fields: vec!["assignedTo".into()],
+            },
+        });
+        Ok(())
+    }
+
     /// Cancela el ítem (transición a Cancelado) con motivo opcional (SPEC §3.3).
     pub fn cancel(&mut self, by: &str, reason: Option<&str>) -> Result<(), AppError> {
         let from = self.status;
