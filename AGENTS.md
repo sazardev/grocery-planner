@@ -40,6 +40,11 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
   restaura. Ubicación: `GROCERY_PLANNER_DATA` → `$XDG_DATA_HOME/grocery-planner/data.json` →
   `~/.grocery-planner/data.json`. **Reiniciar el servidor ya no borra nada.** Los handlers de
   auth guardan al instante (una sesión nueva no se pierde).
+- **Migración de datos**: los campos nuevos de los structs de dominio llevan `#[serde(default)]`
+  para que un `data.json` de un binario viejo cargue sin romperse (ej. `GroceryItem.brand`/
+  `quantity_max`/`fallbacks`). Si el archivo es ilegible, `persist::restore_into` lo mueve a
+  `data.json.corrupt-<timestamp>.json` **en vez de sobrescribirlo** — nunca perder datos por
+  un server nuevo con schema nuevo.
 - **Actor real en HTTP**: el servidor HTTP deriva el actor del token (no confía en `by` del
   cliente); los body structs ya no incluyen `by`/`owner`/`member`/`createdBy`. El seed
   (`npm run seed`) crea cuenta por miembro y actúa con la sesión de cada uno. Tauri IPC sigue

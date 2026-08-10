@@ -139,12 +139,15 @@ pub struct GroceryItem {
     pub requested_by: String,
     pub assigned_to: Option<String>,
     /// Marca preferida (opcional), ej. "la marca que nos gusta".
+    #[serde(default)]
     pub brand: Option<String>,
     /// Cantidad deseada que se pide; `quantity_max` es lo máximo que aceptan
     /// (opcional): "quiero 2 kg, pero si solo hay 3 tráelo".
+    #[serde(default)]
     pub quantity_max: Option<f64>,
     /// Alternativas ordenadas por si no hay el producto ("si no hay pechuga
     /// de pollo, trae pierna").
+    #[serde(default)]
     pub fallbacks: Vec<ItemFallback>,
     pub note: Option<String>,
     pub category: Option<String>,

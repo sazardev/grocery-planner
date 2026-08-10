@@ -97,7 +97,12 @@ pub fn spawn_saver(store: std::sync::Arc<crate::state::AppState>, interval: std:
 }
 
 /// Restaura un estado guardado sobre el `AppStore` (si existe el archivo).
-pub fn restore_into(store: &mut AppStore, path: &Path) -> bool {
+///
+/// Devuelve `Ok(true)` si se cargó, `Ok(false)` si no había archivo, y
+/// `Err(backup_path)` si el archivo existía pero era inválido: en ese caso se
+/// **mueve a un respaldo** (`data.json.corrupt-<timestamp>`) en vez de dejar que
+/// el guardado en segundo plano lo sobrescriba y destruya los datos.
+pub fn restore_into(store: &mut AppStore, path: &Path) -> Result<bool, PathBuf> {
     match load(path) {
         Ok(state) => {
             store.auth = state.auth;
@@ -109,13 +114,24 @@ pub fn restore_into(store: &mut AppStore, path: &Path) -> bool {
             store.plans = state.plans;
             store.chat = state.chat;
             store.rules = state.rules;
-            true
+            Ok(true)
         }
         Err(e) => {
             if path.exists() {
                 eprintln!("persist: no se pudo cargar los datos: {e}");
+                // Respalda el archivo original antes de que el saver lo pise.
+                let nanos = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_nanos())
+                    .unwrap_or(0);
+                let backup = path.with_extension(format!("corrupt-{nanos}.json"));
+                if std::fs::rename(path, &backup).is_ok() {
+                    eprintln!("persist: el archivo inválido se movió a {backup:?}");
+                    return Err(backup);
+                }
+                return Err(path.to_path_buf());
             }
-            false
+            Ok(false)
         }
     }
 }

@@ -24,8 +24,12 @@ impl AppState {
 impl Default for AppState {
     fn default() -> Self {
         let mut store = AppStore::new();
-        // Restaura el estado guardado (datos + sesiones) si existe.
-        persist::restore_into(&mut store, &persist::default_data_path());
+        // Restaura el estado guardado (datos + sesiones) si existe. Si el archivo
+        // era inválido se respalda y se arranca limpio (persist::restore_into).
+        match persist::restore_into(&mut store, &persist::default_data_path()) {
+            Ok(_) => {}
+            Err(_backup) => eprintln!("state: se arrancó con estado limpio (el archivo de datos se respaldó)"),
+        }
         // Cuenta fija de desarrollo para entrar sin registrar (ver store::auth).
         store.auth.seed_default_account();
         Self {
