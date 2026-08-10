@@ -43,7 +43,7 @@ export default function KioskPage() {
       <button
         type="button"
         className={styles.exit}
-        onClick={() => navigate('/')}
+        onClick={() => navigate('/home')}
         aria-label="Salir del quiosco"
       >
         <LogOut size={20} strokeWidth={2} aria-hidden="true" />

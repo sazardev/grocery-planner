@@ -15,28 +15,28 @@ export interface TourStep {
 
 export const TOUR_STEPS: TourStep[] = [
   {
-    route: '/',
+    route: '/home',
     selector: 'button[aria-label="Agregar lo que falta"]',
     tag: 'Inicio',
     title: 'Agrega lo que falta',
     body: 'Toca el botón flotante para anotar algo: escribe “pollo 2kg” en Rápido, o pasa a Detallado para marca, cantidades y alternativas si no hay.',
   },
   {
-    route: '/',
+    route: '/home',
     selector: 'input[aria-label="Buscar en la lista"]',
     tag: 'Inicio',
     title: 'Busca al instante',
     body: 'Filtra por nombre, marca, nota o quién lo pidió. Combínalo con los chips de estado: Falta, Pedido, Ya lo llevo…',
   },
   {
-    route: '/',
-    text: 'Falta',
+    route: '/home',
+    selector: 'input[type="checkbox"]',
     tag: 'Inicio',
     title: 'Marca «ya lo llevo»',
     body: 'En la tienda, toca la bolita de un ítem para pasarlo a “Ya lo llevo”. Si hay alternativas, aparece “No había…” para ofrecer la siguiente opción.',
   },
   {
-    route: '/',
+    route: '/home',
     text: 'Ver reportes de la familia',
     tag: 'Inicio',
     title: 'Reportes y atajos',

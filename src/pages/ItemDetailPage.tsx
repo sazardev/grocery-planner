@@ -133,7 +133,7 @@ export default function ItemDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['item', id] })
   }
 
-  const goBack = useGoBack('/')
+  const goBack = useGoBack('/home')
 
   // Al guardar: muestra la confirmación y luego vuelve a la lista (feedback +
   // navegación). Se dispara una sola vez aunque varias mutations se resuelvan
@@ -202,7 +202,7 @@ export default function ItemDetailPage() {
     mutationFn: () => deleteItem(item!.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] })
-      navigate('/')
+      navigate('/home')
     },
   })
 

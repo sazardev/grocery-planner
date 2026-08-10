@@ -48,9 +48,14 @@ function findElementByText(text: string): Element | null {
   const candidates = Array.from(document.querySelectorAll<HTMLElement>(
     'button, a, [role="tab"], h1, h2, h3, label, input, span',
   ))
+  // Prefiere coincidencia exacta; si no, la primera que empiece con el texto
+  // (pero nunca el FAB "Falta…" para no confundir el paso de la lista).
+  const exact = candidates.find((el) => (el.textContent ?? '').trim() === wanted)
+  if (exact) return exact
   return candidates.find((el) => {
     const t = (el.textContent ?? '').trim()
-    return t === wanted || t.startsWith(wanted)
+    const isFab = el.getAttribute('aria-label') === 'Agregar lo que falta'
+    return !isFab && (t === wanted || t.startsWith(wanted))
   }) ?? null
 }
 

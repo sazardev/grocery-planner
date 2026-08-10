@@ -64,7 +64,7 @@ export default function ReportsPage() {
     },
   })
 
-  const goBack = useGoBack('/')
+  const goBack = useGoBack('/home')
 
   const proy = (projection.data ?? [])
     .filter((p) => p.cadenceDays != null)

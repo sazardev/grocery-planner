@@ -1,0 +1,324 @@
+/* Landing page: presentación del producto. Plano, verde, sin sombras ni
+   gradientes (DESIGN.md). Animaciones sutiles con los keyframes del sistema. */
+
+.page {
+  min-height: 100svh;
+  background: var(--gp-background);
+  color: var(--gp-text-primary);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--gp-z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+  padding: var(--gp-space-3) var(--gp-space-4);
+  background: color-mix(in srgb, var(--gp-background) 88%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  color: var(--gp-text-primary);
+  text-decoration: none;
+  font-weight: var(--gp-weight-semibold);
+}
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--gp-primary);
+  color: var(--gp-text-inverse);
+}
+
+.brandName {
+  font-size: var(--gp-text-base);
+  white-space: nowrap;
+}
+
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-3);
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gp-space-1);
+  color: var(--gp-primary-strong);
+  text-decoration: none;
+  font-weight: var(--gp-weight-medium);
+}
+
+/* --- Hero --- */
+.hero {
+  display: grid;
+  gap: var(--gp-space-8);
+  align-items: center;
+  padding: var(--gp-space-10) var(--gp-space-4) var(--gp-space-12);
+  max-width: var(--gp-container-xl);
+  margin: 0 auto;
+}
+
+.heroInner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-4);
+  align-items: flex-start;
+  animation: gp-rise 0.5s var(--gp-ease-out) both;
+}
+
+.title {
+  font-size: var(--gp-text-3xl);
+  line-height: 1.08;
+  letter-spacing: var(--gp-tracking-heading);
+  font-weight: var(--gp-weight-bold);
+  margin: 0;
+}
+
+.titleAccent {
+  color: var(--gp-text-secondary);
+  font-weight: var(--gp-weight-regular);
+}
+
+.subtitle {
+  font-size: var(--gp-text-lg);
+  line-height: var(--gp-line-base);
+  color: var(--gp-text-secondary);
+  max-width: 34ch;
+  margin: 0;
+}
+
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gp-space-3);
+  align-items: center;
+}
+
+/* --- Mock de la lista --- */
+.mockWrap {
+  position: relative;
+  max-width: 440px;
+  width: 100%;
+  margin: 0 auto;
+  animation: gp-pop 0.6s var(--gp-ease-spring) 0.1s both;
+}
+
+.mockCard {
+  box-shadow: 0 0 0 0 transparent;
+}
+
+.mockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+}
+
+.mockRow {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-3);
+  padding: var(--gp-space-2) 0;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-touch);
+  color: var(--gp-text-inverse);
+  flex-shrink: 0;
+}
+
+.checkOn {
+  background: var(--gp-primary-strong);
+}
+
+.mockName {
+  font-weight: var(--gp-weight-medium);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mockQty {
+  color: var(--gp-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.done {
+  color: var(--gp-text-tertiary);
+  text-decoration: line-through;
+}
+
+.mockFab {
+  position: absolute;
+  right: var(--gp-space-4);
+  bottom: -22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-primary-strong);
+  color: var(--gp-text-inverse);
+  animation: gp-halo 3.2s var(--gp-ease-out) infinite;
+}
+
+/* --- Secciones --- */
+.section {
+  max-width: var(--gp-container-xl);
+  margin: 0 auto;
+  padding: var(--gp-space-8) var(--gp-space-4);
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+  margin-bottom: var(--gp-space-6);
+}
+
+.h2 {
+  font-size: var(--gp-text-2xl);
+  letter-spacing: var(--gp-tracking-heading);
+  margin: 0;
+}
+
+.lead {
+  font-size: var(--gp-text-base);
+  color: var(--gp-text-secondary);
+  margin: 0;
+  max-width: 52ch;
+}
+
+.grid {
+  display: grid;
+  gap: var(--gp-space-3);
+  grid-template-columns: 1fr;
+}
+
+.feature {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+}
+
+.featureIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--gp-radius-lg);
+  background: var(--gp-primary-subtle);
+  color: var(--gp-primary-strong);
+  margin-bottom: var(--gp-space-1);
+}
+
+/* --- Pasos --- */
+.steps {
+  display: grid;
+  gap: var(--gp-space-3);
+  grid-template-columns: 1fr;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-1);
+  padding: var(--gp-space-4);
+  border-radius: var(--gp-radius-lg);
+  background: var(--gp-surface);
+}
+
+.stepNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-primary-subtle);
+  color: var(--gp-primary-strong);
+  font-weight: var(--gp-weight-bold);
+  margin-bottom: var(--gp-space-2);
+}
+
+/* --- CTA final --- */
+.cta {
+  max-width: var(--gp-container-xl);
+  margin: 0 auto;
+  padding: var(--gp-space-4) var(--gp-space-4) var(--gp-space-12);
+}
+
+.ctaCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--gp-space-3);
+}
+
+/* --- Footer --- */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+  flex-wrap: wrap;
+  padding: var(--gp-space-6) var(--gp-space-4);
+  border-top: 1px solid var(--gp-touch);
+}
+
+.footerBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--gp-space-1);
+  color: var(--gp-text-tertiary);
+  font-size: var(--gp-text-sm);
+}
+
+/* --- Responsive --- */
+@media (min-width: 768px) {
+  .hero {
+    grid-template-columns: 1.1fr 0.9fr;
+    padding: var(--gp-space-16) var(--gp-space-6);
+  }
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .topbar,
+  .section,
+  .cta,
+  .footer {
+    padding-left: var(--gp-space-6);
+    padding-right: var(--gp-space-6);
+  }
+}
+
+@media (min-width: 1280px) {
+  .hero {
+    padding-top: var(--gp-space-16);
+  }
+}

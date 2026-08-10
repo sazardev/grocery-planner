@@ -9,6 +9,7 @@ import Skeleton from './shared/ui/primitives/Skeleton.tsx'
 import { Stack } from './shared/ui/index.ts'
 
 // Lazy loading por ruta: cada página es un chunk independiente → carga más rápida.
+const LandingPage = lazy(() => import('./pages/LandingPage.tsx'))
 const HomePage = lazy(() => import('./pages/HomePage.tsx'))
 const NewItemPage = lazy(() => import('./pages/NewItemPage.tsx'))
 const ItemDetailPage = lazy(() => import('./pages/ItemDetailPage.tsx'))
@@ -56,6 +57,8 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            {/* Landing pública (redirige a /home si ya hay sesión). */}
+            <Route path="/" element={<LandingPage />} />
             <Route
               element={
                 <RequireAuth>
@@ -63,7 +66,7 @@ export default function App() {
                 </RequireAuth>
               }
             >
-              <Route path="/" element={<HomePage />} />
+              <Route path="/home" element={<HomePage />} />
               <Route path="/items/new" element={<NewItemPage />} />
               <Route path="/items/:id" element={<ItemDetailPage />} />
               <Route path="/trips" element={<TripsPage />} />

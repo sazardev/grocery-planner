@@ -13,7 +13,7 @@ interface LayoutItem extends NavItem {
 }
 
 const navItems: LayoutItem[] = [
-  { key: 'inicio', to: '/', label: 'Inicio', icon: <Home size={22} strokeWidth={2} aria-hidden="true" /> },
+  { key: 'inicio', to: '/home', label: 'Inicio', icon: <Home size={22} strokeWidth={2} aria-hidden="true" /> },
   { key: 'mandado', to: '/trips', label: 'Mandado', icon: <ShoppingCart size={22} strokeWidth={2} aria-hidden="true" /> },
   { key: 'chat', to: '/chat', label: 'Chat', icon: <MessageCircle size={22} strokeWidth={2} aria-hidden="true" /> },
   { key: 'mio', to: '/mine', label: 'Lo mío', icon: <UserRound size={22} strokeWidth={2} aria-hidden="true" /> },
@@ -51,10 +51,10 @@ export default function Layout() {
         <NavBar
           items={navItems.map((item) => ({
             ...item,
-            active:
-              item.to === '/'
-                ? pathname === '/' || pathname.startsWith('/items')
-                : pathname === item.to || pathname.startsWith(item.to + '/'),
+          active:
+            item.to === '/home'
+              ? pathname === '/home' || pathname.startsWith('/items')
+              : pathname === item.to || pathname.startsWith(item.to + '/'),
             badge:
               item.key === 'chat'
                 ? (mentions.data ?? 0)

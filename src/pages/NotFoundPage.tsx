@@ -16,7 +16,7 @@ export default function NotFoundPage() {
         title="Página no encontrada"
         description="Esa dirección no existe en Grocery Planner."
       />
-      <Button variant="secondary" full onClick={() => navigate('/')}>
+      <Button variant="secondary" full onClick={() => navigate('/home')}>
         Volver a la lista
       </Button>
     </Stack>

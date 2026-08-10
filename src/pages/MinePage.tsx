@@ -228,7 +228,7 @@ export default function MinePage() {
       )}
 
       {pending.length > 0 && (
-        <Button variant="secondary" full onClick={() => navigate('/')}>
+        <Button variant="secondary" full onClick={() => navigate('/home')}>
           Ver la lista completa
         </Button>
       )}

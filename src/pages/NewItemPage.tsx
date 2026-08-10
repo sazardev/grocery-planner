@@ -37,7 +37,7 @@ function toFallbackInputs(fallbacks: FallbackDraft[]): FallbackInput[] {
 
 export default function NewItemPage() {
   const navigate = useNavigate()
-  const goBack = useGoBack('/')
+  const goBack = useGoBack('/home')
   const queryClient = useQueryClient()
   const [mode, setMode] = useState<'rapido' | 'detallado'>('rapido')
   const [text, setText] = useState('')
@@ -78,7 +78,7 @@ export default function NewItemPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ITEMS_KEY })
-      navigate('/', { replace: true })
+      navigate('/home', { replace: true })
     },
     onError: (err) =>
       setError(err instanceof Error ? err.message : 'No se pudo agregar el ítem'),

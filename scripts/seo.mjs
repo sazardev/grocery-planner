@@ -34,6 +34,7 @@ const OG_DEFAULTS = {
 /** Rutas públicas indexables (las de detalle son dinámicas y van detrás del login). */
 const SITEMAP_ROUTES = [
   { path: '/', priority: '1.0', changefreq: 'daily' },
+  { path: '/home', priority: '0.9', changefreq: 'daily' },
   { path: '/items/new', priority: '0.9', changefreq: 'daily' },
   { path: '/trips', priority: '0.8', changefreq: 'daily' },
   { path: '/trips/stores', priority: '0.6', changefreq: 'weekly' },
