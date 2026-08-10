@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowDown, ArrowUp, Trash2, ArrowLeft, MessageSquare, History, Camera, Undo2, Plus, X } from 'lucide-react'
@@ -133,10 +133,24 @@ export default function ItemDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['item', id] })
   }
 
+  const goBack = useGoBack('/')
+
+  // Al guardar: muestra la confirmación y luego vuelve a la lista (feedback +
+  // navegación). Se dispara una sola vez aunque varias mutations se resuelvan
+  // en el mismo "Guardar cambios".
+  const saveTimerRef = useRef<number | null>(null)
   const markSaved = () => {
     setSaveError(null)
     setSaved(true)
+    if (saveTimerRef.current != null) return
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null
+      goBack()
+    }, 900)
   }
+  useEffect(() => () => {
+    if (saveTimerRef.current != null) window.clearTimeout(saveTimerRef.current)
+  }, [])
 
   // Sincroniza el formulario con el ítem cargado.
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
@@ -303,8 +317,6 @@ export default function ItemDetailPage() {
       setPhotoError(e instanceof Error ? e.message : 'No se pudo leer la foto')
     }
   }
-
-  const goBack = useGoBack('/')
 
   const submit = () => {
     if (!item) return
