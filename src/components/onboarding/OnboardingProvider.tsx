@@ -54,6 +54,18 @@ function findElementByText(text: string): Element | null {
   }) ?? null
 }
 
+/** Espera a que el scrollIntoView (smooth) termine: el rect deja de cambiar. */
+async function settleScroll(el: HTMLElement, timeout = 1200): Promise<void> {
+  const started = Date.now()
+  let lastTop = el.getBoundingClientRect().top
+  while (Date.now() - started < timeout) {
+    await new Promise((r) => setTimeout(r, 60))
+    const top = el.getBoundingClientRect().top
+    if (Math.abs(top - lastTop) < 1) return
+    lastTop = top
+  }
+}
+
 export function OnboardingProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -80,6 +92,14 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         navigate(stepDef.route)
       }
       const el = await waitForElement(stepDef)
+      // Lleva el elemento al centro de la vista (si está fuera del viewport,
+      // p. ej. "Ver reportes" abajo de la lista) y espera a que el scroll asiente.
+      if (el instanceof HTMLElement) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        await settleScroll(el)
+      } else {
+        await new Promise((r) => setTimeout(r, 200))
+      }
       const rect = el ? el.getBoundingClientRect() : null
       setStep({ index: idx, rect, step: stepDef, total: TOUR_STEPS.length })
       setActive(true)
