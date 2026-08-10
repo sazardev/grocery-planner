@@ -357,6 +357,28 @@ export default function ItemDetailPage() {
     ['falta', 'pedido', 'llevo', 'comprado', 'cancelado'] as ItemStatus[]
   ).filter((s) => s !== item?.status)
 
+  // "Dirty": hay un diff real entre el formulario y el ítem guardado. El botón
+  // "Guardar cambios" solo se habilita/pinta cuando cambió algo.
+  const dirty = (() => {
+    if (!item) return false
+    const qty = Number(quantity)
+    const priceNum = price.trim() === '' ? undefined : Number(price)
+    const max = quantityMax.trim() === '' ? undefined : Number(quantityMax)
+    return (
+      name.trim() !== item.name ||
+      (Number.isFinite(qty) && qty !== item.quantity) ||
+      unit.trim() !== item.unit ||
+      brand.trim() !== (item.brand ?? '') ||
+      (max !== undefined && max !== item.quantityMax) ||
+      (max === undefined && item.quantityMax != null) ||
+      note.trim() !== (item.note ?? '') ||
+      category.trim() !== (item.category ?? '') ||
+      (priceNum !== undefined && priceNum !== item.price) ||
+      (priceNum === undefined && item.price != null) ||
+      priority !== item.priority
+    )
+  })()
+
   if (isLoading || !item) {
     return (
       <Stack gap="4">
@@ -807,8 +829,14 @@ export default function ItemDetailPage() {
         </Stack>
       </section>
 
-      <Button onClick={submit} full loading={updateMutation.isPending || priceMutation.isPending}>
-        Guardar cambios
+      <Button
+        onClick={submit}
+        full
+        variant={dirty ? 'primary' : 'secondary'}
+        disabled={!dirty}
+        loading={updateMutation.isPending || priceMutation.isPending}
+      >
+        {dirty ? 'Guardar cambios' : 'Sin cambios por guardar'}
       </Button>
 
       <Button variant="danger" onClick={() => deleteMutation.mutate()} loading={deleteMutation.isPending} full>
