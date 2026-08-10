@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Home, ShoppingCart, MessageCircle, UserRound, Users } from 'lucide-react'
+import { Home, ShoppingCart, MessageCircle, UserRound, Users, Settings } from 'lucide-react'
 import { getUnreadMentions, getUnreadNotifications } from '../lib/api'
 import { ME } from '../lib/me'
 import NavBar from '../shared/ui/navigation/NavBar.tsx'
@@ -17,6 +17,7 @@ const navItems: LayoutItem[] = [
   { key: 'chat', to: '/chat', label: 'Chat', icon: <MessageCircle size={22} strokeWidth={2} aria-hidden="true" /> },
   { key: 'mio', to: '/mine', label: 'Lo mío', icon: <UserRound size={22} strokeWidth={2} aria-hidden="true" /> },
   { key: 'familia', to: '/family', label: 'Familia', icon: <Users size={22} strokeWidth={2} aria-hidden="true" /> },
+  { key: 'ajustes', to: '/settings', label: 'Ajustes', icon: <Settings size={22} strokeWidth={2} aria-hidden="true" /> },
 ]
 
 export default function Layout() {
@@ -54,7 +55,7 @@ export default function Layout() {
           badge:
             item.key === 'chat'
               ? (mentions.data ?? 0)
-              : item.key === 'familia'
+              : item.key === 'ajustes'
                 ? (unread.data ?? 0)
                 : undefined,
         }))}

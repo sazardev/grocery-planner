@@ -30,7 +30,6 @@ import {
   CalendarDays,
   History,
   Link2,
-  Settings,
   Settings2,
   UserPlus,
   Users,
@@ -221,24 +220,6 @@ export default function FamilyPage() {
         title="Unirse con invitación"
         subtitle="Acepta un código para entrar al hogar"
         onClick={() => navigate('/family/join')}
-      />
-      <SectionLink
-        icon={<Settings size={22} strokeWidth={2} aria-hidden="true" />}
-        title="Ajustes"
-        subtitle="Cuenta, apariencia, avisos, PIN y respaldo"
-        onClick={() => navigate('/settings')}
-      />
-      <SectionLink
-        icon={<Link2 size={22} strokeWidth={2} aria-hidden="true" />}
-        title="Unirse con invitación"
-        subtitle="Acepta un código para entrar al hogar"
-        onClick={() => navigate('/family/join')}
-      />
-      <SectionLink
-        icon={<Settings size={22} strokeWidth={2} aria-hidden="true" />}
-        title="Ajustes"
-        subtitle="Cuenta, apariencia, avisos, PIN y respaldo"
-        onClick={() => navigate('/settings')}
       />
       <SectionLink
         icon={<Settings2 size={22} strokeWidth={2} aria-hidden="true" />}
