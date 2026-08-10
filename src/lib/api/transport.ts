@@ -215,7 +215,7 @@ const ROUTES: Record<string, Route> = {
   item_create: {
     method: 'POST',
     path: () => '/api/items',
-    body: (a) => pick(a, ['name', 'quantity', 'unit', 'priority', 'requestedBy', 'note', 'category', 'price', 'section']),
+    body: (a) => pick(a, ['name', 'quantity', 'unit', 'priority', 'requestedBy', 'note', 'category', 'price', 'section', 'brand', 'quantityMax', 'fallbacks']),
   },
   items_query: {
     method: 'POST',
@@ -241,6 +241,31 @@ const ROUTES: Record<string, Route> = {
     method: 'PATCH',
     path: (a) => `/api/items/${a['id']}/store`,
     body: (a) => pick(a, ['storeName']),
+  },
+  item_set_brand: {
+    method: 'PATCH',
+    path: (a) => `/api/items/${a['id']}/brand`,
+    body: (a) => pick(a, ['brand', 'by']),
+  },
+  item_set_quantity_max: {
+    method: 'PATCH',
+    path: (a) => `/api/items/${a['id']}/quantity-max`,
+    body: (a) => pick(a, ['max', 'by']),
+  },
+  item_add_fallback: {
+    method: 'POST',
+    path: (a) => `/api/items/${a['id']}/fallbacks`,
+    body: (a) => pick(a, ['name', 'quantity', 'unit', 'note', 'by']),
+  },
+  item_remove_fallback: {
+    method: 'DELETE',
+    path: (a) => `/api/items/${a['id']}/fallbacks/${a['index']}`,
+    body: (a) => pick(a, ['by']),
+  },
+  item_use_fallback: {
+    method: 'POST',
+    path: (a) => `/api/items/${a['id']}/fallbacks/${a['index']}/use`,
+    body: (a) => pick(a, ['by']),
   },
   item_add_photo: {
     method: 'POST',

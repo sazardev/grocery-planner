@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::domain::item::{GroceryItem, ItemComment, ItemEvent, ItemStatus, Priority};
+use crate::domain::item::{GroceryItem, ItemComment, ItemEvent, ItemFallback, ItemStatus, Priority};
 use crate::error::AppError;
 
 /// Repositorio en memoria de ítems. La persistencia real (sqlx/diesel) llega en
@@ -225,6 +225,78 @@ impl ItemStore {
         Ok(item.clone())
     }
 
+    /// Fija la marca preferida del ítem.
+    pub fn set_brand(&mut self, id: &str, brand: &str, by: &str) -> Result<GroceryItem, AppError> {
+        let item = self
+            .items
+            .get_mut(id)
+            .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
+        item.set_brand(brand, by)?;
+        Ok(item.clone())
+    }
+
+    /// Fija la cantidad máxima aceptada del ítem (opcional).
+    pub fn set_quantity_max(
+        &mut self,
+        id: &str,
+        max: Option<f64>,
+        by: &str,
+    ) -> Result<GroceryItem, AppError> {
+        let item = self
+            .items
+            .get_mut(id)
+            .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
+        item.set_quantity_max(max, by)?;
+        Ok(item.clone())
+    }
+
+    /// Agrega una alternativa a la cadena de respaldo del ítem.
+    pub fn add_fallback(
+        &mut self,
+        id: &str,
+        name: &str,
+        quantity: f64,
+        unit: &str,
+        note: Option<&str>,
+        by: &str,
+    ) -> Result<ItemFallback, AppError> {
+        let item = self
+            .items
+            .get_mut(id)
+            .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
+        item.add_fallback(name, quantity, unit, note, by)
+    }
+
+    /// Quita una alternativa de la cadena de respaldo.
+    pub fn remove_fallback(
+        &mut self,
+        id: &str,
+        index: usize,
+        by: &str,
+    ) -> Result<GroceryItem, AppError> {
+        let item = self
+            .items
+            .get_mut(id)
+            .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
+        item.remove_fallback(index, by)?;
+        Ok(item.clone())
+    }
+
+    /// Aplica una alternativa: el ítem pasa a pedir el producto de reemplazo.
+    pub fn use_fallback(
+        &mut self,
+        id: &str,
+        index: usize,
+        by: &str,
+    ) -> Result<GroceryItem, AppError> {
+        let item = self
+            .items
+            .get_mut(id)
+            .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
+        item.use_fallback(index, by)?;
+        Ok(item.clone())
+    }
+
     /// Agrega una foto al ítem respetando el límite de la familia (SPEC §10).
     pub fn add_photo(
         &mut self,
@@ -383,11 +455,19 @@ fn matches(q: &ItemQuery, item: &GroceryItem) -> bool {
         return false;
     }
     if let Some(search) = q.search.as_deref() {
+        let fallback_names = item
+            .fallbacks
+            .iter()
+            .map(|f| f.name.clone())
+            .collect::<Vec<_>>()
+            .join(" ");
         let haystack = [
             item.name.as_str(),
+            item.brand.as_deref().unwrap_or(""),
             item.note.as_deref().unwrap_or(""),
             item.category.as_deref().unwrap_or(""),
             item.requested_by.as_str(),
+            fallback_names.as_str(),
         ]
         .join(" ")
         .to_lowercase();

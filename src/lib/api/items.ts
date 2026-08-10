@@ -1,4 +1,4 @@
-import type { GroceryItem, ItemComment, ItemEvent, ItemStatus, Priority } from '../../domain/item'
+import type { GroceryItem, ItemComment, ItemEvent, ItemFallback, ItemStatus, Priority } from '../../domain/item'
 import { request } from './transport'
 
 export interface StatusFlow {
@@ -13,6 +13,13 @@ export interface QuickEntry {
   unit: string
 }
 
+export interface FallbackInput {
+  name: string
+  quantity: number
+  unit: string
+  note?: string
+}
+
 export interface CreateItemInput {
   name: string
   quantity: number
@@ -23,6 +30,9 @@ export interface CreateItemInput {
   category?: string
   price?: number
   section?: string
+  brand?: string
+  quantityMax?: number
+  fallbacks?: FallbackInput[]
 }
 
 export interface ItemFilters {
@@ -95,6 +105,9 @@ export function createItem(input: CreateItemInput): Promise<GroceryItem> {
     category: input.category ?? null,
     price: input.price ?? null,
     section: input.section ?? null,
+    brand: input.brand ?? null,
+    quantityMax: input.quantityMax ?? null,
+    fallbacks: input.fallbacks ?? [],
   })
 }
 
@@ -178,6 +191,34 @@ export function setItemSection(id: string, section: string): Promise<GroceryItem
 
 export function setItemStore(id: string, storeName: string): Promise<GroceryItem> {
   return request<GroceryItem>('item_set_store', { id, storeName })
+}
+
+export function setItemBrand(id: string, brand: string, by: string): Promise<GroceryItem> {
+  return request<GroceryItem>('item_set_brand', { id, brand, by })
+}
+
+export function setItemQuantityMax(
+  id: string,
+  max: number | null,
+  by: string,
+): Promise<GroceryItem> {
+  return request<GroceryItem>('item_set_quantity_max', { id, max, by })
+}
+
+export function addItemFallback(
+  id: string,
+  fb: FallbackInput,
+  by: string,
+): Promise<ItemFallback> {
+  return request<ItemFallback>('item_add_fallback', { id, ...fb, by })
+}
+
+export function removeItemFallback(id: string, index: number, by: string): Promise<GroceryItem> {
+  return request<GroceryItem>('item_remove_fallback', { id, index, by })
+}
+
+export function applyItemFallback(id: string, index: number, by: string): Promise<GroceryItem> {
+  return request<GroceryItem>('item_use_fallback', { id, index, by })
 }
 
 export function addItemPhoto(id: string, photo: string): Promise<GroceryItem> {

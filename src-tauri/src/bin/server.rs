@@ -107,6 +107,10 @@ struct CreateItemBody {
     category: Option<String>,
     price: Option<f64>,
     section: Option<String>,
+    brand: Option<String>,
+    quantity_max: Option<f64>,
+    #[serde(default)]
+    fallbacks: Vec<grocery_planner_lib::commands::items::FallbackInput>,
 }
 
 #[derive(Deserialize)]
@@ -518,6 +522,15 @@ async fn item_create(
     }
     if let Some(section) = body.section {
         item.set_section(&section)?;
+    }
+    if let Some(brand) = body.brand {
+        item.set_brand(&brand, &actor.0)?;
+    }
+    if let Some(max) = body.quantity_max {
+        item.set_quantity_max(Some(max), &actor.0)?;
+    }
+    for fb in body.fallbacks {
+        item.add_fallback(&fb.name, fb.quantity, &fb.unit, fb.note.as_deref(), &actor.0)?;
     }
     let mut store = store::lock(&state.store)?;
     Ok(Json(store.items.create(item)))
@@ -1445,6 +1458,82 @@ async fn item_set_store(
     Ok(Json(store.items.set_store(&id, &body.store_name)?))
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BrandBody {
+    brand: String,
+}
+
+async fn item_set_brand(
+    State(state): State<Shared>,
+    Path(id): Path<String>,
+    actor: AuthActor,
+    Json(body): Json<BrandBody>,
+) -> Result<Json<GroceryItem>, AppError> {
+    let mut store = store::lock(&state.store)?;
+    Ok(Json(store.items.set_brand(&id, &body.brand, &actor.0)?))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct QuantityMaxBody {
+    max: Option<f64>,
+}
+
+async fn item_set_quantity_max(
+    State(state): State<Shared>,
+    Path(id): Path<String>,
+    actor: AuthActor,
+    Json(body): Json<QuantityMaxBody>,
+) -> Result<Json<GroceryItem>, AppError> {
+    let mut store = store::lock(&state.store)?;
+    Ok(Json(store.items.set_quantity_max(&id, body.max, &actor.0)?))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FallbackBody {
+    name: String,
+    quantity: f64,
+    unit: String,
+    note: Option<String>,
+}
+
+async fn item_add_fallback(
+    State(state): State<Shared>,
+    Path(id): Path<String>,
+    actor: AuthActor,
+    Json(body): Json<FallbackBody>,
+) -> Result<Json<grocery_planner_lib::domain::item::ItemFallback>, AppError> {
+    let mut store = store::lock(&state.store)?;
+    Ok(Json(store.items.add_fallback(
+        &id,
+        &body.name,
+        body.quantity,
+        &body.unit,
+        body.note.as_deref(),
+        &actor.0,
+    )?))
+}
+
+async fn item_remove_fallback(
+    State(state): State<Shared>,
+    Path((id, index)): Path<(String, usize)>,
+    actor: AuthActor,
+) -> Result<Json<GroceryItem>, AppError> {
+    let mut store = store::lock(&state.store)?;
+    Ok(Json(store.items.remove_fallback(&id, index, &actor.0)?))
+}
+
+async fn item_use_fallback(
+    State(state): State<Shared>,
+    Path((id, index)): Path<(String, usize)>,
+    actor: AuthActor,
+) -> Result<Json<GroceryItem>, AppError> {
+    let mut store = store::lock(&state.store)?;
+    Ok(Json(store.items.use_fallback(&id, index, &actor.0)?))
+}
+
 async fn item_recover(
     State(state): State<Shared>,
     Path(id): Path<String>,
@@ -1898,6 +1987,17 @@ async fn main() {
         .route("/api/items/{id}/priority", patch(item_set_priority))
         .route("/api/items/{id}/move", post(item_move))
         .route("/api/items/{id}/store", patch(item_set_store))
+        .route("/api/items/{id}/brand", patch(item_set_brand))
+        .route("/api/items/{id}/quantity-max", patch(item_set_quantity_max))
+        .route("/api/items/{id}/fallbacks", post(item_add_fallback))
+        .route(
+            "/api/items/{id}/fallbacks/{index}",
+            delete(item_remove_fallback),
+        )
+        .route(
+            "/api/items/{id}/fallbacks/{index}/use",
+            post(item_use_fallback),
+        )
         .route("/api/items/{id}/photos", post(item_add_photo))
         .route("/api/items/{id}/photos/{index}", delete(item_remove_photo))
         .route("/api/items/{id}/recover", post(item_recover))

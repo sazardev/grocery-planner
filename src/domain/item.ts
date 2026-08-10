@@ -10,6 +10,8 @@ export type ItemEventKind =
   | { type: 'commented'; body: string }
   | { type: 'updated'; fields: string[] }
   | { type: 'priority_changed'; from: Priority; to: Priority }
+  | { type: 'fallback_used'; from: string; to: string }
+  | { type: 'fallbacks_changed' }
 
 export interface ItemEvent {
   at: string
@@ -24,6 +26,14 @@ export interface ItemComment {
   body: string
 }
 
+/** Una alternativa ordenada: "si no hay X, trae Y". */
+export interface ItemFallback {
+  name: string
+  quantity: number
+  unit: string
+  note?: string
+}
+
 export interface GroceryItem {
   id: string
   name: string
@@ -33,6 +43,9 @@ export interface GroceryItem {
   priority: Priority
   requestedBy: string
   assignedTo?: string
+  brand?: string
+  quantityMax?: number
+  fallbacks: ItemFallback[]
   note?: string
   category?: string
   price?: number

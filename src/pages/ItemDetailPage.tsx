@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, Trash2, ArrowLeft, MessageSquare, History, Camera, Undo2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Trash2, ArrowLeft, MessageSquare, History, Camera, Undo2, Plus, X } from 'lucide-react'
 import {
   addItemComment,
   addItemPhoto,
+  addItemFallback,
   assignItem,
   changeItemStatus,
   deleteItem,
@@ -15,11 +16,15 @@ import {
   listSections,
   moveItem,
   recoverItem,
+  removeItemFallback,
   removeItemPhoto,
+  setItemBrand,
   setItemPrice,
+  setItemQuantityMax,
   setItemSection,
   setItemStore,
   updateItem,
+  applyItemFallback,
 } from '../lib/api'
 import { ME } from '../lib/me'
 import type { ItemComment, ItemEvent, ItemEventKind, ItemStatus, Priority } from '../domain/item'
@@ -58,6 +63,10 @@ function historyText(kind: ItemEventKind): string {
       return 'editó'
     case 'priority_changed':
       return `cambió la prioridad de ${PRIORITY_LABEL[kind.from]} a ${PRIORITY_LABEL[kind.to]}`
+    case 'fallback_used':
+      return `no había ${kind.from}; usó ${kind.to}`
+    case 'fallbacks_changed':
+      return 'cambió las alternativas'
   }
 }
 
@@ -99,6 +108,8 @@ export default function ItemDetailPage() {
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
   const [unit, setUnit] = useState('')
+  const [brand, setBrand] = useState('')
+  const [quantityMax, setQuantityMax] = useState('')
   const [note, setNote] = useState('')
   const [category, setCategory] = useState('')
   const [price, setPrice] = useState('')
@@ -106,6 +117,12 @@ export default function ItemDetailPage() {
   const [commentBody, setCommentBody] = useState('')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+
+  // Editor de alternativas ("si no hay X, trae Y")
+  const [fbName, setFbName] = useState('')
+  const [fbQty, setFbQty] = useState('')
+  const [fbUnit, setFbUnit] = useState('')
+  const [fbNote, setFbNote] = useState('')
 
   const invalidateItem = () => {
     queryClient.invalidateQueries({ queryKey: ['items'] })
@@ -118,6 +135,8 @@ export default function ItemDetailPage() {
     setName(item.name)
     setQuantity(String(item.quantity))
     setUnit(item.unit)
+    setBrand(item.brand ?? '')
+    setQuantityMax(item.quantityMax != null ? String(item.quantityMax) : '')
     setNote(item.note ?? '')
     setCategory(item.category ?? '')
     setPrice(item.price != null ? String(item.price) : '')
@@ -213,6 +232,44 @@ export default function ItemDetailPage() {
     onSuccess: invalidateItem,
   })
 
+  const brandMutation = useMutation({
+    mutationFn: (value: string) => setItemBrand(item!.id, value, ME),
+    onSuccess: invalidateItem,
+    onError: (err) =>
+      setSaveError(err instanceof Error ? err.message : 'No se pudo guardar la marca'),
+  })
+
+  const quantityMaxMutation = useMutation({
+    mutationFn: (value: number | null) => setItemQuantityMax(item!.id, value, ME),
+    onSuccess: invalidateItem,
+    onError: (err) =>
+      setSaveError(err instanceof Error ? err.message : 'No se pudo guardar la cantidad máxima'),
+  })
+
+  const addFallbackMutation = useMutation({
+    mutationFn: (body: { name: string; quantity: number; unit: string; note?: string }) =>
+      addItemFallback(item!.id, body, ME),
+    onSuccess: () => {
+      invalidateItem()
+      setFbName('')
+      setFbQty('')
+      setFbUnit('')
+      setFbNote('')
+    },
+    onError: (err) =>
+      setSaveError(err instanceof Error ? err.message : 'No se pudo agregar la alternativa'),
+  })
+
+  const removeFallbackMutation = useMutation({
+    mutationFn: (index: number) => removeItemFallback(item!.id, index, ME),
+    onSuccess: invalidateItem,
+  })
+
+  const useFallbackMutation = useMutation({
+    mutationFn: (index: number) => applyItemFallback(item!.id, index, ME),
+    onSuccess: invalidateItem,
+  })
+
   const pickPhoto = async (file?: File) => {
     if (!file) return
     try {
@@ -246,6 +303,16 @@ export default function ItemDetailPage() {
     if (price.trim() !== '' && Number.isFinite(priceNum) && priceNum >= 0 && priceNum !== item.price) {
       priceMutation.mutate(priceNum)
     }
+    if (brand.trim() !== (item.brand ?? '')) brandMutation.mutate(brand.trim())
+    const max = quantityMax.trim() === '' ? null : Number(quantityMax)
+    if (
+      quantityMax.trim() !== '' && (!Number.isFinite(max) || max === null || max <= 0)
+    ) {
+      setSaveError('La cantidad máxima debe ser un número mayor que 0')
+      return
+    }
+    if (max !== null && max !== item.quantityMax) quantityMaxMutation.mutate(max)
+    else if (max === null && item.quantityMax != null) quantityMaxMutation.mutate(null)
     if (Object.keys(fields).length === 0 && price.trim() === '') setSaved(true)
   }
 
@@ -347,6 +414,23 @@ export default function ItemDetailPage() {
             </Field>
           </div>
 
+          <Field label="Marca (opcional)">
+            <Input
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              placeholder="la marca que nos gusta"
+            />
+          </Field>
+
+          <Field label="Hasta cuánto aceptas (opcional)">
+            <Input
+              inputMode="decimal"
+              value={quantityMax}
+              onChange={(e) => setQuantityMax(e.target.value)}
+              placeholder="ej. 3 (quiero 2, acepto hasta 3)"
+            />
+          </Field>
+
           <Field label="Nota">
             <Textarea
               value={note}
@@ -403,6 +487,118 @@ export default function ItemDetailPage() {
           )}
         </Stack>
       </Card>
+
+      <section>
+        <Text as="h2" variant="section" className={styles.sectionTitle}>
+          Si no hay {item.name}…
+        </Text>
+        <Text as="p" variant="note" tone="secondary">
+          Encadena qué traer si el producto no está: “si no hay pechuga, trae pierna; si no hay
+          pierna, no traigas nada”. En la tienda se ofrece en orden.
+        </Text>
+        <Stack gap="2">
+          {(item.fallbacks ?? []).length === 0 ? (
+            <Text variant="note" tone="tertiary">
+              Sin alternativas. Agrega la primera abajo.
+            </Text>
+          ) : (
+            (item.fallbacks ?? []).map((fb, i) => (
+              <Card key={`${fb.name}-${i}`} padding="sm">
+                <Stack gap="2">
+                  <div className={styles.fbRow}>
+                    <div>
+                      <Text variant="item">
+                        {i + 1}. {fb.name}
+                      </Text>
+                      <Text variant="note" tone="secondary">
+                        {fb.quantity} {fb.unit}
+                        {fb.note ? ` · ${fb.note}` : ''}
+                      </Text>
+                    </div>
+                    <div className={styles.fbActions}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => useFallbackMutation.mutate(i)}
+                        loading={useFallbackMutation.isPending}
+                        disabled={item.status === 'comprado' || item.status === 'cancelado'}
+                        aria-label={`Traer ${fb.name} en su lugar`}
+                      >
+                        Traer en su lugar
+                      </Button>
+                      <IconButton
+                        label={`Quitar alternativa ${i + 1}`}
+                        onClick={() => removeFallbackMutation.mutate(i)}
+                        variant="danger"
+                      >
+                        <X size={16} strokeWidth={2} />
+                      </IconButton>
+                    </div>
+                  </div>
+                </Stack>
+              </Card>
+            ))
+          )}
+          {addFallbackMutation.isError && (
+            <Alert tone="danger">No se pudo agregar la alternativa.</Alert>
+          )}
+          <Card padding="sm">
+            <Stack gap="2">
+              <div className={styles.rowFields}>
+                <Field label="Producto alternativo">
+                  <Input
+                    value={fbName}
+                    onChange={(e) => setFbName(e.target.value)}
+                    placeholder="pierna de pollo"
+                    aria-label="Producto alternativo"
+                  />
+                </Field>
+                <Field label="Cantidad">
+                  <Input
+                    inputMode="decimal"
+                    value={fbQty}
+                    onChange={(e) => setFbQty(e.target.value)}
+                    placeholder="2"
+                    aria-label="Cantidad alternativa"
+                  />
+                </Field>
+                <Field label="Unidad">
+                  <Input
+                    value={fbUnit}
+                    onChange={(e) => setFbUnit(e.target.value)}
+                    placeholder="kg"
+                    aria-label="Unidad alternativa"
+                  />
+                </Field>
+              </div>
+              <Field label="Nota (opcional)">
+                <Input
+                  value={fbNote}
+                  onChange={(e) => setFbNote(e.target.value)}
+                  placeholder="mediano"
+                  aria-label="Nota alternativa"
+                />
+              </Field>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  if (!fbName.trim()) return
+                  addFallbackMutation.mutate({
+                    name: fbName.trim(),
+                    quantity: Number(fbQty) || 1,
+                    unit: fbUnit.trim() || 'pieza',
+                    note: fbNote.trim() || undefined,
+                  })
+                }}
+                loading={addFallbackMutation.isPending}
+                disabled={!fbName.trim()}
+              >
+                <Plus size={16} strokeWidth={2} /> Agregar alternativa
+              </Button>
+            </Stack>
+          </Card>
+        </Stack>
+      </section>
 
       <section>
         <Text as="h2" variant="section" className={styles.sectionTitle}>

@@ -71,6 +71,17 @@ pub struct ItemComment {
     pub body: String,
 }
 
+/// Una alternativa ordenada por si no hay el producto pedido ("si no hay
+/// pechuga de pollo, trae pierna; si no hay pierna, no traigas nada").
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemFallback {
+    pub name: String,
+    pub quantity: f64,
+    pub unit: String,
+    pub note: Option<String>,
+}
+
 /// Un evento del historial de un ítem (SPEC §6.1: nada se borra de verdad).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -107,6 +118,13 @@ pub enum ItemEventKind {
         from: Priority,
         to: Priority,
     },
+    /// El ítem usó una alternativa de la cadena "si no hay…" (SPEC §4.2).
+    FallbackUsed {
+        from: String,
+        to: String,
+    },
+    /// Se agregó/quitó una alternativa de la cadena de respaldo.
+    FallbacksChanged,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -120,6 +138,14 @@ pub struct GroceryItem {
     pub priority: Priority,
     pub requested_by: String,
     pub assigned_to: Option<String>,
+    /// Marca preferida (opcional), ej. "la marca que nos gusta".
+    pub brand: Option<String>,
+    /// Cantidad deseada que se pide; `quantity_max` es lo máximo que aceptan
+    /// (opcional): "quiero 2 kg, pero si solo hay 3 tráelo".
+    pub quantity_max: Option<f64>,
+    /// Alternativas ordenadas por si no hay el producto ("si no hay pechuga
+    /// de pollo, trae pierna").
+    pub fallbacks: Vec<ItemFallback>,
     pub note: Option<String>,
     pub category: Option<String>,
     /// Precio aproximado para reportes de gasto (SPEC §4.1, §8.2).
@@ -163,6 +189,9 @@ impl GroceryItem {
             priority,
             requested_by: requested_by.to_string(),
             assigned_to: None,
+            brand: None,
+            quantity_max: None,
+            fallbacks: Vec::new(),
             note: note
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
@@ -316,6 +345,112 @@ impl GroceryItem {
             ));
         }
         self.price = Some(price);
+        Ok(())
+    }
+
+    /// Fija la marca preferida (opcional). Vacío la quita.
+    pub fn set_brand(&mut self, brand: &str, by: &str) -> Result<(), AppError> {
+        let trimmed = brand.trim();
+        let next = if trimmed.is_empty() { None } else { Some(trimmed.to_string()) };
+        if self.brand != next {
+            self.brand = next;
+            self.history.push(ItemEvent {
+                at: super::now_iso(),
+                by: by.to_string(),
+                kind: ItemEventKind::Updated {
+                    fields: vec!["brand".into()],
+                },
+            });
+        }
+        Ok(())
+    }
+
+    /// Fija la cantidad máxima aceptada (opcional): "quiero 2 kg, acepto hasta 3".
+    /// `None`/`<=0` la quita.
+    pub fn set_quantity_max(&mut self, max: Option<f64>, by: &str) -> Result<(), AppError> {
+        let next = match max {
+            Some(v) if v.is_finite() && v > 0.0 => Some(v),
+            _ => None,
+        };
+        if self.quantity_max != next {
+            self.quantity_max = next;
+            self.history.push(ItemEvent {
+                at: super::now_iso(),
+                by: by.to_string(),
+                kind: ItemEventKind::Updated {
+                    fields: vec!["quantityMax".into()],
+                },
+            });
+        }
+        Ok(())
+    }
+
+    /// Agrega una alternativa a la cadena de respaldo ("si no hay X, trae Y").
+    pub fn add_fallback(
+        &mut self,
+        name: &str,
+        quantity: f64,
+        unit: &str,
+        note: Option<&str>,
+        by: &str,
+    ) -> Result<ItemFallback, AppError> {
+        validate_new_item(name, quantity, unit)?;
+        let fallback = ItemFallback {
+            name: name.trim().to_string(),
+            quantity,
+            unit: unit.trim().to_string(),
+            note: note
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string),
+        };
+        self.fallbacks.push(fallback.clone());
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::FallbacksChanged,
+        });
+        Ok(fallback)
+    }
+
+    /// Quita una alternativa por posición (cadena de respaldo).
+    pub fn remove_fallback(&mut self, index: usize, by: &str) -> Result<ItemFallback, AppError> {
+        if index >= self.fallbacks.len() {
+            return Err(AppError::invalid_input(
+                "Posición de alternativa fuera de rango",
+            ));
+        }
+        let removed = self.fallbacks.remove(index);
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::FallbacksChanged,
+        });
+        Ok(removed)
+    }
+
+    /// Aplica una alternativa de la cadena: el ítem pasa a pedir el producto de
+    /// reemplazo (nombre/cantidad/unidad/nota). La alternativa usada y las
+    /// anteriores se quitan de la cadena; el resto sigue como plan B.
+    pub fn use_fallback(&mut self, index: usize, by: &str) -> Result<(), AppError> {
+        if index >= self.fallbacks.len() {
+            return Err(AppError::invalid_input(
+                "Posición de alternativa fuera de rango",
+            ));
+        }
+        let from = self.name.clone();
+        let fb = self.fallbacks.remove(index);
+        self.name = fb.name.clone();
+        self.quantity = fb.quantity;
+        self.unit = fb.unit.clone();
+        if let Some(note) = fb.note {
+            self.note = Some(note);
+        }
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::FallbackUsed { from, to: fb.name },
+        });
         Ok(())
     }
 
@@ -707,5 +842,53 @@ mod tests {
         item.set_section("Carnes").unwrap();
         assert_eq!(item.section.as_deref(), Some("Carnes"));
         assert!(item.set_section("  ").is_err());
+    }
+
+    #[test]
+    fn marca_y_cantidad_maxima() {
+        let mut item =
+            GroceryItem::new("pollo", 2.0, "kg", Priority::Alta, "Ana", None, None).unwrap();
+        item.set_brand("San Juan", "Ana").unwrap();
+        assert_eq!(item.brand.as_deref(), Some("San Juan"));
+        item.set_brand("  ", "Ana").unwrap();
+        assert_eq!(item.brand, None);
+        item.set_quantity_max(Some(3.0), "Ana").unwrap();
+        assert_eq!(item.quantity_max, Some(3.0));
+        item.set_quantity_max(None, "Ana").unwrap();
+        assert_eq!(item.quantity_max, None);
+        assert_eq!(item.history.len(), 5);
+    }
+
+    #[test]
+    fn cadena_de_respaldos() {
+        let mut item =
+            GroceryItem::new("pechuga de pollo", 2.0, "kg", Priority::Alta, "Ana", None, None)
+                .unwrap();
+        item.add_fallback("pierna de pollo", 2.0, "kg", None, "Ana").unwrap();
+        item.add_fallback("pollo entero", 1.0, "pieza", Some("mediano"), "Ana")
+            .unwrap();
+        assert_eq!(item.fallbacks.len(), 2);
+
+        // Usar la primera alternativa: el ítem pasa a pedir pierna.
+        item.use_fallback(0, "Ana").unwrap();
+        assert_eq!(item.name, "pierna de pollo");
+        assert_eq!(item.fallbacks.len(), 1);
+        assert!(matches!(
+            item.history.last().unwrap().kind,
+            ItemEventKind::FallbackUsed { .. }
+        ));
+
+        // Si también falta, usar la siguiente.
+        item.use_fallback(0, "Ana").unwrap();
+        assert_eq!(item.name, "pollo entero");
+        assert_eq!(item.note.as_deref(), Some("mediano"));
+        assert!(item.fallbacks.is_empty());
+        assert!(item.use_fallback(0, "Ana").is_err());
+
+        // Quitar alternativa valida rango.
+        item.add_fallback("milanesas", 1.0, "kg", None, "Ana").unwrap();
+        let removed = item.remove_fallback(0, "Ana").unwrap();
+        assert_eq!(removed.name, "milanesas");
+        assert!(item.remove_fallback(5, "Ana").is_err());
     }
 }

@@ -4,8 +4,68 @@
   gap: var(--gp-space-3);
 }
 
+.header > div {
+  min-width: 0;
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--gp-space-3);
+}
+
+.modeRow {
+  display: flex;
+  gap: var(--gp-space-2);
+}
+
+.modeBtn {
+  flex: 1;
+  height: 40px;
+  border: none;
+  border-radius: var(--gp-radius-pill);
+  background: var(--gp-surface);
+  color: var(--gp-text-secondary);
+  font-family: var(--gp-font-sans);
+  font-size: var(--gp-text-base);
+  font-weight: var(--gp-weight-medium);
+  cursor: pointer;
+  transition: background-color var(--gp-duration-instant) var(--gp-ease-out),
+    color var(--gp-duration-instant) var(--gp-ease-out);
+}
+
+.modeBtn[aria-selected='true'] {
+  background: var(--gp-primary);
+  color: var(--gp-text-inverse);
+  font-weight: var(--gp-weight-semibold);
+}
+
+.rowFields {
+  display: flex;
+  gap: var(--gp-space-3);
+}
+
+.rowFields > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.fbHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+}
+
+.fbRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+}
+
+.fbActions {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-1);
 }

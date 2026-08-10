@@ -60,6 +60,24 @@
   gap: var(--gp-space-3);
 }
 
+.fbRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+}
+
+.fbRow > div:first-child {
+  min-width: 0;
+}
+
+.fbActions {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  flex-shrink: 0;
+}
+
 .moveRow {
   display: flex;
   gap: var(--gp-space-3);

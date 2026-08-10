@@ -1,12 +1,24 @@
 use serde::{Deserialize, Serialize};
 
-use crate::domain::item::{self, GroceryItem, ItemComment, ItemEvent, ItemStatus, Priority};
+use crate::domain::item::{
+    self, GroceryItem, ItemComment, ItemEvent, ItemFallback, ItemStatus, Priority,
+};
 use crate::error::AppError;
 use crate::state::AppStateRef;
 use crate::store;
 use crate::store::item::ItemQuery;
 use crate::store::item::ItemSort;
 use crate::store::item::MoveDirection;
+
+/// Entrada de una alternativa de la cadena "si no hay X, trae Y".
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FallbackInput {
+    pub name: String,
+    pub quantity: f64,
+    pub unit: String,
+    pub note: Option<String>,
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,6 +88,9 @@ pub fn item_create(
     category: Option<String>,
     price: Option<f64>,
     section: Option<String>,
+    brand: Option<String>,
+    quantity_max: Option<f64>,
+    fallbacks: Option<Vec<FallbackInput>>,
 ) -> Result<GroceryItem, AppError> {
     let mut item = GroceryItem::new(
         &name,
@@ -91,6 +106,17 @@ pub fn item_create(
     }
     if let Some(section) = section {
         item.set_section(&section)?;
+    }
+    if let Some(brand) = brand {
+        item.set_brand(&brand, &requested_by)?;
+    }
+    if let Some(max) = quantity_max {
+        item.set_quantity_max(Some(max), &requested_by)?;
+    }
+    if let Some(fallbacks) = fallbacks {
+        for fb in fallbacks {
+            item.add_fallback(&fb.name, fb.quantity, &fb.unit, fb.note.as_deref(), &requested_by)?;
+        }
     }
     let mut store = store::lock(&state.store)?;
     Ok(store.items.create(item))
@@ -306,6 +332,72 @@ pub fn item_set_store(
 ) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
     store.items.set_store(&id, &store_name)
+}
+
+/// Fija la marca preferida del ítem ("la marca que nos gusta").
+#[tauri::command]
+pub fn item_set_brand(
+    state: AppStateRef,
+    id: String,
+    brand: String,
+    by: String,
+) -> Result<GroceryItem, AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.items.set_brand(&id, &brand, &by)
+}
+
+/// Fija la cantidad máxima aceptada (opcional). `None` la quita.
+#[tauri::command]
+pub fn item_set_quantity_max(
+    state: AppStateRef,
+    id: String,
+    max: Option<f64>,
+    by: String,
+) -> Result<GroceryItem, AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.items.set_quantity_max(&id, max, &by)
+}
+
+/// Agrega una alternativa a la cadena de respaldo del ítem.
+#[tauri::command]
+pub fn item_add_fallback(
+    state: AppStateRef,
+    id: String,
+    name: String,
+    quantity: f64,
+    unit: String,
+    note: Option<String>,
+    by: String,
+) -> Result<ItemFallback, AppError> {
+    let mut store = store::lock(&state.store)?;
+    store
+        .items
+        .add_fallback(&id, &name, quantity, &unit, note.as_deref(), &by)
+}
+
+/// Quita una alternativa de la cadena de respaldo por posición.
+#[tauri::command]
+pub fn item_remove_fallback(
+    state: AppStateRef,
+    id: String,
+    index: usize,
+    by: String,
+) -> Result<GroceryItem, AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.items.remove_fallback(&id, index, &by)
+}
+
+/// Aplica una alternativa: el ítem pasa a pedir el producto de reemplazo y la
+/// alternativa usada se quita de la cadena (el resto queda como plan B).
+#[tauri::command]
+pub fn item_use_fallback(
+    state: AppStateRef,
+    id: String,
+    index: usize,
+    by: String,
+) -> Result<GroceryItem, AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.items.use_fallback(&id, index, &by)
 }
 
 /// Trae de vuelta un ítem cancelado por error (SPEC §8.2: recuperación).

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { changeItemStatus, confirmTripReceived, listTrips, queryItems } from '../lib/api'
+import { applyItemFallback, cancelItem, changeItemStatus, confirmTripReceived, listTrips, queryItems } from '../lib/api'
 import { ME } from '../lib/me'
 import type { GroceryItem } from '../domain/item'
 import Text from '../shared/ui/primitives/Text.tsx'
@@ -16,7 +16,7 @@ import { loadViewMode, saveViewMode } from '../lib/viewMode.ts'
 import type { ListViewMode } from '../lib/viewMode.ts'
 import { Button, Card, EmptyState, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
-import { PackageCheck, ShoppingBag } from 'lucide-react'
+import { Ban, PackageCheck, ShoppingBag } from 'lucide-react'
 import styles from './MinePage.module.css'
 
 const MINE_KEY = ['mine']
@@ -192,6 +192,37 @@ export default function MinePage() {
                 ))}
               </List>
             )}
+            {list.some(
+              (it) =>
+                (it.fallbacks?.length ?? 0) > 0 &&
+                it.status !== 'comprado' &&
+                it.status !== 'cancelado',
+            ) && (
+              <Card padding="md">
+                <Stack gap="2">
+                  <Text variant="section">
+                    No había…
+                  </Text>
+                  {list
+                    .filter(
+                      (it) =>
+                        (it.fallbacks?.length ?? 0) > 0 &&
+                        it.status !== 'comprado' &&
+                        it.status !== 'cancelado',
+                    )
+                    .map((it) => (
+                      <NoAvailableFlow
+                        key={it.id}
+                        item={it}
+                        onApplied={() => {
+                          invalidate()
+                          queryClient.invalidateQueries({ queryKey: ['items'] })
+                        }}
+                      />
+                    ))}
+                </Stack>
+              </Card>
+            )}
           </Stack>
         ))
       )}
@@ -202,5 +233,54 @@ export default function MinePage() {
         </Button>
       )}
     </Stack>
+  )
+}
+
+interface NoAvailableFlowProps {
+  item: GroceryItem
+  onApplied: () => void
+}
+
+/** "No había X" → ofrece la cadena de alternativas o cancelar el ítem. */
+function NoAvailableFlow({ item, onApplied }: NoAvailableFlowProps) {
+  const useFallback = useMutation({
+    mutationFn: (index: number) => applyItemFallback(item.id, index, ME),
+    onSuccess: onApplied,
+  })
+  const cancel = useMutation({
+    mutationFn: () => cancelItem(item.id, ME, 'No había'),
+    onSuccess: onApplied,
+  })
+  const loading = useFallback.isPending || cancel.isPending
+
+  return (
+    <div className={styles.noAvail}>
+      <Text variant="item" truncate>
+        {item.name}
+      </Text>
+      <div className={styles.noAvailRow}>
+        {(item.fallbacks ?? []).map((fb, i) => (
+          <Button
+            key={`${fb.name}-${i}`}
+            size="sm"
+            variant="secondary"
+            disabled={loading}
+            onClick={() => useFallback.mutate(i)}
+            aria-label={`Traer ${fb.name} en su lugar`}
+          >
+            Traer {fb.name} {fb.quantity} {fb.unit}
+          </Button>
+        ))}
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={loading}
+          onClick={() => cancel.mutate()}
+          aria-label={`No traer nada de ${item.name}`}
+        >
+          <Ban size={14} strokeWidth={2} /> No traer nada
+        </Button>
+      </div>
+    </div>
   )
 }
