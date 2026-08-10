@@ -7,10 +7,13 @@ import {
   Code2,
   MessageCircle,
   Package,
+  Play,
   Plus,
+  Send,
   Server,
   ShoppingCart,
   Sparkles,
+  SmilePlus,
   Users,
 } from 'lucide-react'
 import { useAuth } from '../lib/auth/useAuth.ts'
@@ -21,6 +24,7 @@ import Avatar from '../shared/ui/primitives/Avatar.tsx'
 import Checkbox from '../shared/ui/primitives/Checkbox.tsx'
 import Input from '../shared/ui/form/Input.tsx'
 import ProgressBar from '../shared/ui/primitives/ProgressBar.tsx'
+import TabBar from '../shared/ui/navigation/TabBar.tsx'
 import Text from '../shared/ui/primitives/Text.tsx'
 import BrandMark from '../shared/ui/brand/BrandMark.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
@@ -153,7 +157,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Demo interactiva con componentes reales */}
+          {/* Demo de la lista */}
           <div className={styles.mockWrap}>
             <Card padding="lg" className={styles.mockCard}>
               <Stack gap="3">
@@ -161,7 +165,6 @@ export default function LandingPage() {
                   <Text variant="section">¿Qué falta?</Text>
                   <Chip tone="default">{items.length - carriedCount} pendientes</Chip>
                 </div>
-
                 <div className={styles.mockInput}>
                   <Input
                     size="md"
@@ -175,19 +178,12 @@ export default function LandingPage() {
                     <Plus size={16} strokeWidth={2} />
                   </Button>
                 </div>
-
                 {items.map((it, i) => (
                   <MockRow key={`${it.name}-${i}`} item={it} onToggle={() => toggle(i)} />
                 ))}
-
-                <ProgressBar
-                  value={carriedCount}
-                  max={items.length || 1}
-                  showValue
-                  label="Ya llevas"
-                />
+                <ProgressBar value={carriedCount} max={items.length || 1} showValue label="Ya llevas" />
                 <Text variant="note" tone="tertiary" align="center">
-                  Pruébalo: agrega algo y toca la bolita. Así se siente la app.
+                  Pruébalo: agrega algo y toca la bolita.
                 </Text>
               </Stack>
             </Card>
@@ -197,13 +193,22 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Pestañas de pantallas interactivas */}
+        <section className={styles.section}>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.h2}>Explóralo tú mismo</h2>
+            <p className={styles.lead}>
+              Cada pestaña es una pantalla real de la app: manipúlala y mira cómo responde.
+            </p>
+          </div>
+          <AppDemos />
+        </section>
+
         {/* Features */}
         <section className={styles.section}>
           <div className={styles.sectionHead}>
             <h2 className={styles.h2}>Hecho para el día a día de la familia</h2>
-            <p className={styles.lead}>
-              Sin curvas de aprendizaje: se usa como un mensaje de WhatsApp.
-            </p>
+            <p className={styles.lead}>Sin curvas de aprendizaje: se usa como un mensaje de WhatsApp.</p>
           </div>
           <div className={styles.grid}>
             {FEATURES.map((f) => (
@@ -276,7 +281,11 @@ function MockRow({ item, onToggle }: { item: DemoItem; onToggle: () => void }) {
   return (
     <div className={styles.mockRow}>
       <span onClick={(e) => e.stopPropagation()}>
-        <Checkbox checked={item.carried} onChange={onToggle} ariaLabel={`${item.name}: ${item.carried ? 'quitar del carrito' : 'decir que ya lo llevo'}`} />
+        <Checkbox
+          checked={item.carried}
+          onChange={onToggle}
+          ariaLabel={`${item.name}: ${item.carried ? 'quitar del carrito' : 'decir que ya lo llevo'}`}
+        />
       </span>
       <span className={`${styles.mockName} ${item.carried ? styles.done : ''}`}>{item.name}</span>
       <span className={styles.mockQty}>{item.qty}</span>
@@ -284,5 +293,202 @@ function MockRow({ item, onToggle }: { item: DemoItem; onToggle: () => void }) {
       {item.carried && <Chip tone="default">en el carrito</Chip>}
       <Avatar name={item.requestedBy} size="sm" />
     </div>
+  )
+}
+
+/* ============ Pestañas de pantallas interactivas ============ */
+
+const TABS = [
+  { key: 'lista', label: 'Lista', icon: <ShoppingCart size={16} strokeWidth={2} aria-hidden="true" /> },
+  { key: 'mandado', label: 'Mandado', icon: <Play size={16} strokeWidth={2} aria-hidden="true" /> },
+  { key: 'chat', label: 'Chat', icon: <MessageCircle size={16} strokeWidth={2} aria-hidden="true" /> },
+]
+
+function AppDemos() {
+  const [tab, setTab] = useState('lista')
+  return (
+    <div className={styles.demos}>
+      <TabBar items={TABS} active={tab} onChange={setTab} label="Pantallas de la app" />
+      <div className={styles.demoPanel} key={tab}>
+        {tab === 'lista' && <ListaDemo />}
+        {tab === 'mandado' && <MandadoDemo />}
+        {tab === 'chat' && <ChatDemo />}
+      </div>
+    </div>
+  )
+}
+
+function DemoShell({
+  title,
+  hint,
+  children,
+}: {
+  title: string
+  hint: string
+  children: React.ReactNode
+}) {
+  return (
+    <Card padding="lg">
+      <Stack gap="3">
+        <div className={styles.mockHead}>
+          <Text variant="section">{title}</Text>
+          <Chip tone="default">demo</Chip>
+        </div>
+        {children}
+        <Text variant="note" tone="tertiary">
+          💡 {hint}
+        </Text>
+      </Stack>
+    </Card>
+  )
+}
+
+function ListaDemo() {
+  const [items, setItems] = useState<DemoItem[]>([
+    { name: 'Pollo', qty: '2 kg', requestedBy: 'Ana', carried: true },
+    { name: 'Leche', qty: '1 l', requestedBy: 'Papá', urgent: true, carried: false },
+    { name: 'Canela', qty: '1 caja', requestedBy: 'Abuela', carried: false },
+  ])
+  const [draft, setDraft] = useState('')
+  const toggle = (i: number) =>
+    setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, carried: !it.carried } : it)))
+  const add = () => {
+    if (!draft.trim()) return
+    const { name, qty } = parseQty(draft)
+    setItems((prev) => [...prev, { name, qty, requestedBy: 'Tú', carried: false }])
+    setDraft('')
+  }
+  const carried = items.filter((i) => i.carried).length
+  return (
+    <DemoShell title="Lista de compras" hint="Escribe “arroz 2kg” y presiona Enter, o toca la bolita para marcar “ya lo llevo”.">
+      <div className={styles.mockInput}>
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+          placeholder="pollo 2kg…"
+          aria-label="Agregar falta (demo)"
+        />
+        <Button size="sm" onClick={add} aria-label="Agregar (demo)">
+          <Plus size={16} strokeWidth={2} />
+        </Button>
+      </div>
+      {items.map((it, i) => (
+        <MockRow key={`${it.name}-${i}`} item={it} onToggle={() => toggle(i)} />
+      ))}
+      <ProgressBar value={carried} max={items.length || 1} showValue label="Ya llevas" />
+    </DemoShell>
+  )
+}
+
+function MandadoDemo() {
+  const [tripItems, setTripItems] = useState<DemoItem[]>([
+    { name: 'Pollo', qty: '2 kg', requestedBy: 'Ana', carried: true },
+    { name: 'Leche', qty: '1 l', requestedBy: 'Papá', carried: false },
+    { name: 'Canela', qty: '1 caja', requestedBy: 'Abuela', carried: false },
+  ])
+  const [who, setWho] = useState('Papá')
+  const [started, setStarted] = useState(false)
+  const carried = tripItems.filter((i) => i.carried).length
+  const toggle = (i: number) =>
+    setTripItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, carried: !it.carried } : it)))
+  return (
+    <DemoShell
+      title="Mandado"
+      hint="Elige quién va, pulsa “Empezar” y ve marcando lo que ya lleva en la tienda."
+    >
+      <div className={styles.mockInput}>
+        <label className={styles.whoLabel} htmlFor="demo-who">
+          Lo lleva
+        </label>
+        <select
+          id="demo-who"
+          className={styles.whoSelect}
+          value={who}
+          onChange={(e) => setWho(e.target.value)}
+          aria-label="Quién lleva el mandado (demo)"
+        >
+          <option>Papá</option>
+          <option>Mamá</option>
+          <option>Ana</option>
+        </select>
+        <Button
+          size="sm"
+          onClick={() => setStarted((v) => !v)}
+          variant={started ? 'secondary' : 'primary'}
+          aria-label={started ? 'Pausar mandado (demo)' : 'Empezar mandado (demo)'}
+        >
+          {started ? 'Pausar' : 'Empezar'}
+        </Button>
+      </div>
+      {tripItems.map((it, i) => (
+        <MockRow key={`${it.name}-${i}`} item={it} onToggle={() => toggle(i)} />
+      ))}
+      <ProgressBar value={carried} max={tripItems.length || 1} showValue label={`${who} lleva`} />
+    </DemoShell>
+  )
+}
+
+interface DemoMsg {
+  from: string
+  body: string
+  mine?: boolean
+  reactions: string[]
+}
+
+function ChatDemo() {
+  const [msgs, setMsgs] = useState<DemoMsg[]>([
+    { from: 'Papá', body: 'No había canela, ¿la compro de otra marca?', reactions: ['👍'] },
+    { from: 'Mamá', body: 'Sí, cualquiera que no sea de canela molida 🙏', mine: true, reactions: [] },
+  ])
+  const [draft, setDraft] = useState('')
+  const send = () => {
+    if (!draft.trim()) return
+    setMsgs((prev) => [...prev, { from: 'Tú', body: draft.trim(), mine: true, reactions: [] }])
+    setDraft('')
+  }
+  const react = (i: number) =>
+    setMsgs((prev) =>
+      prev.map((m, idx) =>
+        idx === i ? { ...m, reactions: m.reactions.includes('👍') ? [] : [...m.reactions, '👍'] } : m,
+      ),
+    )
+  return (
+    <DemoShell title="Chat del hogar" hint="Escribe un mensaje y envíalo, o toca 👍 en el mensaje de Papá para reaccionar.">
+      <div className={styles.chatThread}>
+        {msgs.map((m, i) => (
+          <div key={i} className={`${styles.bubble} ${m.mine ? styles.bubbleMine : ''}`}>
+            <div className={styles.bubbleHead}>
+              <Avatar name={m.from} size="sm" />
+              <span className={styles.bubbleFrom}>{m.from}</span>
+            </div>
+            <span className={styles.bubbleBody}>{m.body}</span>
+            <div className={styles.bubbleActions}>
+              {m.reactions.length > 0 && <Chip tone="default">{m.reactions.join(' ')}</Chip>}
+              <button
+                type="button"
+                className={styles.reactBtn}
+                onClick={() => react(i)}
+                aria-label={`Reaccionar al mensaje de ${m.from} (demo)`}
+              >
+                <SmilePlus size={14} strokeWidth={2} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className={styles.mockInput}>
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && send()}
+          placeholder="Escribe un mensaje…"
+          aria-label="Mensaje (demo)"
+        />
+        <Button size="sm" onClick={send} aria-label="Enviar (demo)">
+          <Send size={16} strokeWidth={2} />
+        </Button>
+      </div>
+    </DemoShell>
   )
 }
