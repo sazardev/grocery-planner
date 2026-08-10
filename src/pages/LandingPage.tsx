@@ -1,8 +1,8 @@
+import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import {
   Bell,
   CalendarDays,
-  CheckCircle2,
   ChevronRight,
   Code2,
   MessageCircle,
@@ -18,7 +18,11 @@ import { useMeta } from '../lib/hooks/useMeta.ts'
 import Button from '../shared/ui/primitives/Button.tsx'
 import Chip from '../shared/ui/primitives/Chip.tsx'
 import Avatar from '../shared/ui/primitives/Avatar.tsx'
+import Checkbox from '../shared/ui/primitives/Checkbox.tsx'
+import Input from '../shared/ui/form/Input.tsx'
+import ProgressBar from '../shared/ui/primitives/ProgressBar.tsx'
 import Text from '../shared/ui/primitives/Text.tsx'
+import BrandMark from '../shared/ui/brand/BrandMark.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
 import styles from './LandingPage.module.css'
 
@@ -61,6 +65,21 @@ const STEPS = [
   { n: '3', title: 'Nadie se duplica', body: 'Lo que uno ya lleva lo ven todos al instante. Al llegar, confirmas el recibo.' },
 ]
 
+interface DemoItem {
+  name: string
+  qty: string
+  requestedBy: string
+  urgent?: boolean
+  carried: boolean
+}
+
+function parseQty(text: string): { name: string; qty: string } {
+  const t = text.trim()
+  const m = t.match(/^(.+?)\s+([\d.,]+\s*\w+)$/)
+  if (m) return { name: m[1].trim(), qty: m[2].trim() }
+  return { name: t, qty: '1 pieza' }
+}
+
 export default function LandingPage() {
   const { status } = useAuth()
   const navigate = useNavigate()
@@ -71,16 +90,32 @@ export default function LandingPage() {
     path: '/',
   })
 
-  // Si ya hay sesión, la landing no aporta: directo a la lista.
+  const [draft, setDraft] = useState('')
+  const [items, setItems] = useState<DemoItem[]>([
+    { name: 'Pollo', qty: '2 kg', requestedBy: 'Ana', carried: true },
+    { name: 'Leche', qty: '1 l', requestedBy: 'Papá', urgent: true, carried: false },
+    { name: 'Canela', qty: '1 caja', requestedBy: 'Abuela', carried: false },
+  ])
+
   if (status === 'authenticated') return <Navigate to="/home" replace />
+
+  const toggle = (i: number) =>
+    setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, carried: !it.carried } : it)))
+
+  const add = () => {
+    if (!draft.trim()) return
+    const { name, qty } = parseQty(draft)
+    setItems((prev) => [...prev, { name, qty, requestedBy: 'Tú', carried: false }])
+    setDraft('')
+  }
+
+  const carriedCount = items.filter((i) => i.carried).length
 
   return (
     <div className={styles.page}>
       <header className={styles.topbar}>
         <Link to="/" className={styles.brand} aria-label="Grocery Planner">
-          <span className={styles.mark} aria-hidden="true">
-            <ShoppingCart size={18} strokeWidth={2.5} />
-          </span>
+          <BrandMark size={28} />
           <span className={styles.brandName}>Grocery Planner</span>
         </Link>
         <div className={styles.topActions}>
@@ -118,17 +153,42 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Mock de la lista con componentes reales */}
+          {/* Demo interactiva con componentes reales */}
           <div className={styles.mockWrap}>
             <Card padding="lg" className={styles.mockCard}>
               <Stack gap="3">
                 <div className={styles.mockHead}>
                   <Text variant="section">¿Qué falta?</Text>
-                  <Chip tone="default">3 pendientes</Chip>
+                  <Chip tone="default">{items.length - carriedCount} pendientes</Chip>
                 </div>
-                <MockRow name="Pollo" qty="2 kg" requestedBy="Ana" status="llevo" />
-                <MockRow name="Leche" qty="1 l" requestedBy="Papá" status="falta" urgent />
-                <MockRow name="Canela" qty="1 caja" requestedBy="Abuela" status="falta" />
+
+                <div className={styles.mockInput}>
+                  <Input
+                    size="md"
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && add()}
+                    placeholder="pollo 2kg…"
+                    aria-label="Agregar una falta de prueba"
+                  />
+                  <Button size="sm" onClick={add} aria-label="Agregar">
+                    <Plus size={16} strokeWidth={2} />
+                  </Button>
+                </div>
+
+                {items.map((it, i) => (
+                  <MockRow key={`${it.name}-${i}`} item={it} onToggle={() => toggle(i)} />
+                ))}
+
+                <ProgressBar
+                  value={carriedCount}
+                  max={items.length || 1}
+                  showValue
+                  label="Ya llevas"
+                />
+                <Text variant="note" tone="tertiary" align="center">
+                  Pruébalo: agrega algo y toca la bolita. Así se siente la app.
+                </Text>
               </Stack>
             </Card>
             <div className={styles.mockFab} aria-hidden="true">
@@ -197,7 +257,7 @@ export default function LandingPage() {
 
       <footer className={styles.footer}>
         <span className={styles.footerBrand}>
-          <CheckCircle2 size={16} strokeWidth={2} aria-hidden="true" /> Grocery Planner
+          <BrandMark size={16} /> Grocery Planner
         </span>
         <a
           href="https://github.com/sazardev/grocery-planner"
@@ -212,28 +272,17 @@ export default function LandingPage() {
   )
 }
 
-function MockRow({
-  name,
-  qty,
-  requestedBy,
-  status,
-  urgent,
-}: {
-  name: string
-  qty: string
-  requestedBy: string
-  status: 'falta' | 'llevo'
-  urgent?: boolean
-}) {
+function MockRow({ item, onToggle }: { item: DemoItem; onToggle: () => void }) {
   return (
     <div className={styles.mockRow}>
-      <span className={`${styles.check} ${status === 'llevo' ? styles.checkOn : ''}`} aria-hidden="true">
-        {status === 'llevo' && <CheckCircle2 size={14} strokeWidth={2.5} />}
+      <span onClick={(e) => e.stopPropagation()}>
+        <Checkbox checked={item.carried} onChange={onToggle} ariaLabel={`${item.name}: ${item.carried ? 'quitar del carrito' : 'decir que ya lo llevo'}`} />
       </span>
-      <span className={`${styles.mockName} ${status === 'llevo' ? styles.done : ''}`}>{name}</span>
-      <span className={styles.mockQty}>{qty}</span>
-      {urgent && <Chip tone="warning">Urgente</Chip>}
-      <Avatar name={requestedBy} size="sm" />
+      <span className={`${styles.mockName} ${item.carried ? styles.done : ''}`}>{item.name}</span>
+      <span className={styles.mockQty}>{item.qty}</span>
+      {item.urgent && <Chip tone="warning">Urgente</Chip>}
+      {item.carried && <Chip tone="default">en el carrito</Chip>}
+      <Avatar name={item.requestedBy} size="sm" />
     </div>
   )
 }

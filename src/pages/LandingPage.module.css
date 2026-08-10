@@ -29,17 +29,6 @@
   font-weight: var(--gp-weight-semibold);
 }
 
-.mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--gp-primary);
-  color: var(--gp-text-inverse);
-}
-
 .brandName {
   font-size: var(--gp-text-base);
   white-space: nowrap;
@@ -124,6 +113,17 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--gp-space-3);
+}
+
+.mockInput {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+}
+
+.mockInput > :first-child {
+  flex: 1;
+  min-width: 0;
 }
 
 .mockRow {
