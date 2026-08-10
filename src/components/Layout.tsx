@@ -4,6 +4,7 @@ import { Home, ShoppingCart, MessageCircle, UserRound, Users, Settings } from 'l
 import { getUnreadMentions, getUnreadNotifications } from '../lib/api'
 import { ME } from '../lib/me'
 import NavBar from '../shared/ui/navigation/NavBar.tsx'
+import { FabHost, FabProvider } from '../shared/ui/navigation/FabHost.tsx'
 import type { NavItem } from '../shared/ui/navigation/NavBar.tsx'
 import styles from './Layout.module.css'
 
@@ -38,36 +39,39 @@ export default function Layout() {
   })
 
   return (
-    <div className={styles.app}>
-      <main
-        key={pathname}
-        className={`${styles.content} ${pathname === '/chat' ? styles.contentChat : ''}`}
-      >
-        <Outlet />
-      </main>
-      <NavBar
-        items={navItems.map((item) => ({
-          ...item,
-          active:
-            item.to === '/'
-              ? pathname === '/' || pathname.startsWith('/items')
-              : pathname === item.to || pathname.startsWith(item.to + '/'),
-          badge:
-            item.key === 'chat'
-              ? (mentions.data ?? 0)
-              : item.key === 'ajustes'
-                ? (unread.data ?? 0)
-                : undefined,
-        }))}
-        renderLink={(item, className, content, innerRef) => {
-          const target = navItems.find((n) => n.key === item.key)!
-          return (
-            <NavLink key={item.key} to={target.to} className={className} ref={innerRef}>
-              {content}
-            </NavLink>
-          )
-        }}
-      />
-    </div>
+    <FabProvider>
+      <div className={styles.app}>
+        <main
+          key={pathname}
+          className={`${styles.content} ${pathname === '/chat' ? styles.contentChat : ''}`}
+        >
+          <Outlet />
+        </main>
+        <FabHost />
+        <NavBar
+          items={navItems.map((item) => ({
+            ...item,
+            active:
+              item.to === '/'
+                ? pathname === '/' || pathname.startsWith('/items')
+                : pathname === item.to || pathname.startsWith(item.to + '/'),
+            badge:
+              item.key === 'chat'
+                ? (mentions.data ?? 0)
+                : item.key === 'ajustes'
+                  ? (unread.data ?? 0)
+                  : undefined,
+          }))}
+          renderLink={(item, className, content, innerRef) => {
+            const target = navItems.find((n) => n.key === item.key)!
+            return (
+              <NavLink key={item.key} to={target.to} className={className} ref={innerRef}>
+                {content}
+              </NavLink>
+            )
+          }}
+        />
+      </div>
+    </FabProvider>
   )
 }

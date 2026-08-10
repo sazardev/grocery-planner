@@ -12,6 +12,7 @@ import Alert from '../shared/ui/feedback/Alert.tsx'
 import EmptyState from '../shared/ui/feedback/EmptyState.tsx'
 import { Card, Input, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { useFab } from '../shared/ui/navigation/fab.ts'
 import ShareButton from '../shared/ui/navigation/ShareButton.tsx'
 import SectionLink from '../components/SectionLink.tsx'
 import { ListTree, ShoppingCart, Store } from 'lucide-react'
@@ -34,6 +35,16 @@ export default function TripsPage() {
   const [title, setTitle] = useState('')
   const [error, setError] = useState<string | null>(null)
   useDocumentTitle('Mandado · Grocery Planner')
+
+  // FAB contextual "Nuevo mandado": enfoca el título del form de creación.
+  useFab({
+    label: 'Nuevo mandado',
+    ariaLabel: 'Crear un mandado nuevo',
+    onClick: () => {
+      document.getElementById('trip-title')?.focus()
+      document.getElementById('trip-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    },
+  })
 
   const trips = useQuery({ queryKey: ['trips'], queryFn: listTrips })
 
@@ -81,6 +92,7 @@ export default function TripsPage() {
             Nuevo mandado
           </Text>
           <Input
+            id="trip-title"
             label="Título del mandado"
             placeholder="Mandado del sábado"
             value={title}

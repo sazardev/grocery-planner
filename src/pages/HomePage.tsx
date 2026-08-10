@@ -25,7 +25,7 @@ import ItemRow from '../shared/ui/data-display/ItemRow.tsx'
 import ItemCard from '../shared/ui/data-display/ItemCard.tsx'
 import List from '../shared/ui/data-display/List.tsx'
 import TabBar from '../shared/ui/navigation/TabBar.tsx'
-import FAB from '../shared/ui/navigation/FAB.tsx'
+import { useFab } from '../shared/ui/navigation/fab.ts'
 import Alert from '../shared/ui/feedback/Alert.tsx'
 import Chip from '../shared/ui/primitives/Chip.tsx'
 import { Button, Card, Input, Select, Stack } from '../shared/ui/index.ts'
@@ -83,6 +83,12 @@ export default function HomePage() {
     ...(photosOnly ? ['photos'] : []),
   ]
   useDocumentTitle('¿Qué falta? · Grocery Planner')
+
+  useFab({
+    label: 'Falta…',
+    ariaLabel: 'Agregar lo que falta',
+    onClick: () => navigate('/items/new'),
+  })
 
   const {
     data: items = [],
@@ -354,13 +360,6 @@ export default function HomePage() {
       <Button variant="secondary" full onClick={() => navigate('/reports')}>
         <BarChart3 size={18} strokeWidth={2} aria-hidden="true" /> Ver reportes de la familia
       </Button>
-
-      <FAB
-        extended
-        label="Falta…"
-        ariaLabel="Agregar lo que falta"
-        onClick={() => navigate('/items/new')}
-      />
     </Stack>
   )
 }
