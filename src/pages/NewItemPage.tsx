@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ChevronDown, ChevronUp, Plus, X } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { createItem, parseQuickEntry } from '../lib/api'
 import type { FallbackInput } from '../lib/api/items.ts'
 import { ME } from '../lib/me'
@@ -18,15 +18,21 @@ import { Card, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
 import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import { PRIORITY_LABEL } from './itemPriority.ts'
+import FallbackEditor from '../components/FallbackEditor.tsx'
+import type { FallbackDraft } from '../components/FallbackEditor.tsx'
 import styles from './NewItemPage.module.css'
 
 const ITEMS_KEY = ['items']
 
-interface FallbackDraft {
-  name: string
-  quantity: string
-  unit: string
-  note: string
+function toFallbackInputs(fallbacks: FallbackDraft[]): FallbackInput[] {
+  return fallbacks
+    .filter((f) => f.name.trim())
+    .map((f) => ({
+      name: f.name.trim(),
+      quantity: Number(f.quantity) || 1,
+      unit: f.unit.trim() || 'pieza',
+      note: f.note.trim() || undefined,
+    }))
 }
 
 export default function NewItemPage() {
@@ -36,6 +42,7 @@ export default function NewItemPage() {
   const [mode, setMode] = useState<'rapido' | 'detallado'>('rapido')
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [fallbacks, setFallbacks] = useState<FallbackDraft[]>([])
 
   // Modo detallado
   const [name, setName] = useState('')
@@ -46,29 +53,20 @@ export default function NewItemPage() {
   const [priority, setPriority] = useState<Priority>('media')
   const [category, setCategory] = useState('')
   const [note, setNote] = useState('')
-  const [fallbacks, setFallbacks] = useState<FallbackDraft[]>([])
 
   useDocumentTitle('¿Qué falta? Agregar · Grocery Planner')
 
   const addMutation = useMutation({
     mutationFn: async () => {
+      const fbList = toFallbackInputs(fallbacks)
       if (mode === 'rapido') {
         const parsed = await parseQuickEntry(text)
-        return createItem({ ...parsed, priority: 'media', requestedBy: ME })
+        return createItem({ ...parsed, priority: 'media', requestedBy: ME, fallbacks: fbList })
       }
-      const qty = Number(quantity)
-      const fbList: FallbackInput[] = fallbacks
-        .filter((f) => f.name.trim())
-        .map((f) => ({
-          name: f.name.trim(),
-          quantity: Number(f.quantity) || 1,
-          unit: f.unit.trim() || 'pieza',
-          note: f.note.trim() || undefined,
-        }))
       return createItem({
         name: name.trim(),
         brand: brand.trim() || undefined,
-        quantity: qty,
+        quantity: Number(quantity),
         unit: unit.trim(),
         priority,
         requestedBy: ME,
@@ -96,20 +94,12 @@ export default function NewItemPage() {
     addMutation.mutate()
   }
 
-  const addFallbackDraft = () =>
-    setFallbacks((prev) => [...prev, { name: '', quantity: '', unit: '', note: '' }])
-  const updateFallback = (i: number, patch: Partial<FallbackDraft>) =>
-    setFallbacks((prev) => prev.map((f, idx) => (idx === i ? { ...f, ...patch } : f)))
-  const removeFallback = (i: number) =>
-    setFallbacks((prev) => prev.filter((_, idx) => idx !== i))
-  const moveFallback = (i: number, dir: -1 | 1) =>
-    setFallbacks((prev) => {
-      const next = [...prev]
-      const j = i + dir
-      if (j < 0 || j >= next.length) return prev
-      ;[next[i], next[j]] = [next[j], next[i]]
-      return next
-    })
+  const quickName = (() => {
+    const t = text.trim()
+    if (!t) return ''
+    const idx = t.search(/\d/)
+    return idx === -1 ? t : t.slice(0, idx).trim()
+  })()
 
   return (
     <Stack gap="6">
@@ -164,6 +154,9 @@ export default function NewItemPage() {
                 aria-label="Qué falta"
               />
             </Field>
+
+            <FallbackEditor value={fallbacks} onChange={setFallbacks} productName={quickName} />
+
             {error && <Alert tone="danger">{error}</Alert>}
             <div className={styles.actions}>
               <Button variant="secondary" onClick={goBack}>
@@ -247,88 +240,7 @@ export default function NewItemPage() {
               />
             </Field>
 
-            <div className={styles.fbHeader}>
-              <Text variant="section">Si no hay…</Text>
-              <Button variant="ghost" size="sm" onClick={addFallbackDraft} aria-label="Agregar alternativa">
-                <Plus size={16} strokeWidth={2} /> Alternativa
-              </Button>
-            </div>
-            <Text as="p" variant="note" tone="secondary">
-              Encadena opciones: “si no hay pechuga de pollo, trae pierna; si no hay pierna, no traigas nada”.
-            </Text>
-            {fallbacks.length === 0 ? (
-              <Text variant="note" tone="tertiary">
-                Sin alternativas todavía.
-              </Text>
-            ) : (
-              <Stack gap="3">
-                {fallbacks.map((f, i) => (
-                  <Card key={i} padding="sm">
-                    <Stack gap="2">
-                      <div className={styles.fbRow}>
-                        <Text variant="note" tone="secondary">
-                          {i + 1}. Si no hay, trae:
-                        </Text>
-                        <div className={styles.fbActions}>
-                          <IconButton
-                            label={`Subir alternativa ${i + 1}`}
-                            onClick={() => moveFallback(i, -1)}
-                            disabled={i === 0}
-                          >
-                            <ChevronUp size={16} strokeWidth={2} />
-                          </IconButton>
-                          <IconButton
-                            label={`Bajar alternativa ${i + 1}`}
-                            onClick={() => moveFallback(i, 1)}
-                            disabled={i === fallbacks.length - 1}
-                          >
-                            <ChevronDown size={16} strokeWidth={2} />
-                          </IconButton>
-                          <IconButton label={`Quitar alternativa ${i + 1}`} onClick={() => removeFallback(i)} variant="danger">
-                            <X size={16} strokeWidth={2} />
-                          </IconButton>
-                        </div>
-                      </div>
-                      <Field label="Producto alternativo">
-                        <Input
-                          value={f.name}
-                          onChange={(e) => updateFallback(i, { name: e.target.value })}
-                          placeholder="pierna de pollo"
-                          aria-label={`Producto alternativo ${i + 1}`}
-                        />
-                      </Field>
-                      <div className={styles.rowFields}>
-                        <Field label="Cantidad">
-                          <Input
-                            inputMode="decimal"
-                            value={f.quantity}
-                            onChange={(e) => updateFallback(i, { quantity: e.target.value })}
-                            placeholder="2"
-                            aria-label={`Cantidad alternativa ${i + 1}`}
-                          />
-                        </Field>
-                        <Field label="Unidad">
-                          <Input
-                            value={f.unit}
-                            onChange={(e) => updateFallback(i, { unit: e.target.value })}
-                            placeholder="kg"
-                            aria-label={`Unidad alternativa ${i + 1}`}
-                          />
-                        </Field>
-                      </div>
-                      <Field label="Nota (opcional)">
-                        <Input
-                          value={f.note}
-                          onChange={(e) => updateFallback(i, { note: e.target.value })}
-                          placeholder="mediano"
-                          aria-label={`Nota alternativa ${i + 1}`}
-                        />
-                      </Field>
-                    </Stack>
-                  </Card>
-                ))}
-              </Stack>
-            )}
+            <FallbackEditor value={fallbacks} onChange={setFallbacks} productName={name.trim()} />
 
             {error && <Alert tone="danger">{error}</Alert>}
             <div className={styles.actions}>

@@ -49,23 +49,3 @@
   flex: 1;
   min-width: 0;
 }
-
-.fbHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gp-space-3);
-}
-
-.fbRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gp-space-3);
-}
-
-.fbActions {
-  display: flex;
-  align-items: center;
-  gap: var(--gp-space-1);
-}
