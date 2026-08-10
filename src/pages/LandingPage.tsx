@@ -21,10 +21,10 @@ import { useMeta } from '../lib/hooks/useMeta.ts'
 import Button from '../shared/ui/primitives/Button.tsx'
 import Chip from '../shared/ui/primitives/Chip.tsx'
 import Avatar from '../shared/ui/primitives/Avatar.tsx'
-import Checkbox from '../shared/ui/primitives/Checkbox.tsx'
 import Input from '../shared/ui/form/Input.tsx'
 import ProgressBar from '../shared/ui/primitives/ProgressBar.tsx'
 import TabBar from '../shared/ui/navigation/TabBar.tsx'
+import ItemRow from '../shared/ui/data-display/ItemRow.tsx'
 import Text from '../shared/ui/primitives/Text.tsx'
 import BrandMark from '../shared/ui/brand/BrandMark.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
@@ -179,7 +179,18 @@ export default function LandingPage() {
                   </Button>
                 </div>
                 {items.map((it, i) => (
-                  <MockRow key={`${it.name}-${i}`} item={it} onToggle={() => toggle(i)} />
+                  <ItemRow
+                    key={`${it.name}-${i}`}
+                    name={it.name}
+                    quantity={Number(it.qty.split(' ')[0]) || undefined}
+                    unit={it.qty.split(' ').slice(1).join(' ') || undefined}
+                    requestedBy={it.requestedBy}
+                    status={it.carried ? 'llevo' : it.urgent ? 'falta' : 'falta'}
+                    urgent={it.urgent}
+                    checked={it.carried}
+                    onToggle={() => toggle(i)}
+                    onQuit={it.carried ? () => toggle(i) : undefined}
+                  />
                 ))}
                 <ProgressBar value={carriedCount} max={items.length || 1} showValue label="Ya llevas" />
                 <Text variant="note" tone="tertiary" align="center">
@@ -195,7 +206,7 @@ export default function LandingPage() {
 
         {/* Pestañas de pantallas interactivas */}
         <section className={styles.section}>
-          <div className={styles.sectionHead}>
+          <div className={`${styles.sectionHead} ${styles.sectionHeadCenter}`}>
             <h2 className={styles.h2}>Explóralo tú mismo</h2>
             <p className={styles.lead}>
               Cada pestaña es una pantalla real de la app: manipúlala y mira cómo responde.
@@ -273,25 +284,6 @@ export default function LandingPage() {
           <Code2 size={16} strokeWidth={2} aria-hidden="true" /> Código en GitHub
         </a>
       </footer>
-    </div>
-  )
-}
-
-function MockRow({ item, onToggle }: { item: DemoItem; onToggle: () => void }) {
-  return (
-    <div className={styles.mockRow}>
-      <span onClick={(e) => e.stopPropagation()}>
-        <Checkbox
-          checked={item.carried}
-          onChange={onToggle}
-          ariaLabel={`${item.name}: ${item.carried ? 'quitar del carrito' : 'decir que ya lo llevo'}`}
-        />
-      </span>
-      <span className={`${styles.mockName} ${item.carried ? styles.done : ''}`}>{item.name}</span>
-      <span className={styles.mockQty}>{item.qty}</span>
-      {item.urgent && <Chip tone="warning">Urgente</Chip>}
-      {item.carried && <Chip tone="default">en el carrito</Chip>}
-      <Avatar name={item.requestedBy} size="sm" />
     </div>
   )
 }
@@ -374,7 +366,18 @@ function ListaDemo() {
         </Button>
       </div>
       {items.map((it, i) => (
-        <MockRow key={`${it.name}-${i}`} item={it} onToggle={() => toggle(i)} />
+        <ItemRow
+          key={`${it.name}-${i}`}
+          name={it.name}
+          quantity={Number(it.qty.split(' ')[0]) || undefined}
+          unit={it.qty.split(' ').slice(1).join(' ') || undefined}
+          requestedBy={it.requestedBy}
+          status={it.carried ? 'llevo' : 'falta'}
+          urgent={it.urgent}
+          checked={it.carried}
+          onToggle={() => toggle(i)}
+          onQuit={it.carried ? () => toggle(i) : undefined}
+        />
       ))}
       <ProgressBar value={carried} max={items.length || 1} showValue label="Ya llevas" />
     </DemoShell>
@@ -422,7 +425,17 @@ function MandadoDemo() {
         </Button>
       </div>
       {tripItems.map((it, i) => (
-        <MockRow key={`${it.name}-${i}`} item={it} onToggle={() => toggle(i)} />
+        <ItemRow
+          key={`${it.name}-${i}`}
+          name={it.name}
+          quantity={Number(it.qty.split(' ')[0]) || undefined}
+          unit={it.qty.split(' ').slice(1).join(' ') || undefined}
+          requestedBy={it.requestedBy}
+          status={it.carried ? 'llevo' : 'falta'}
+          checked={it.carried}
+          onToggle={() => toggle(i)}
+          onQuit={it.carried ? () => toggle(i) : undefined}
+        />
       ))}
       <ProgressBar value={carried} max={tripItems.length || 1} showValue label={`${who} lleva`} />
     </DemoShell>

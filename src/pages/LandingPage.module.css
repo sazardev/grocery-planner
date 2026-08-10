@@ -126,48 +126,6 @@
   min-width: 0;
 }
 
-.mockRow {
-  display: flex;
-  align-items: center;
-  gap: var(--gp-space-3);
-  padding: var(--gp-space-2) 0;
-}
-
-.check {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--gp-radius-pill);
-  background: var(--gp-touch);
-  color: var(--gp-text-inverse);
-  flex-shrink: 0;
-}
-
-.checkOn {
-  background: var(--gp-primary-strong);
-}
-
-.mockName {
-  font-weight: var(--gp-weight-medium);
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.mockQty {
-  color: var(--gp-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.done {
-  color: var(--gp-text-tertiary);
-  text-decoration: line-through;
-}
-
 .mockFab {
   position: absolute;
   right: var(--gp-space-4);
@@ -195,6 +153,11 @@
   flex-direction: column;
   gap: var(--gp-space-2);
   margin-bottom: var(--gp-space-6);
+}
+
+.sectionHeadCenter {
+  align-items: center;
+  text-align: center;
 }
 
 .h2 {
@@ -267,10 +230,15 @@
 .demos {
   display: flex;
   flex-direction: column;
-  gap: var(--gp-space-4);
+  gap: var(--gp-space-5);
+  align-items: center;
+  max-width: var(--gp-container-xl);
+  margin: 0 auto;
 }
 
 .demoPanel {
+  width: 100%;
+  max-width: 720px;
   animation: gp-rise 0.35s var(--gp-ease-out) both;
 }
 
