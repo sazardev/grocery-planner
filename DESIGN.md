@@ -359,7 +359,7 @@ seguras:
 
 | Dispositivo | Patrón de navegación |
 |---|---|
-| Teléfono | **Nav inferior fija** (Inicio, Mandado, Chat, Mío, Familia, Ajustes) — al alcance del pulgar. |
+| Teléfono | **Nav inferior fija** (Inicio, Mandado, Chat, Mío, Familia) — al alcance del pulgar. Ajustes y Reglas viven dentro de la sección Familia. |
 | Tablet vertical | Nav superior compacta con los mismos destinos + filtros en chips. |
 | Tablet horizontal / laptop | Nav superior o lateral compacta; listas secundarias en paneles. |
 | Desktop | **Nav lateral** fija (columna izquierda) + contenido central; opciones secundarias en paneles. |

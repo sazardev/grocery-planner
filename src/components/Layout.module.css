@@ -3,52 +3,6 @@
   flex-direction: column;
   min-height: 100svh;
   width: 100%;
-  --gp-appbar-h: 52px;
-}
-
-/* App bar superior: marca + engrane de Reglas (customización desde cualquier pantalla). */
-.appbar {
-  position: sticky;
-  top: 0;
-  z-index: var(--gp-z-sticky);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gp-space-3);
-  height: var(--gp-appbar-h);
-  padding: 0 var(--gp-space-4);
-  background: var(--gp-surface);
-}
-
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--gp-space-2);
-  color: var(--gp-text-primary);
-  text-decoration: none;
-}
-
-.brandMark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--gp-primary-subtle);
-  color: var(--gp-primary-strong);
-}
-
-.brandName {
-  font-weight: var(--gp-weight-semibold);
-  font-size: var(--gp-text-base);
-  white-space: nowrap;
-}
-
-@media (min-width: 768px) {
-  .appbar {
-    padding: 0 var(--gp-space-6);
-  }
 }
 
 .content {
@@ -87,7 +41,7 @@
    compositor queda anclado abajo (la nav ya es `position: fixed`). */
 .contentChat {
   flex: 0 0 auto;
-  height: calc(100svh - var(--gp-appbar-h));
+  height: 100svh;
   min-height: 0;
   overflow: hidden;
 }
