@@ -1,0 +1,56 @@
+name: Bug report
+description: Reporta un error del sistema
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por reportar. Busca antes si ya existe un issue similar.
+  - type: input
+    id: version
+    attributes:
+      label: Versión / commit
+      description: Salida de `git rev-parse HEAD` (o la versión del bundle).
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Dónde ocurre
+      options:
+        - Navegador (web)
+        - Desktop (Tauri)
+        - Ambos
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para reproducir
+      description: 1. … 2. … 3. …
+      placeholder: "1. Entro como admin\n2. Agrego un ítem\n3. …"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamiento esperado
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportamiento actual
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / errores de consola
+      description: Errores de la consola del navegador o del backend, si los hay.
+      render: shell
+  - type: textarea
+    id: extra
+    attributes:
+      label: Contexto adicional
+      description: Capturas, datos del hogar, config de red, etc.
