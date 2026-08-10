@@ -133,6 +133,11 @@ export default function ItemDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['item', id] })
   }
 
+  const markSaved = () => {
+    setSaveError(null)
+    setSaved(true)
+  }
+
   // Sincroniza el formulario con el ítem cargado.
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
   if (item && loadedFor !== item.id) {
@@ -163,8 +168,7 @@ export default function ItemDetailPage() {
     }) => updateItem(item!.id, { by: ME, ...fields }),
     onSuccess: () => {
       invalidateItem()
-      setSaveError(null)
-      setSaved(true)
+      markSaved()
     },
     onError: (err) =>
       setSaveError(err instanceof Error ? err.message : 'No se pudo guardar'),
@@ -172,7 +176,10 @@ export default function ItemDetailPage() {
 
   const priceMutation = useMutation({
     mutationFn: (value: number) => setItemPrice(item!.id, value),
-    onSuccess: invalidateItem,
+    onSuccess: () => {
+      invalidateItem()
+      markSaved()
+    },
     onError: (err) =>
       setSaveError(err instanceof Error ? err.message : 'No se pudo guardar el precio'),
   })
@@ -246,14 +253,20 @@ export default function ItemDetailPage() {
 
   const brandMutation = useMutation({
     mutationFn: (value: string) => setItemBrand(item!.id, value, ME),
-    onSuccess: invalidateItem,
+    onSuccess: () => {
+      invalidateItem()
+      markSaved()
+    },
     onError: (err) =>
       setSaveError(err instanceof Error ? err.message : 'No se pudo guardar la marca'),
   })
 
   const quantityMaxMutation = useMutation({
     mutationFn: (value: number | null) => setItemQuantityMax(item!.id, value, ME),
-    onSuccess: invalidateItem,
+    onSuccess: () => {
+      invalidateItem()
+      markSaved()
+    },
     onError: (err) =>
       setSaveError(err instanceof Error ? err.message : 'No se pudo guardar la cantidad máxima'),
   })
