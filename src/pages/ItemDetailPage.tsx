@@ -37,6 +37,7 @@ import Alert from '../shared/ui/feedback/Alert.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
 import { PRIORITY_LABEL, PRIORITY_TONE } from './itemPriority.ts'
 import { useMeta } from '../lib/hooks/useMeta.ts'
+import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import ShareButton from '../shared/ui/navigation/ShareButton.tsx'
 import { readFileAsDataURL } from '../lib/readFile.ts'
 import styles from './ItemDetailPage.module.css'
@@ -221,10 +222,7 @@ export default function ItemDetailPage() {
     }
   }
 
-  const goBack = () => {
-    if (window.history.length > 1) navigate(-1)
-    else navigate('/')
-  }
+  const goBack = useGoBack('/')
 
   const submit = () => {
     if (!item) return

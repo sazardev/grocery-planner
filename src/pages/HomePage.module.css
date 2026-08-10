@@ -24,6 +24,12 @@
   flex-wrap: wrap;
 }
 
+.quickRow {
+  display: flex;
+  gap: var(--gp-space-2);
+  flex-wrap: wrap;
+}
+
 .filterRow {
   display: flex;
   align-items: center;

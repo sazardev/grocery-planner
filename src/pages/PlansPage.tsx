@@ -10,6 +10,7 @@ import Skeleton from '../shared/ui/primitives/Skeleton.tsx'
 import EmptyState from '../shared/ui/feedback/EmptyState.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import { ArrowLeft, CalendarClock, Plus } from 'lucide-react'
 import styles from './PlansPage.module.css'
 
@@ -26,10 +27,7 @@ export default function PlansPage() {
 
   const plans = useQuery({ queryKey: ['plans'], queryFn: listPlans })
 
-  const goBack = () => {
-    if (window.history.length > 1) navigate(-1)
-    else navigate('/calendar')
-  }
+  const goBack = useGoBack('/calendar')
 
   return (
     <Stack gap="6">

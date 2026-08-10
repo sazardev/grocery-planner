@@ -48,7 +48,9 @@ export default function Layout() {
         items={navItems.map((item) => ({
           ...item,
           active:
-            item.to === '/' ? pathname === '/' : pathname === item.to || pathname.startsWith(item.to + '/'),
+            item.to === '/'
+              ? pathname === '/' || pathname.startsWith('/items')
+              : pathname === item.to || pathname.startsWith(item.to + '/'),
           badge:
             item.key === 'chat'
               ? (mentions.data ?? 0)

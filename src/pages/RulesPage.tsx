@@ -8,7 +8,7 @@ import { ArrowLeft } from 'lucide-react'
 import styles from './RulesPage.module.css'
 
 export default function RulesPage() {
-  const goBack = useGoBack('/')
+  const goBack = useGoBack('/family')
   useDocumentTitle('Reglas de la familia · Grocery Planner')
 
   return (

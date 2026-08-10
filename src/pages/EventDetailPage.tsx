@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import { ArrowLeft, CalendarClock, Trash2, Plus } from 'lucide-react'
 import {
   addItemToEvent,
@@ -79,10 +80,7 @@ export default function EventDetailPage() {
     },
   })
 
-  const goBack = () => {
-    if (window.history.length > 1) navigate(-1)
-    else navigate('/events')
-  }
+  const goBack = useGoBack('/events')
 
   if (eventQuery.isLoading || !event) {
     return (

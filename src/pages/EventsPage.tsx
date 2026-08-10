@@ -14,6 +14,7 @@ import EmptyState from '../shared/ui/feedback/EmptyState.tsx'
 import Switch from '../shared/ui/form/Switch.tsx'
 import { Card, Input, Select, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import { CalendarDays, ArrowLeft } from 'lucide-react'
 import styles from './EventsPage.module.css'
 
@@ -57,10 +58,7 @@ export default function EventsPage() {
 
   const eventsQuery = useQuery({ queryKey: ['events'], queryFn: listEvents })
 
-  const goBack = () => {
-    if (window.history.length > 1) navigate(-1)
-    else navigate('/calendar')
-  }
+  const goBack = useGoBack('/calendar')
 
   const createMutation = useMutation({
     mutationFn: () =>

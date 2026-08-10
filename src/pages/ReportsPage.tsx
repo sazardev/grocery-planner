@@ -15,14 +15,13 @@ import Skeleton from '../shared/ui/primitives/Skeleton.tsx'
 import Chip from '../shared/ui/primitives/Chip.tsx'
 import { Button, Card, Select, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import IconButton from '../shared/ui/primitives/IconButton.tsx'
-import { useNavigate } from 'react-router-dom'
 import { addDays, localDayRangeISO, todayISO } from '../lib/dates.ts'
 import styles from './ReportsPage.module.css'
 
 export default function ReportsPage() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [repeatDate, setRepeatDate] = useState<string>(() => addDays(todayISO(), -1))
   useDocumentTitle('Reportes · Grocery Planner')
@@ -65,10 +64,7 @@ export default function ReportsPage() {
     },
   })
 
-  const goBack = () => {
-    if (window.history.length > 1) navigate(-1)
-    else navigate('/')
-  }
+  const goBack = useGoBack('/')
 
   const proy = (projection.data ?? [])
     .filter((p) => p.cadenceDays != null)

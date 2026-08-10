@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { ArrowLeft, CalendarClock, CheckCircle2, Play, XCircle } from 'lucide-react'
 import { activatePlan, cancelPlan, completePlan, getPlan } from '../lib/api'
 import type { PlanStatus } from '../domain/plan'
@@ -12,6 +12,7 @@ import Skeleton from '../shared/ui/primitives/Skeleton.tsx'
 import Alert from '../shared/ui/feedback/Alert.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
 import { useMeta } from '../lib/hooks/useMeta.ts'
+import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import ShareButton from '../shared/ui/navigation/ShareButton.tsx'
 import styles from './PlanDetailPage.module.css'
 
@@ -31,7 +32,6 @@ const planStatusLabel: Record<PlanStatus, string> = {
 
 export default function PlanDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   const { data: plan, isLoading, isError, error } = useQuery({
@@ -57,10 +57,7 @@ export default function PlanDetailPage() {
   const completeMutation = useMutation({ mutationFn: () => completePlan(plan!.id), onSuccess: invalidate })
   const cancelMutation = useMutation({ mutationFn: () => cancelPlan(plan!.id), onSuccess: invalidate })
 
-  const goBack = () => {
-    if (window.history.length > 1) navigate(-1)
-    else navigate('/plans')
-  }
+  const goBack = useGoBack('/plans')
 
   if (isLoading || !plan) {
     return (

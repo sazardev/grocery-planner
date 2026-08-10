@@ -30,7 +30,7 @@ import Alert from '../shared/ui/feedback/Alert.tsx'
 import Chip from '../shared/ui/primitives/Chip.tsx'
 import { Button, Card, Input, Select, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
-import { BarChart3, Clock3 } from 'lucide-react'
+import { BarChart3, Bell, CalendarDays, Clock3, History } from 'lucide-react'
 import styles from './HomePage.module.css'
 
 const filterTabs: { key: string; label: string }[] = [
@@ -337,6 +337,18 @@ export default function HomePage() {
 
       <div className={styles.chipRow}>
         <Chip tone="warning">{pendingCount} pendientes</Chip>
+      </div>
+
+      <div className={styles.quickRow}>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/calendar')}>
+          <CalendarDays size={16} strokeWidth={2} aria-hidden="true" /> Calendario
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/history')}>
+          <History size={16} strokeWidth={2} aria-hidden="true" /> Historial
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => navigate('/notifications')}>
+          <Bell size={16} strokeWidth={2} aria-hidden="true" /> Avisos
+        </Button>
       </div>
 
       <Button variant="secondary" full onClick={() => navigate('/reports')}>

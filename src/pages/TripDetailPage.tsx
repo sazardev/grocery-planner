@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import { ArrowLeft, CheckCircle2, Play, ShoppingCart, XCircle } from 'lucide-react'
 import { activateTrip, assignTrip, cancelTrip, completeTrip, getTrip } from '../lib/api'
 import { ME } from '../lib/me'
@@ -24,7 +25,6 @@ const tripTone: Record<TripStatus, ChipTone> = {
 
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
 
   const { data: trip, isLoading, isError, error } = useQuery({
@@ -66,10 +66,7 @@ export default function TripDetailPage() {
     onSuccess: invalidate,
   })
 
-  const goBack = () => {
-    if (window.history.length > 1) navigate(-1)
-    else navigate('/trips')
-  }
+  const goBack = useGoBack('/trips')
 
   if (isLoading || !trip) {
     return (
