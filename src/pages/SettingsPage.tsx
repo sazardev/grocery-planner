@@ -13,12 +13,25 @@ import Alert from '../shared/ui/feedback/Alert.tsx'
 import EmptyState from '../shared/ui/feedback/EmptyState.tsx'
 import { Card, Input, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { useTheme } from '../lib/theme.ts'
+import type { ThemeMode } from '../lib/theme.ts'
+import TabBar from '../shared/ui/navigation/TabBar.tsx'
 import { useNavigate } from 'react-router-dom'
-import { Home as HomeIcon, KeyRound, LogOut, MonitorSmartphone, Tv } from 'lucide-react'
+import { Home as HomeIcon, KeyRound, LogOut, MonitorSmartphone, Moon, Sun, Tv } from 'lucide-react'
 import NotificationsSection from '../components/settings/NotificationsSection.tsx'
 import PinSection from '../components/settings/PinSection.tsx'
 import BackupSection from '../components/settings/BackupSection.tsx'
 import styles from './SettingsPage.module.css'
+
+const THEME_TABS = [
+  { key: 'light', label: 'Claro', icon: <Sun size={16} strokeWidth={2} aria-hidden="true" /> },
+  { key: 'dark', label: 'Oscuro', icon: <Moon size={16} strokeWidth={2} aria-hidden="true" /> },
+  {
+    key: 'system',
+    label: 'Sistema',
+    icon: <MonitorSmartphone size={16} strokeWidth={2} aria-hidden="true" />,
+  },
+]
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback
@@ -28,6 +41,7 @@ export default function SettingsPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { user, token, signOut } = useAuth()
+  const { mode: themeMode, setMode: setThemeMode } = useTheme()
   const [homeName, setHomeName] = useState('')
   const [homeError, setHomeError] = useState<string | null>(null)
   useDocumentTitle('Ajustes · Grocery Planner')
@@ -132,6 +146,24 @@ export default function SettingsPage() {
               description="Aquí aparecen los dispositivos con tu sesión abierta."
             />
           )}
+        </Stack>
+      </Card>
+
+      <Card padding="lg">
+        <Stack gap="3">
+          <Text as="h2" variant="section">
+            <Sun size={18} aria-hidden="true" /> Apariencia
+          </Text>
+          <Text as="p" variant="note" tone="secondary">
+            Elige el tema de la app. En <strong>Sistema</strong> sigue la preferencia de tu
+            dispositivo. Se guarda en este dispositivo.
+          </Text>
+          <TabBar
+            items={THEME_TABS}
+            active={themeMode}
+            onChange={(k) => setThemeMode(k as ThemeMode)}
+            label="Tema de la app"
+          />
         </Stack>
       </Card>
 

@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
+import { applyTheme, loadThemeMode } from './lib/theme.ts'
+
+// Aplica el tema guardado al arrancar (el inline de index.html lo hace aún antes).
+applyTheme(loadThemeMode())
 
 const queryClient = new QueryClient({
   defaultOptions: {

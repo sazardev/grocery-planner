@@ -4,6 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
+    <!-- Tema antes del primer paint (evita el parpadeo claro/oscuro).
+         Lee la preferencia guardada; por defecto sigue al dispositivo.
+         El control vive en Ajustes (src/lib/theme.ts, key "gp-theme"). -->
+    <script>
+      ;(function () {
+        try {
+          var m = localStorage.getItem('gp-theme')
+          var dark =
+            m === 'dark' ||
+            (m !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+        } catch (e) {}
+      })()
+    </script>
+
     <!-- Marca -->
     <title>Grocery Planner — ¿Qué falta? Lista de compras de la familia</title>
     <meta
