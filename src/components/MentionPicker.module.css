@@ -38,8 +38,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   border: none;
   border-radius: var(--gp-radius-pill);
   background: transparent;

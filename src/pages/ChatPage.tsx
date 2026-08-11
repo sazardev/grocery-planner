@@ -25,6 +25,7 @@ import Avatar from '../shared/ui/primitives/Avatar.tsx'
 import Chip from '../shared/ui/primitives/Chip.tsx'
 import { Button, Card, EmptyState, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { usePresenceLeave } from '../lib/hooks/usePresenceLeave.ts'
 import { formatDateTime } from '../lib/dates.ts'
 import { readFileAsDataURL } from '../lib/readFile.ts'
 import {
@@ -91,6 +92,7 @@ export default function ChatPage() {
   const fileInput = useRef<HTMLInputElement>(null)
   const composerInput = useRef<HTMLInputElement>(null)
   useDocumentTitle('Chat de la familia · Grocery Planner')
+  usePresenceLeave(ME)
 
   const { data: tailData, isLoading, isError, error: queryError } = useQuery({
     queryKey: CHAT_KEY,

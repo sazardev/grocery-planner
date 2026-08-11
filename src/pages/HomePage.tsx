@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   changeItemStatus,
   decideProjection,
+  getHome,
   getProjection,
   presenceHeartbeat,
   queryItems,
@@ -30,6 +31,7 @@ import Alert from '../shared/ui/feedback/Alert.tsx'
 import Chip from '../shared/ui/primitives/Chip.tsx'
 import { Button, Card, Input, Select, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { usePresenceLeave } from '../lib/hooks/usePresenceLeave.ts'
 import { BarChart3, Bell, CalendarDays, Clock3, History } from 'lucide-react'
 import styles from './HomePage.module.css'
 
@@ -83,6 +85,7 @@ export default function HomePage() {
     ...(photosOnly ? ['photos'] : []),
   ]
   useDocumentTitle('¿Qué falta? · Grocery Planner')
+  usePresenceLeave(ME)
 
   useFab({
     label: 'Falta…',
@@ -106,6 +109,7 @@ export default function HomePage() {
         onlyPhotos: photosOnly || undefined,
         sort,
       }),
+    refetchInterval: 10_000,
   })
 
   const presence = useQuery({
@@ -116,6 +120,16 @@ export default function HomePage() {
   const online = (presence.data ?? []).filter((p) => p.online)
 
   const projection = useQuery({ queryKey: ['projection'], queryFn: getProjection })
+
+  // Sin hogar aún: invita a crear la familia o a unirse con un código.
+  const homeQuery = useQuery({
+    queryKey: ['home'],
+    queryFn: getHome,
+    retry: false,
+    refetchInterval: 30_000,
+  })
+  const noHome =
+    homeQuery.isError && homeQuery.error instanceof Error && homeQuery.error.message.includes('no se crea el hogar')
   const proySoon = (projection.data ?? [])
     .filter((p) => p.estFaltaInDays != null && p.estFaltaInDays <= 3)
     .sort((a, b) => (a.estFaltaInDays ?? 0) - (b.estFaltaInDays ?? 0))
@@ -190,6 +204,26 @@ export default function HomePage() {
           </Alert>
         )}
       </header>
+
+      {noHome && (
+        <Card padding="md">
+          <Stack gap="2">
+            <Text variant="item">Aún no estás en un hogar</Text>
+            <Text as="p" variant="note" tone="secondary">
+              Crea la familia para compartir la lista, o únete con la invitación
+              que te pasaron.
+            </Text>
+            <div className={styles.projActions}>
+              <Button size="sm" onClick={() => navigate('/family')}>
+                Crear la familia
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => navigate('/family/join')}>
+                Unirme con un código
+              </Button>
+            </div>
+          </Stack>
+        </Card>
+      )}
 
       {proySoon.length > 0 && (
         <Card padding="sm">

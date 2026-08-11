@@ -5,16 +5,19 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { applyTheme, loadThemeMode } from './lib/theme.ts'
+import { applyTVMode } from './lib/tvMode.ts'
 
 // Aplica el tema guardado al arrancar (el inline de index.html lo hace aún antes).
 applyTheme(loadThemeMode())
+// Modo TV (10-foot): sin cursor ni toque → remoto con D-pad, oscuro.
+applyTVMode()
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
       staleTime: 30_000,
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
     },
   },
 })

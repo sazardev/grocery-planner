@@ -25,7 +25,7 @@ export default function PlansPage() {
   const navigate = useNavigate()
   useDocumentTitle('Plan de compras · Grocery Planner')
 
-  const plans = useQuery({ queryKey: ['plans'], queryFn: listPlans })
+  const plans = useQuery({ queryKey: ['plans'], queryFn: listPlans, refetchInterval: 15_000 })
 
   const goBack = useGoBack('/calendar')
 

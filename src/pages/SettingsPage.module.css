@@ -20,7 +20,7 @@
 
 .inviteRow select {
   padding: var(--gp-space-2) var(--gp-space-3);
-  border-radius: var(--gp-radius-full);
+  border-radius: var(--gp-radius-pill);
   font: inherit;
   color: inherit;
   background: var(--gp-surface);

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::domain::chat::{ChatMessage, ChatMessageKind, MessageRef, MessageRefKind, RefInput};
-use crate::domain::notification::{AppNotification, NotificationKind};
+use crate::domain::notification::NotificationKind;
 use crate::domain::item::{ItemEventKind, ItemStatus};
 use crate::domain::trip::TripStatus;
 use crate::error::AppError;
@@ -56,13 +56,14 @@ pub fn chat_send_core(
     let resolved = resolve_refs(store, refs);
     let message = ChatMessage::user_message(by, body, photo, item_id, item_name, &members, resolved)?;
     for mention in &message.mentions {
-        store.rules.push_notification(AppNotification::new(
-            NotificationKind::Mention,
+        crate::commands::notify::push_managed(
+            &mut store.rules,
             mention,
+            NotificationKind::Mention,
             &format!("@{by} te mencionó"),
             &message.body,
             Some("/chat"),
-        ));
+        );
     }
     Ok(store.chat.push(message))
 }
@@ -404,7 +405,7 @@ mod tests {
         store.items.create(item);
         let event = crate::domain::event::Event::new(
             "Cumple de Ana", "2026-08-20", None, true, crate::domain::event::EventType::Cumpleanos,
-            None, vec![], None, false, "Ana",
+            None, vec![], None, false, None, "Ana",
         ).unwrap();
         let event_id = event.id.clone();
         store.events.create(event);

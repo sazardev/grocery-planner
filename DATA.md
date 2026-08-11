@@ -103,8 +103,9 @@ un cancelado se recupera con `item_recover` (→ `falta`).
 
 `id`, `title`, `date` (AAAA-MM-DD), `time?`, `allDay`, `kind`
 (`cumpleaños` | `unión` | `comida` | `celebración` | `reunión` | `mandado`),
-`place?`, `participants[]`, `note?`, `recurringYearly`, `createdBy`, `createdAt`,
-`itemIds[]` (lista del evento §9.4).
+`place?`, `participants[]`, `note?`, `recurringYearly`, `reminderMinutes?`
+(minutos antes para avisar, SPEC §9.2; `None` = sin recordatorio),
+`createdBy`, `createdAt`, `itemIds[]` (lista del evento §9.4).
 
 ### `Section` (§4.4)
 
@@ -131,7 +132,13 @@ Los mensajes del sistema se derivan del historial (no se guardan).
 ### `AppNotification` (§13)
 
 `id`, `at`, `kind`, `forMember`, `title`, `body`, `read`, `link?`. Se generan en
-`chat_send` (menciones) y `trips_confirm_received` (llegada del mandado).
+`chat_send` (menciones), `trips_confirm_received` (llegada), y vía
+`commands/notify::push_managed` en asignaciones (ítem/mandado), urgente,
+mandado iniciado y recordatorios de evento — siempre respetando los
+`NotificationSettings` del miembro y su horario silencioso. El hilo de fondo
+`commands/background::tick` (cada 60 s) dispara recordatorios de evento (una
+vez por evento, marcados en `RulesStore.reminders_fired`) y adelanta planes
+recurrentes vencidos.
 
 ### `PresenceView` (§12) — no persistida
 

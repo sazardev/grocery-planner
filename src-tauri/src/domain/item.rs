@@ -125,6 +125,20 @@ pub enum ItemEventKind {
     },
     /// Se agregó/quitó una alternativa de la cadena de respaldo.
     FallbacksChanged,
+    /// Cambió el precio aproximado (SPEC §8.1).
+    PriceChanged {
+        price: f64,
+    },
+    /// Cambió la sección de la lista (SPEC §8.1).
+    SectionChanged {
+        section: String,
+    },
+    /// Cambió la tienda (SPEC §8.1).
+    StoreChanged {
+        store: String,
+    },
+    /// Se agregó/quitó una foto (SPEC §8.1).
+    PhotosChanged,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -341,13 +355,18 @@ impl GroceryItem {
     }
 
     /// Fija el precio aproximado (para reportes de gasto, SPEC §8.2).
-    pub fn set_price(&mut self, price: f64) -> Result<(), AppError> {
+    pub fn set_price(&mut self, price: f64, by: &str) -> Result<(), AppError> {
         if !price.is_finite() || price < 0.0 {
             return Err(AppError::invalid_input(
                 "El precio debe ser un número mayor o igual que 0",
             ));
         }
         self.price = Some(price);
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::PriceChanged { price },
+        });
         Ok(())
     }
 
@@ -458,7 +477,7 @@ impl GroceryItem {
     }
 
     /// Mueve el ítem a una sección de la lista (SPEC §4.4).
-    pub fn set_section(&mut self, section: &str) -> Result<(), AppError> {
+    pub fn set_section(&mut self, section: &str, by: &str) -> Result<(), AppError> {
         let section = section.trim();
         if section.is_empty() {
             return Err(AppError::invalid_input(
@@ -466,11 +485,18 @@ impl GroceryItem {
             ));
         }
         self.section = Some(section.to_string());
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::SectionChanged {
+                section: section.to_string(),
+            },
+        });
         Ok(())
     }
 
     /// Fija la tienda donde se consigue el ítem (SPEC §4.1 y §5.4).
-    pub fn set_store(&mut self, store: &str) -> Result<(), AppError> {
+    pub fn set_store(&mut self, store: &str, by: &str) -> Result<(), AppError> {
         let store = store.trim();
         if store.is_empty() {
             return Err(AppError::invalid_input(
@@ -478,11 +504,18 @@ impl GroceryItem {
             ));
         }
         self.store = Some(store.to_string());
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::StoreChanged {
+                store: store.to_string(),
+            },
+        });
         Ok(())
     }
 
     /// Agrega una foto al ítem como data URL (SPEC §10).
-    pub fn add_photo(&mut self, data_url: &str, limit: usize) -> Result<(), AppError> {
+    pub fn add_photo(&mut self, data_url: &str, limit: usize, by: &str) -> Result<(), AppError> {
         let data_url = data_url.trim();
         if data_url.is_empty() {
             return Err(AppError::invalid_input("La foto es obligatoria"));
@@ -493,15 +526,25 @@ impl GroceryItem {
             )));
         }
         self.photos.push(data_url.to_string());
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::PhotosChanged,
+        });
         Ok(())
     }
 
     /// Quita una foto por índice (SPEC §10).
-    pub fn remove_photo(&mut self, index: usize) -> Result<(), AppError> {
+    pub fn remove_photo(&mut self, index: usize, by: &str) -> Result<(), AppError> {
         if index >= self.photos.len() {
             return Err(AppError::invalid_input("Índice de foto fuera de rango"));
         }
         self.photos.remove(index);
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::PhotosChanged,
+        });
         Ok(())
     }
 
@@ -852,12 +895,12 @@ mod tests {
     fn precio_y_seccion_validan() {
         let mut item =
             GroceryItem::new("pollo", 2.0, "kg", Priority::Alta, "Ana", None, None).unwrap();
-        item.set_price(12.5).unwrap();
+        item.set_price(12.5, "Ana").unwrap();
         assert_eq!(item.price, Some(12.5));
-        assert!(item.set_price(-1.0).is_err());
-        item.set_section("Carnes").unwrap();
+        assert!(item.set_price(-1.0, "Ana").is_err());
+        item.set_section("Carnes", "Ana").unwrap();
         assert_eq!(item.section.as_deref(), Some("Carnes"));
-        assert!(item.set_section("  ").is_err());
+        assert!(item.set_section("  ", "Ana").is_err());
     }
 
     #[test]

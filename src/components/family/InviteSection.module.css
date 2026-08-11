@@ -5,3 +5,26 @@
   gap: var(--gp-space-3);
   flex-wrap: wrap;
 }
+
+.shareRow {
+  display: flex;
+  gap: var(--gp-space-4);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.qr {
+  border-radius: var(--gp-radius-md);
+  background: var(--gp-surface);
+  width: 168px;
+  height: 168px;
+}
+
+.link {
+  word-break: break-all;
+}
+
+.actions {
+  display: flex;
+  gap: var(--gp-space-2);
+}

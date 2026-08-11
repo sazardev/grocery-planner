@@ -69,6 +69,16 @@ impl EventStore {
         Ok(event.clone())
     }
 
+    /// Desliga todos los ítems del evento (fusionar o descartar su lista, §9.4).
+    pub fn clear_items(&mut self, id: &str) -> Result<Event, AppError> {
+        let event = self
+            .events
+            .get_mut(id)
+            .ok_or_else(|| AppError::not_found(format!("Evento {id} no encontrado")))?;
+        event.item_ids.clear();
+        Ok(event.clone())
+    }
+
     /// Reemplaza todos los eventos (restauración de respaldo, SPEC §15).
     pub fn replace_all(&mut self, events: Vec<Event>) {
         self.events = events.into_iter().map(|e| (e.id.clone(), e)).collect();
@@ -81,7 +91,7 @@ mod tests {
     use crate::domain::event::EventType;
 
     fn sample(day: &str) -> Event {
-        Event::new(day, day, None, true, EventType::Comida, None, vec![], None, false, "Papá").unwrap()
+        Event::new(day, day, None, true, EventType::Comida, None, vec![], None, false, None, "Papá").unwrap()
     }
 
     #[test]

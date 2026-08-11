@@ -35,6 +35,7 @@ pub fn event_create(
     participants: Vec<String>,
     note: Option<String>,
     recurring_yearly: bool,
+    reminder_minutes: Option<i64>,
     created_by: String,
 ) -> Result<Event, AppError> {
     let event = Event::new(
@@ -47,6 +48,7 @@ pub fn event_create(
         participants,
         note.as_deref(),
         recurring_yearly,
+        reminder_minutes,
         &created_by,
     )?;
     let mut store = store::lock(&state.store)?;
@@ -88,4 +90,25 @@ pub fn event_remove_item(
 ) -> Result<Event, AppError> {
     let mut store = store::lock(&state.store)?;
     store.events.remove_item(&id, &item_id)
+}
+
+/// Fusiona la lista del evento a la lista del hogar (SPEC §9.4): los ítems ya
+/// viven en la lista compartida, así que basta con desligarlos del evento.
+#[tauri::command]
+pub fn event_merge_to_home(state: AppStateRef, id: String) -> Result<Event, AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.events.clear_items(&id)
+}
+
+/// Descarta la lista del evento (SPEC §9.4): borra los ítems que solo servían
+/// para esa ocasión y desliga el resto del evento.
+#[tauri::command]
+pub fn event_discard_list(state: AppStateRef, id: String) -> Result<Event, AppError> {
+    let mut store = store::lock(&state.store)?;
+    let event = store.events.get(&id)?;
+    let ids = event.item_ids.clone();
+    for item_id in &ids {
+        store.items.delete(item_id)?;
+    }
+    store.events.clear_items(&id)
 }

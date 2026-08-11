@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createHome, getHome, listSessions, revokeSession } from '../lib/api'
+import { createHome, getHome, listSessions, regenerateBackupKey, revokeSession } from '../lib/api'
 import { ME } from '../lib/me'
 import { useAuth } from '../lib/auth/useAuth.ts'
 import type { HomeView } from '../domain/home'
@@ -22,6 +22,7 @@ import { Home as HomeIcon, KeyRound, LogOut, MonitorSmartphone, Moon, Sparkles, 
 import NotificationsSection from '../components/settings/NotificationsSection.tsx'
 import PinSection from '../components/settings/PinSection.tsx'
 import BackupSection from '../components/settings/BackupSection.tsx'
+import RecoverSection from '../components/settings/RecoverSection.tsx'
 import styles from './SettingsPage.module.css'
 
 const THEME_TABS = [
@@ -55,6 +56,15 @@ export default function SettingsPage() {
   })
 
   const invalidateHome = () => queryClient.invalidateQueries({ queryKey: ['home'] })
+
+  const regenKeyMutation = useMutation({
+    mutationFn: () => regenerateBackupKey(ME),
+    onSuccess: () => {
+      invalidateHome()
+      setHomeError(null)
+    },
+    onError: (err) => setHomeError(errorMessage(err, 'No se pudo regenerar la clave')),
+  })
 
   const createHomeMutation = useMutation({
     mutationFn: (name: string) => createHome(name, ME),
@@ -192,6 +202,20 @@ export default function SettingsPage() {
                 {home.backupKey}
               </Text>
             </div>
+            <Text as="p" variant="note" tone="secondary">
+              Con esta clave cualquiera puede recuperar su cuenta si olvida la
+              contraseña. Guárdala en un lugar seguro.
+            </Text>
+            <div className={styles.line}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => regenKeyMutation.mutate()}
+                loading={regenKeyMutation.isPending}
+              >
+                Regenerar clave
+              </Button>
+            </div>
           </Stack>
         </Card>
       ) : (
@@ -256,6 +280,7 @@ export default function SettingsPage() {
       <NotificationsSection />
       <PinSection />
       <BackupSection />
+      <RecoverSection />
     </Stack>
   )
 }

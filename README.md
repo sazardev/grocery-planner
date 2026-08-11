@@ -38,11 +38,13 @@ despensa, otro va al mandado, y nadie se duplica.
 - **Historial total y reportes**: línea de tiempo, "lo que más compramos",
   gasto aproximado, mandados por persona, proyección de faltas y "repetir compra".
 - **Hogar con roles**: miembro / organizador / admin, invitaciones por enlace,
-  QR y código corto, expulsión y clave de respaldo.
+  QR y código corto con caducidad y límite de usos, expulsión y clave de respaldo.
 - **Presencia en tiempo real**: quién está conectado, en línea / hace X min.
 - **Auth**: cuentas con Argon2id, sesiones múltiples y revocación remota, PIN
-  rápido, recuperación por clave de respaldo.
-- **Notificaciones**: menciones, llegada del mandado, ajustes por miembro.
+  rápido, recuperación de contraseña por clave de respaldo.
+- **Notificaciones**: menciones, asignaciones, urgente, mandado iniciado, llegada
+  del mandado y recordatorios de eventos, con horario silencioso por miembro.
+- **Planes recurrentes**: semanal/quincenal/mensual en automático.
 - **Persistencia en disco**: nada se pierde al reiniciar el servidor.
 - **Self-hosted**: todo vive en tu red; exportar/importar respaldo completo.
 
@@ -110,12 +112,18 @@ Detalle operativo y gotchas: [AGENTS.md](AGENTS.md).
 ## ✅ Verificación
 
 ```bash
-npm run build                          # tsc -b + vite build
-npm run lint                           # oxlint
-cargo test                             # en src-tauri/ (102 tests)
+npm run verify                           # lint + build + E2E headless (chromium del sistema)
+npm run e2e                              # solo la suite E2E (spec-core + live-refresh + design)
+npm run build                            # tsc -b + vite build
+npm run lint                             # oxlint
+cargo test                               # en src-tauri/ (107 tests)
 cargo check --features server --bin server   # valida el binario HTTP
-npm run tauri:build                    # empaqueta desktop (.deb/.rpm; AppImage no en esta máquina)
+npm run tauri:build                      # empaqueta desktop (.deb/.rpm; AppImage no en esta máquina)
 ```
+
+La suite E2E abre la app real en chromium headless: flujos completos del SPEC, refresco
+"al momento" entre dos pestañas (polling de la lista cada 10 s) y cumplimiento de DESIGN
+(flat, verde protagonista, zonas táctiles ≥44 px, modo oscuro).
 
 ## 🗺️ Hoja de ruta (fase 2)
 

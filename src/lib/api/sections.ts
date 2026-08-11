@@ -5,20 +5,20 @@ export function listSections(): Promise<Section[]> {
   return request<Section[]>('sections_list')
 }
 
-export function createSection(name: string): Promise<Section> {
-  return request<Section>('section_create', { name })
+export function createSection(name: string, by: string): Promise<Section> {
+  return request<Section>('section_create', { name, by })
 }
 
-export function renameSection(id: string, name: string): Promise<Section> {
-  return request<Section>('section_rename', { id, name })
+export function renameSection(id: string, name: string, by: string): Promise<Section> {
+  return request<Section>('section_rename', { id, name, by })
 }
 
-export function deleteSection(id: string): Promise<void> {
-  return request<void>('section_delete', { id })
+export function deleteSection(id: string, by: string): Promise<void> {
+  return request<void>('section_delete', { id, by })
 }
 
 export type SectionMoveDirection = 'up' | 'down'
 
-export function moveSection(id: string, direction: SectionMoveDirection): Promise<Section> {
-  return request<Section>('section_move', { id, direction })
+export function moveSection(id: string, direction: SectionMoveDirection, by: string): Promise<Section> {
+  return request<Section>('section_move', { id, direction, by })
 }

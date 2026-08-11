@@ -5,6 +5,7 @@ import Text from '../../shared/ui/primitives/Text.tsx'
 import Skeleton from '../../shared/ui/primitives/Skeleton.tsx'
 import Alert from '../../shared/ui/feedback/Alert.tsx'
 import { Button, Card, Input, Select, Stack, Switch } from '../../shared/ui/index.ts'
+import { ME } from '../../lib/me'
 import { Settings2 } from 'lucide-react'
 import styles from './RulesSection.module.css'
 
@@ -37,7 +38,7 @@ export default function RulesSection() {
           : undefined,
         language: draft.language || undefined,
         timezone: draft.timezone || undefined,
-      }),
+      }, ME),
     onSuccess: () => {
       invalidate()
       setError(null)
@@ -48,7 +49,7 @@ export default function RulesSection() {
   })
 
   const toggle = useMutation({
-    mutationFn: (patch: Parameters<typeof updateRules>[0]) => updateRules(patch),
+    mutationFn: (patch: Parameters<typeof updateRules>[0]) => updateRules(patch, ME),
     onSuccess: () => {
       invalidate()
       setError(null)

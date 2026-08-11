@@ -8,6 +8,7 @@ import Chip from '../shared/ui/primitives/Chip.tsx'
 import Avatar from '../shared/ui/primitives/Avatar.tsx'
 import { Button } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { usePresenceLeave } from '../lib/hooks/usePresenceLeave.ts'
 import { LogOut, Plus } from 'lucide-react'
 import styles from './KioskPage.module.css'
 
@@ -15,6 +16,7 @@ export default function KioskPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   useDocumentTitle('Quiosco · Grocery Planner')
+  usePresenceLeave(ME)
 
   const { data: items = [] } = useQuery({
     queryKey: ['kiosk', 'items'],

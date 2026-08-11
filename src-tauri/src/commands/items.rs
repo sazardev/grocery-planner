@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+use crate::commands::require_role;
+use crate::domain::home::Role;
 use crate::domain::item::{
     self, GroceryItem, ItemComment, ItemEvent, ItemFallback, ItemStatus, Priority,
 };
+use crate::domain::notification::NotificationKind;
 use crate::error::AppError;
 use crate::state::AppStateRef;
 use crate::store;
@@ -102,10 +105,10 @@ pub fn item_create(
         category.as_deref(),
     )?;
     if let Some(price) = price {
-        item.set_price(price)?;
+        item.set_price(price, &requested_by)?;
     }
     if let Some(section) = section {
-        item.set_section(&section)?;
+        item.set_section(&section, &requested_by)?;
     }
     if let Some(brand) = brand {
         item.set_brand(&brand, &requested_by)?;
@@ -119,7 +122,30 @@ pub fn item_create(
         }
     }
     let mut store = store::lock(&state.store)?;
-    Ok(store.items.create(item))
+    let urgent = priority == crate::domain::item::Priority::Urgente;
+    let item_id = item.id.clone();
+    let item_name = item.name.clone();
+    let created = store.items.create(item);
+    // Alguien pidió algo URGENTE: avisa a la familia (SPEC §13).
+    if urgent {
+        let home = store.home.get().ok();
+        let members: Vec<String> = home
+            .map(|h| h.members().into_iter().map(|m| m.name).collect())
+            .unwrap_or_default();
+        for m in members {
+            if m != requested_by {
+                crate::commands::notify::push_managed(
+                    &mut store.rules,
+                    &m,
+                    NotificationKind::Urgent,
+                    "¡Algo urgente!",
+                    &format!("{requested_by} pidió \"{item_name}\" como urgente."),
+                    Some(&format!("/items/{item_id}")),
+                );
+            }
+        }
+    }
+    Ok(created)
 }
 
 /// Obtiene un ítem por id.
@@ -173,8 +199,14 @@ pub fn item_move(
     state: AppStateRef,
     id: String,
     direction: MoveDirection,
+    by: String,
 ) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
+    // Reordenar es del dueño del ítem o de Organizador/Admin (SPEC §4.4).
+    let item = store.items.get(&id)?;
+    if item.requested_by != by {
+        require_role(&store, &by, Role::Organizador)?;
+    }
     store.items.move_item(&id, direction)
 }
 
@@ -206,7 +238,19 @@ pub fn item_assign(
     by: String,
 ) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.items.assign(&id, &member, &by)
+    let name = store.items.get(&id)?.name.clone();
+    let assigned = store.items.assign(&id, &member, &by)?;
+    if member != by {
+        crate::commands::notify::push_managed(
+            &mut store.rules,
+            &member,
+            NotificationKind::Assigned,
+            "Te asignaron un ítem",
+            &format!("{by} te pidió que lleves \"{name}\" en el mandado."),
+            Some(&format!("/items/{id}")),
+        );
+    }
+    Ok(assigned)
 }
 
 /// Quita la asignación del ítem.
@@ -249,9 +293,14 @@ pub fn item_add_comment(
 
 /// Fija el precio aproximado del ítem para reportes de gasto (SPEC §8.2).
 #[tauri::command]
-pub fn item_set_price(state: AppStateRef, id: String, price: f64) -> Result<GroceryItem, AppError> {
+pub fn item_set_price(
+    state: AppStateRef,
+    id: String,
+    price: f64,
+    by: String,
+) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.items.set_price(&id, price)
+    store.items.set_price(&id, price, &by)
 }
 
 /// Mueve un ítem a una sección de la lista (SPEC §4.4).
@@ -260,10 +309,11 @@ pub fn item_set_section(
     state: AppStateRef,
     id: String,
     section: String,
+    by: String,
 ) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
     store.sections.get(&section)?;
-    store.items.set_section(&id, &section)
+    store.items.set_section(&id, &section, &by)
 }
 
 /// Búsqueda y filtros combinables de la lista (SPEC §4.5).
@@ -317,17 +367,27 @@ impl ItemFilters {
 /// Agrega una foto al ítem como data URL (SPEC §10). Respeta el límite de la
 /// familia configurado en las reglas (SPEC §14).
 #[tauri::command]
-pub fn item_add_photo(state: AppStateRef, id: String, photo: String) -> Result<GroceryItem, AppError> {
+pub fn item_add_photo(
+    state: AppStateRef,
+    id: String,
+    photo: String,
+    by: String,
+) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
     let limit = store.rules.rules.photo_limit;
-    store.items.add_photo(&id, &photo, limit)
+    store.items.add_photo(&id, &photo, limit, &by)
 }
 
 /// Quita una foto del ítem por índice (SPEC §10).
 #[tauri::command]
-pub fn item_remove_photo(state: AppStateRef, id: String, index: usize) -> Result<GroceryItem, AppError> {
+pub fn item_remove_photo(
+    state: AppStateRef,
+    id: String,
+    index: usize,
+    by: String,
+) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.items.remove_photo(&id, index)
+    store.items.remove_photo(&id, index, &by)
 }
 
 /// Fija la tienda donde se consigue el ítem (SPEC §4.1 y §5.4).
@@ -336,9 +396,10 @@ pub fn item_set_store(
     state: AppStateRef,
     id: String,
     store_name: String,
+    by: String,
 ) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.items.set_store(&id, &store_name)
+    store.items.set_store(&id, &store_name, &by)
 }
 
 /// Fija la marca preferida del ítem ("la marca que nos gusta").

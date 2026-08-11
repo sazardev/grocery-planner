@@ -13,13 +13,34 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
 | Regenerar SEO (robots/sitemap/og-image) | `npm run seo` (también se genera solo en cada `vite build` vía plugin) |
 | Typecheck + build | `npm run build` (`tsc -b && vite build`) |
 | Lint | `npm run lint` (oxlint) |
+| **Suite E2E headless** | `npm run e2e` (chromium del sistema; levanta backend+frente en puertos libres, data aislada en /tmp) |
+| **Verificación completa** | `npm run verify` (`lint && build && e2e`) |
 | Package desktop | `npm run tauri:build` (auto-runs `npm run build`) |
 | Check Rust backend | `cargo check` in `src-tauri/` |
 | Check HTTP server binary | `cargo check --features server --bin server` in `src-tauri/` |
 
+> Los E2E viven en `scripts/e2e/` (`harness.mjs`, `run.mjs`, suites `spec-core`/`live-refresh`/
+> `design`). `run.mjs` compila el binario server, arranca `vite preview` y el backend en puertos
+> libres con `GROCERY_PLANNER_DATA` aislada, corre las suites y mata los procesos (grupo detached).
+> Requiere un chromium del sistema (default `/usr/bin/chromium`, override `GP_CHROMIUM`).
+
 ## Gotchas
 
 - **Git**: repo initialized (branch `main`). `git` commands are fine now.
+- **E2E harness**: el `dist` se construye con `VITE_API_URL` default `localhost:8787`; el harness
+  reescribe en caliente las peticiones hacia el backend real del orquestador y bloquea `sw.js`
+  (el service worker de producción interfiere con los tests). El onboarding se desactiva con
+  `gp-onboarding-done=1`.
+- **Autorización por rol**: las acciones de organización (reglas, secciones, planes, reordenar
+  ítems ajenos) exigen rol Organizador/Admin vía `Home::require_role` + `commands::require_role`
+  (IPC) y el mismo check en los handlers HTTP (actor del token). Un miembro común que intente
+  cambiar reglas recibe 409 "Se requiere al menos el rol Organizador…".
+- **Notificaciones**: se generan con `commands/notify::push_managed` (respeta `NotificationSettings`
+  de cada miembro y su horario silencioso) en: menciones, asignaciones, urgente, mandado iniciado
+  y llegada. Recordatorios de evento y planes recurrentes los genera el hilo de fondo
+  `commands/background::tick` (cada 60 s en Tauri y en el server HTTP).
+- **Plan recurrente**: un plan `planificado` con recurrencia cuyo `scheduledAt` ya pasó genera la
+  siguiente instancia y el anterior pasa a `completado` (compra semanal/quincenal/mensual automática).
 - **SEO automatizado**: al terminar `vite build`, un plugin genera `robots.txt`,
   `sitemap.xml` y `og-image.png` (desde `public/og-image.svg`) en el output. La base
   usa `VITE_BASE_URL`/`GP_BASE_URL`; si no está, queda el placeholder

@@ -26,10 +26,11 @@ export default function ReportsPage() {
   const [repeatDate, setRepeatDate] = useState<string>(() => addDays(todayISO(), -1))
   useDocumentTitle('Reportes · Grocery Planner')
 
-  const top = useQuery({ queryKey: ['reports', 'top'], queryFn: getTopProducts })
-  const spending = useQuery({ queryKey: ['reports', 'spending'], queryFn: getSpending })
-  const trips = useQuery({ queryKey: ['reports', 'trips'], queryFn: getTripsByMember })
-  const projection = useQuery({ queryKey: ['reports', 'projection'], queryFn: getProjection })
+  const top = useQuery({ queryKey: ['reports', 'top'], queryFn: getTopProducts, refetchInterval: 20_000 })
+  const spending = useQuery({ queryKey: ['reports', 'spending'], queryFn: getSpending, refetchInterval: 20_000 })
+  const trips = useQuery({ queryKey: ['reports', 'trips'], queryFn: getTripsByMember, refetchInterval: 20_000 })
+  // Misma clave que HomePage: decidir la proyección en un lado refresca el otro.
+  const projection = useQuery({ queryKey: ['projection'], queryFn: getProjection, refetchInterval: 20_000 })
 
   const days = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(todayISO(), -i))

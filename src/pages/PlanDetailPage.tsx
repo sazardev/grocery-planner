@@ -38,6 +38,7 @@ export default function PlanDetailPage() {
     queryKey: ['plan', id],
     queryFn: () => getPlan(id ?? ''),
     enabled: Boolean(id),
+    refetchInterval: 15_000,
   })
 
   useMeta({

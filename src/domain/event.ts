@@ -26,6 +26,8 @@ export interface Event {
   participants: string[]
   note?: string
   recurringYearly: boolean
+  /** Minutos antes del evento para avisar (SPEC §9.2). `undefined` = sin recordatorio. */
+  reminderMinutes?: number
   createdBy: string
   createdAt: string
   itemIds: string[]

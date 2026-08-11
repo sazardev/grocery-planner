@@ -49,6 +49,7 @@ export default function HistoryPage() {
       const range = localWindowRangeISO(start, end)
       return getTimeline(range.start, range.end)
     },
+    refetchInterval: 20_000,
   })
 
   const grouped = useMemo(() => {

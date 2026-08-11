@@ -1,3 +1,5 @@
+use crate::commands::require_role;
+use crate::domain::home::Role;
 use crate::domain::section::Section;
 use crate::error::AppError;
 use crate::state::AppStateRef;
@@ -11,38 +13,45 @@ pub fn sections_list(state: AppStateRef) -> Result<Vec<Section>, AppError> {
     Ok(store.sections.list())
 }
 
-/// Crea una sección nombrada de la lista (SPEC §4.4).
+/// Crea una sección nombrada de la lista (SPEC §4.4). Solo Organizador/Admin.
 #[tauri::command]
-pub fn section_create(state: AppStateRef, name: String) -> Result<Section, AppError> {
+pub fn section_create(state: AppStateRef, name: String, by: String) -> Result<Section, AppError> {
     let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Organizador)?;
     store.sections.create(&name)
 }
 
-/// Renombra una sección.
+/// Renombra una sección. Solo Organizador/Admin.
 #[tauri::command]
 pub fn section_rename(
     state: AppStateRef,
     id: String,
     name: String,
+    by: String,
 ) -> Result<Section, AppError> {
     let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Organizador)?;
     store.sections.rename(&id, &name)
 }
 
-/// Borra una sección (los ítems quedan sin sección).
+/// Borra una sección (los ítems quedan sin sección). Solo Organizador/Admin.
 #[tauri::command]
-pub fn section_delete(state: AppStateRef, id: String) -> Result<(), AppError> {
+pub fn section_delete(state: AppStateRef, id: String, by: String) -> Result<(), AppError> {
     let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Organizador)?;
     store.sections.delete(&id)
 }
 
 /// Mueve una sección arriba o abajo en la lista (orden manual, SPEC §4.4).
+/// Solo Organizador/Admin.
 #[tauri::command]
 pub fn section_move(
     state: AppStateRef,
     id: String,
     direction: MoveDirection,
+    by: String,
 ) -> Result<Section, AppError> {
     let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Organizador)?;
     store.sections.move_section(&id, direction)
 }

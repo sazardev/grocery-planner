@@ -548,6 +548,84 @@ Se implementaron en la UI todos los apartados del SPEC que faltaban (antes solo 
 - E2E final: **7/7** (lista+proyección, crear ítem → actor correcto, toggle → historial correcto,
   tiles Familia/Mandado navegan y vuelven).
 
+---
+
+## Auditoría completa + tiempo real + cierre de gaps SPEC/DESIGN (2026-08-10)
+
+Se hizo una revisión integral del repo contra SPEC/DESIGN/DATA/AGENTS y se cerraron los gaps
+más importantes. `cargo test` **107 passed** · `cargo check --features server --bin server` ✓ ·
+`npm run build` ✓ · `npm run lint` ✓ · **suite E2E headless reproducible: 32/32**.
+
+### F0 — Verificación reproducible
+- **Suite E2E en el repo** (`scripts/e2e/`): `harness.mjs` (chromium headless, reescribe el
+  backend en caliente, sin service worker, onboarding off), `run.mjs` (compila server, puertos
+  libres, data aislada en /tmp, timeout por suite) y 3 suites:
+  `spec-core` (20 checks), `live-refresh` (6: dos pestañas ven cambios al momento), `design` (6:
+  sin sombras/gradientes/bordes-separador, verde protagonista, zonas táctiles ≥44, modo oscuro
+  verde). Scripts npm: `npm run e2e` y `npm run verify` (`lint && build && e2e`).
+- `Cargo.toml`: `time` ahora declara `formatting`, `parsing` y `macros` explícitos (antes solo
+  `formatting`; compilaba por unificación, frágil).
+
+### F1 — "La UI refresca al momento" (lo más pedido)
+- **`src/lib/queryKeys.ts`**: claves de TanStack Query centralizadas (la proyección comparte clave
+  en Home y Reportes; avisos/badge/familia invalidan juntos).
+- **Polling agresivo**: HomePage ítems **10 s** (antes nada), Mine 10 s, Calendar/Family/Trips/
+  Plans/Events y detalles 15 s, Reports/History 20 s. Chat 8 s y Kiosko 10 s ya existían.
+- `refetchOnWindowFocus: true` (antes `false`); `queryClient.clear()` en signIn/signOut/
+  onUnauthorized y tras importar respaldo (anti fuga de datos entre cuentas y caché obsoleta);
+  leer avisos invalida también el badge de la nav; `usePresenceLeave` (pagehide/visibilitychange)
+  para irse al instante (adiós fantasmas de 30 s).
+
+### F2 — Gaps de SPEC con UI faltante
+- **Unirse con invitación real**: `JoinSection` (antes stub vacío) acepta código corto o
+  `#TOKEN` desde la URL (`/family/join#TOKEN`); banner "no estás en un hogar" en Home con CTA.
+- **Invitación completa** (§3.3): caducidad (24 h/7 d/nunca), límite de usos (1/5/∞), rol,
+  **QR** (dependencia `qrcode`, self-hosted, canvas) y enlace compartible con botón copiar.
+- **Botón regenerar clave de respaldo** en Ajustes (cliente ya existía).
+- **Form de plan completo** (§7.1): tienda, quién lo lleva, recurrencia y nota (antes solo
+  título+fecha). **TripDetail**: asignar a cualquier miembro + retomar, y resuelve nombres de
+  ítems (antes mostraba ids crudos).
+- **Recordatorio de evento** (§9.2): `Event.reminder_minutes` (`#[serde(default)]`, migración
+  segura) + selector en el form de eventos.
+- **Fusionar/descartar lista de evento** (§5.3/§9.4): commands `event_merge_to_home` y
+  `event_discard_list` (+ endpoints) y botones en el detalle.
+- **Recuperar contraseña con clave de respaldo** (§2.5): `auth_reset_password` (IPC + endpoint
+  `POST /api/auth/password/reset`) + sección en Ajustes.
+
+### F3 — Cierres de backend
+- **Autorización por rol** (§3.2/§4.4/§14): `Home::require_role` + helper `commands::require_role`
+  aplicado a reglas, secciones, planes (crear) y reordenar ítems (dueño u Organizador), en IPC y
+  HTTP (los handlers HTTP usan el actor del token).
+- **Generadores de notificaciones** (§13): helper `commands/notify::push_managed` que respeta
+  `NotificationSettings` por miembro y el **horario silencioso** (con rango que cruza medianoche).
+  Se generan avisos por: asignación (ítem/mandado), urgente (al crear ítem urgente), mandado
+  iniciado, llegada del mandado y menciones.
+- **Recordatorios de eventos y planes recurrentes automáticos** (§7.1/§9.2): `commands/background.rs`
+  con `tick()` (un evento se notifica una vez; un plan semanal/quincenal/mensual vencido genera la
+  siguiente instancia). Hilo cada 60 s en `lib.rs` (Tauri) y `server.rs` (HTTP).
+- **Historial de ítem completo** (§8.1): `set_price`/`set_section`/`set_store`/`add_photo`/
+  `remove_photo` ahora escriben `ItemEvent` (kinds `PriceChanged`/`SectionChanged`/`StoreChanged`/
+  `PhotosChanged`).
+- **Auth IPC guarda al instante** (igual que HTTP): los commands de auth de Tauri llaman
+  `persist::save` tras mutar. **`PUBLIC_PATHS`** ahora hace match exacto/`prefijo/` (antes
+  `starts_with` dejaba públicas variantes de `/api/auth/login-pin`).
+
+### F4 — Cumplimiento DESIGN
+- Quitadas anti-pautas: gradiente del ProgressBar (sheen), 3 `border-top` separadores
+  (Landing/FilterMenu/Mine), `#fff` hardcodeado en FilterMenu → `--gp-text-inverse`, y el token
+  inexistente `--gp-radius-full` → `--gp-radius-pill`.
+- Zonas táctiles del chat y pickers subidas a **≥44 px** (searchClear, searchChip, quickBtn,
+  refChip, refRemove, close de MentionPicker y PickerModal).
+- **Modo TV activado**: `src/lib/tvMode.ts` detecta sin-hover-y-sin-touch (remoto/D-pad) y aplica
+  `data-mode="tv"` + oscuro (CSS 10-foot ya existía pero era código muerto); forzable con
+  `?tv=1` o localStorage `gp-tv`.
+- `prefers-reduced-motion` global en `base.css`.
+
+### Estado final
+- `npm run e2e` = 32/32 checks (spec-core 20, live-refresh 6, design 6). `npm run verify` pasa.
+- Pendiente (fase 2): DB real, docker, SSE/websockets (hoy polling), fotos a disco, biometría,
+  AppImage en CI.
+
 
 
 

@@ -18,6 +18,7 @@ import { EmptyState, Stack } from '../shared/ui/index.ts'
 import SectionLink from '../components/SectionLink.tsx'
 import PresenceStrip from '../components/PresenceStrip.tsx'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { usePresenceLeave } from '../lib/hooks/usePresenceLeave.ts'
 import {
   addDays,
   formatDate,
@@ -39,12 +40,14 @@ import styles from './FamilyPage.module.css'
 export default function FamilyPage() {
   const navigate = useNavigate()
   useDocumentTitle('Familia · Grocery Planner')
+  usePresenceLeave(ME)
 
   const eventsQuery = useQuery({
     queryKey: ['family', 'events'],
     queryFn: () => listEventsInRange(todayISO(), addDays(todayISO(), 30)),
+    refetchInterval: 15_000,
   })
-  const plansQuery = useQuery({ queryKey: ['family', 'plans'], queryFn: listPlans })
+  const plansQuery = useQuery({ queryKey: ['family', 'plans'], queryFn: listPlans, refetchInterval: 15_000 })
   const notifsQuery = useQuery({
     queryKey: ['family', 'notifs'],
     queryFn: () => listNotifications(ME),
@@ -56,6 +59,7 @@ export default function FamilyPage() {
       const range = localWindowRangeISO(addDays(todayISO(), -7), todayISO())
       return getTimeline(range.start, range.end)
     },
+    refetchInterval: 20_000,
   })
   const presence = useQuery({
     queryKey: ['family', 'presence'],

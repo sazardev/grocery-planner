@@ -30,7 +30,12 @@ export default function NotificationsPage() {
     refetchInterval: 15_000,
   })
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: NOTIF_KEY })
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: NOTIF_KEY })
+    // El badge de la nav y el preview de Familia también deben actualizarse.
+    queryClient.invalidateQueries({ queryKey: ['notif-unread'] })
+    queryClient.invalidateQueries({ queryKey: ['family', 'notifs'] })
+  }
 
   const readMutation = useMutation({
     mutationFn: (id: string) => markNotificationRead(id, ME),

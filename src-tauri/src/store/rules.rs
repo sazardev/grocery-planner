@@ -15,6 +15,9 @@ pub struct RulesStore {
     /// Decisiones de la familia sobre las proyecciones: nombre del ítem → ¿se
     /// confirmó la sugerencia? (SPEC §7.2).
     pub projection_choices: HashMap<String, bool>,
+    /// Ids de eventos cuyo recordatorio ya se notificó (para no repetir).
+    #[serde(default)]
+    pub reminders_fired: Vec<String>,
 }
 
 impl RulesStore {
@@ -23,6 +26,7 @@ impl RulesStore {
             rules: HomeRules::default(),
             notifications: Vec::new(),
             projection_choices: HashMap::new(),
+            reminders_fired: Vec::new(),
         }
     }
 

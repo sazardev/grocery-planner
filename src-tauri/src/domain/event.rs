@@ -47,6 +47,9 @@ pub struct Event {
     pub note: Option<String>,
     /// Cumpleaños y aniversarios se repiten cada año en automático (SPEC §9.2).
     pub recurring_yearly: bool,
+    /// Cuántos minutos antes del evento avisar (SPEC §9.2). `None` = sin recordatorio.
+    #[serde(default)]
+    pub reminder_minutes: Option<i64>,
     pub created_by: String,
     pub created_at: String,
     /// Ítems de la lista del evento (SPEC §9.4).
@@ -70,6 +73,7 @@ impl Event {
         participants: Vec<String>,
         note: Option<&str>,
         recurring_yearly: bool,
+        reminder_minutes: Option<i64>,
         created_by: &str,
     ) -> Result<Self, AppError> {
         let title = title.trim();
@@ -114,6 +118,7 @@ impl Event {
                 .collect(),
             note: opt_str(note),
             recurring_yearly,
+            reminder_minutes,
             created_by: created_by.to_string(),
             created_at: now_iso(),
             item_ids: Vec::new(),
@@ -148,6 +153,7 @@ mod tests {
             vec!["Papá".into(), "Ana".into()],
             Some("llevar pastel"),
             true,
+            None,
             "Papá",
         )
         .unwrap();
@@ -159,13 +165,13 @@ mod tests {
 
     #[test]
     fn fecha_o_hora_invalidas() {
-        assert!(Event::new("X", "20-08-2026", None, true, EventType::Comida, None, vec![], None, false, "Papá").is_err());
-        assert!(Event::new("X", "2026-08-20", Some("18:xx"), false, EventType::Comida, None, vec![], None, false, "Papá").is_err());
+        assert!(Event::new("X", "20-08-2026", None, true, EventType::Comida, None, vec![], None, false, None, "Papá").is_err());
+        assert!(Event::new("X", "2026-08-20", Some("18:xx"), false, EventType::Comida, None, vec![], None, false, None, "Papá").is_err());
     }
 
     #[test]
     fn rango_de_fechas() {
-        let e = Event::new("X", "2026-08-20", None, true, EventType::Comida, None, vec![], None, false, "Papá").unwrap();
+        let e = Event::new("X", "2026-08-20", None, true, EventType::Comida, None, vec![], None, false, None, "Papá").unwrap();
         assert!(e.in_range("2026-08-01", "2026-08-31"));
         assert!(!e.in_range("2026-09-01", "2026-09-30"));
     }

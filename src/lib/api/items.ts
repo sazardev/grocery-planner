@@ -153,8 +153,8 @@ export function setItemPriority(
   return request<GroceryItem>('item_set_priority', { id, priority, by })
 }
 
-export function moveItem(id: string, direction: MoveDirection): Promise<GroceryItem> {
-  return request<GroceryItem>('item_move', { id, direction })
+export function moveItem(id: string, direction: MoveDirection, by: string): Promise<GroceryItem> {
+  return request<GroceryItem>('item_move', { id, direction, by })
 }
 
 export function deleteItem(id: string): Promise<void> {
@@ -185,16 +185,16 @@ export function addItemComment(id: string, by: string, body: string): Promise<It
   return request<ItemComment>('item_add_comment', { id, by, body })
 }
 
-export function setItemPrice(id: string, price: number): Promise<GroceryItem> {
-  return request<GroceryItem>('item_set_price', { id, price })
+export function setItemPrice(id: string, price: number, by: string): Promise<GroceryItem> {
+  return request<GroceryItem>('item_set_price', { id, price, by })
 }
 
-export function setItemSection(id: string, section: string): Promise<GroceryItem> {
-  return request<GroceryItem>('item_set_section', { id, section })
+export function setItemSection(id: string, section: string, by: string): Promise<GroceryItem> {
+  return request<GroceryItem>('item_set_section', { id, section, by })
 }
 
-export function setItemStore(id: string, storeName: string): Promise<GroceryItem> {
-  return request<GroceryItem>('item_set_store', { id, storeName })
+export function setItemStore(id: string, storeName: string, by: string): Promise<GroceryItem> {
+  return request<GroceryItem>('item_set_store', { id, storeName, by })
 }
 
 export function setItemBrand(id: string, brand: string, by: string): Promise<GroceryItem> {
@@ -225,12 +225,12 @@ export function applyItemFallback(id: string, index: number, by: string): Promis
   return request<GroceryItem>('item_use_fallback', { id, index, by })
 }
 
-export function addItemPhoto(id: string, photo: string): Promise<GroceryItem> {
-  return request<GroceryItem>('item_add_photo', { id, photo })
+export function addItemPhoto(id: string, photo: string, by: string): Promise<GroceryItem> {
+  return request<GroceryItem>('item_add_photo', { id, photo, by })
 }
 
-export function removeItemPhoto(id: string, index: number): Promise<GroceryItem> {
-  return request<GroceryItem>('item_remove_photo', { id, index })
+export function removeItemPhoto(id: string, index: number, by: string): Promise<GroceryItem> {
+  return request<GroceryItem>('item_remove_photo', { id, index, by })
 }
 
 export function recoverItem(id: string, by: string): Promise<GroceryItem> {

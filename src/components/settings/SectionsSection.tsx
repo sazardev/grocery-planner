@@ -8,6 +8,7 @@ import {
   renameSection,
 } from '../../lib/api'
 import type { Section } from '../../domain/section'
+import { ME } from '../../lib/me'
 import Text from '../../shared/ui/primitives/Text.tsx'
 import Skeleton from '../../shared/ui/primitives/Skeleton.tsx'
 import Alert from '../../shared/ui/feedback/Alert.tsx'
@@ -34,7 +35,7 @@ export default function SectionsSection() {
   }
 
   const createMutation = useMutation({
-    mutationFn: () => createSection(name.trim()),
+    mutationFn: () => createSection(name.trim(), ME),
     onSuccess: () => {
       setName('')
       invalidate()
@@ -44,18 +45,18 @@ export default function SectionsSection() {
 
   const moveMutation = useMutation({
     mutationFn: ({ id, direction }: { id: string; direction: 'up' | 'down' }) =>
-      moveSection(id, direction),
+      moveSection(id, direction, ME),
     onSuccess: invalidate,
   })
 
   const renameMutation = useMutation({
     mutationFn: ({ id, newName }: { id: string; newName: string }) =>
-      renameSection(id, newName),
+      renameSection(id, newName, ME),
     onSuccess: invalidate,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteSection(id),
+    mutationFn: (id: string) => deleteSection(id, ME),
     onSuccess: invalidate,
   })
 

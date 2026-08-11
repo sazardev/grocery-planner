@@ -87,6 +87,7 @@ export default function ItemDetailPage() {
     queryKey: ['item', id],
     queryFn: () => getItem(id ?? ''),
     enabled: Boolean(id),
+    refetchInterval: 15_000,
   })
 
   const homeQuery = useQuery({ queryKey: ['home'], queryFn: getHome, retry: false })
@@ -96,6 +97,7 @@ export default function ItemDetailPage() {
     queryKey: ['item', id, 'history'],
     queryFn: () => getItemHistory(id ?? ''),
     enabled: Boolean(id),
+    refetchInterval: 20_000,
   })
 
   useMeta({
@@ -189,7 +191,7 @@ export default function ItemDetailPage() {
   })
 
   const priceMutation = useMutation({
-    mutationFn: (value: number) => setItemPrice(item!.id, value),
+    mutationFn: (value: number) => setItemPrice(item!.id, value, ME),
     onSuccess: () => {
       invalidateItem()
       markSaved()
@@ -207,7 +209,7 @@ export default function ItemDetailPage() {
   })
 
   const moveMutation = useMutation({
-    mutationFn: (direction: 'up' | 'down') => moveItem(item!.id, direction),
+    mutationFn: (direction: 'up' | 'down') => moveItem(item!.id, direction, ME),
     onSuccess: invalidateItem,
   })
 
@@ -227,7 +229,7 @@ export default function ItemDetailPage() {
   })
 
   const sectionMutation = useMutation({
-    mutationFn: (section: string) => setItemSection(item!.id, section),
+    mutationFn: (section: string) => setItemSection(item!.id, section, ME),
     onSuccess: invalidateItem,
   })
 
@@ -242,7 +244,7 @@ export default function ItemDetailPage() {
   const photoFileRef = useRef<HTMLInputElement>(null)
   const [photoError, setPhotoError] = useState<string | null>(null)
   const photoMutation = useMutation({
-    mutationFn: (photo: string) => addItemPhoto(item!.id, photo),
+    mutationFn: (photo: string) => addItemPhoto(item!.id, photo, ME),
     onSuccess: () => {
       invalidateItem()
       setPhotoError(null)
@@ -250,7 +252,7 @@ export default function ItemDetailPage() {
     onError: (err) => setPhotoError(err instanceof Error ? err.message : 'No se pudo subir la foto'),
   })
   const removePhotoMutation = useMutation({
-    mutationFn: (index: number) => removeItemPhoto(item!.id, index),
+    mutationFn: (index: number) => removeItemPhoto(item!.id, index, ME),
     onSuccess: invalidateItem,
   })
   const recoverMutation = useMutation({
@@ -261,7 +263,7 @@ export default function ItemDetailPage() {
     },
   })
   const storeMutation = useMutation({
-    mutationFn: (storeName: string) => setItemStore(item!.id, storeName),
+    mutationFn: (storeName: string) => setItemStore(item!.id, storeName, ME),
     onSuccess: invalidateItem,
   })
 

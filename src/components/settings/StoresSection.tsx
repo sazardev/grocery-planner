@@ -8,6 +8,7 @@ import {
   removeStore,
   renameStore,
 } from '../../lib/api'
+import { ME } from '../../lib/me'
 import Text from '../../shared/ui/primitives/Text.tsx'
 import Skeleton from '../../shared/ui/primitives/Skeleton.tsx'
 import Chip from '../../shared/ui/primitives/Chip.tsx'
@@ -33,7 +34,7 @@ export default function StoresSection() {
 
   const addMutation = useMutation({
     mutationFn: () =>
-      addStore(name.trim(), aisleName.trim() ? [aisleName.trim()] : []),
+      addStore(name.trim(), aisleName.trim() ? [aisleName.trim()] : [], ME),
     onSuccess: () => {
       setName('')
       setAisleName('')
@@ -44,7 +45,7 @@ export default function StoresSection() {
 
   const aisleMutation = useMutation({
     mutationFn: ({ storeName, aisle }: { storeName: string; aisle: string }) =>
-      addAisle(storeName, aisle),
+      addAisle(storeName, aisle, ME),
     onSuccess: () => {
       setAisleName('')
       invalidate()
@@ -54,18 +55,18 @@ export default function StoresSection() {
 
   const removeAisleMutation = useMutation({
     mutationFn: ({ storeName, aisle }: { storeName: string; aisle: string }) =>
-      removeAisle(storeName, aisle),
+      removeAisle(storeName, aisle, ME),
     onSuccess: invalidate,
   })
 
   const removeStoreMutation = useMutation({
-    mutationFn: (name: string) => removeStore(name),
+    mutationFn: (name: string) => removeStore(name, ME),
     onSuccess: invalidate,
   })
 
   const renameMutation = useMutation({
     mutationFn: ({ name, newName }: { name: string; newName: string }) =>
-      renameStore(name, newName),
+      renameStore(name, newName, ME),
     onSuccess: invalidate,
   })
 

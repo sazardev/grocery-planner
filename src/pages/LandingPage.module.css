@@ -350,7 +350,7 @@
   gap: var(--gp-space-3);
   flex-wrap: wrap;
   padding: var(--gp-space-6) var(--gp-space-4);
-  border-top: 1px solid var(--gp-touch);
+  background: var(--gp-surface);
 }
 
 .footerBrand {

@@ -1,5 +1,7 @@
 use serde::Deserialize;
 
+use crate::commands::require_role;
+use crate::domain::home::Role;
 use crate::domain::notification::AppNotification;
 use crate::domain::rules::{HomeRules, NotificationSettings};
 use crate::error::AppError;
@@ -29,10 +31,11 @@ pub struct UpdateRulesBody {
     pub timezone: Option<String>,
 }
 
-/// Actualiza campos de las reglas de la familia (SPEC §14).
+/// Actualiza campos de las reglas de la familia (SPEC §14). Solo Organizador/Admin.
 #[tauri::command]
-pub fn rules_update(state: AppStateRef, body: UpdateRulesBody) -> Result<HomeRules, AppError> {
+pub fn rules_update(state: AppStateRef, by: String, body: UpdateRulesBody) -> Result<HomeRules, AppError> {
     let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Organizador)?;
     if let Some(name) = body.name {
         let name = name.trim();
         if name.is_empty() {
@@ -83,8 +86,10 @@ pub fn rules_store_add(
     state: AppStateRef,
     name: String,
     aisles: Vec<String>,
+    by: String,
 ) -> Result<HomeRules, AppError> {
     let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Organizador)?;
     let name = name.trim();
     if name.is_empty() {
         return Err(AppError::invalid_input("El nombre de la tienda es obligatorio"));
@@ -111,8 +116,10 @@ pub fn rules_store_rename(
     state: AppStateRef,
     name: String,
     new_name: String,
+    by: String,
 ) -> Result<HomeRules, AppError> {
     let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Organizador)?;
     let store_config = store
         .rules
         .rules
@@ -130,8 +137,9 @@ pub fn rules_store_rename(
 
 /// Quita una tienda favorita (SPEC §14).
 #[tauri::command]
-pub fn rules_store_remove(state: AppStateRef, name: String) -> Result<HomeRules, AppError> {
+pub fn rules_store_remove(state: AppStateRef, name: String, by: String) -> Result<HomeRules, AppError> {
     let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Organizador)?;
     store.rules.rules.stores.retain(|s| s.name != name);
     Ok(store.rules.rules())
 }
@@ -142,8 +150,10 @@ pub fn rules_aisle_add(
     state: AppStateRef,
     store_name: String,
     aisle: String,
+    by: String,
 ) -> Result<HomeRules, AppError> {
     let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Organizador)?;
     let store_config = store
         .rules
         .rules
@@ -170,8 +180,10 @@ pub fn rules_aisle_remove(
     state: AppStateRef,
     store_name: String,
     aisle: String,
+    by: String,
 ) -> Result<HomeRules, AppError> {
     let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Organizador)?;
     let store_config = store
         .rules
         .rules

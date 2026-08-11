@@ -6,8 +6,10 @@ import { ArrowLeft, CalendarClock, Trash2, Plus } from 'lucide-react'
 import {
   addItemToEvent,
   deleteEvent,
+  discardEventList,
   getEvent,
   listItems,
+  mergeEventListToHome,
   removeItemFromEvent,
 } from '../lib/api'
 import { EVENT_TYPE_LABEL } from '../domain/event'
@@ -39,8 +41,9 @@ export default function EventDetailPage() {
     queryKey: ['event', id],
     queryFn: () => getEvent(id ?? ''),
     enabled: Boolean(id),
+    refetchInterval: 15_000,
   })
-  const itemsQuery = useQuery({ queryKey: ['items'], queryFn: listItems })
+  const itemsQuery = useQuery({ queryKey: ['items'], queryFn: listItems, refetchInterval: 15_000 })
 
   const event = eventQuery.data
 
@@ -78,6 +81,24 @@ export default function EventDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['events'] })
       navigate('/events')
     },
+  })
+
+  const mergeMutation = useMutation({
+    mutationFn: () => mergeEventListToHome(event!.id),
+    onSuccess: () => {
+      invalidate()
+      setError(null)
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : 'No se pudo fusionar'),
+  })
+
+  const discardMutation = useMutation({
+    mutationFn: () => discardEventList(event!.id),
+    onSuccess: () => {
+      invalidate()
+      setError(null)
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : 'No se pudo descartar la lista'),
   })
 
   const goBack = useGoBack('/events')
@@ -202,6 +223,30 @@ export default function EventDetailPage() {
           )}
         </Stack>
       </Card>
+
+      {event.itemIds.length > 0 && (
+        <Stack gap="2">
+          <Text as="h2" variant="section">
+            Al terminar la ocasión
+          </Text>
+          <Button
+            variant="secondary"
+            onClick={() => mergeMutation.mutate()}
+            loading={mergeMutation.isPending}
+            full
+          >
+            Fusionar a la lista de la casa
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => discardMutation.mutate()}
+            loading={discardMutation.isPending}
+            full
+          >
+            Descartar estos ítems
+          </Button>
+        </Stack>
+      )}
 
       <Button
         variant="danger"

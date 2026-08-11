@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { login as apiLogin, loginPin as apiLoginPin, logout as apiLogout, me, registerAccount } from '../api'
 import { onUnauthorized } from '../api/transport'
 import { setMe } from '../me'
@@ -23,6 +24,7 @@ function applySession(token: string, user: AuthContextValue['user']): void {
 }
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const [status, setStatus] = useState<AuthStatus>('loading')
   const [user, setUser] = useState<AuthContextValue['user']>(null)
   const [token, setToken] = useState<AuthContextValue['token']>(null)
@@ -46,6 +48,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (cancelled) return
+        queryClient.clear()
         clearToken()
         setUser(null)
         setToken(null)
@@ -55,11 +58,12 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [queryClient])
 
   // Si cualquier petición responde 401 (sesión expirada/revocada), salir.
   useEffect(() => {
     onUnauthorized(() => {
+      queryClient.clear()
       clearToken()
       setUser(null)
       setToken(null)
@@ -67,11 +71,12 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setMe(null)
     })
     return () => onUnauthorized(null)
-  }, [])
+  }, [queryClient])
 
   const value = useMemo<AuthContextValue>(() => {
     async function signIn(name: string, password: string): Promise<void> {
       const view = await apiLogin(name, password, deviceLabel())
+      queryClient.clear()
       applySession(view.token, view.user)
       setUser(view.user)
       setToken(view.token)
@@ -80,6 +85,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
     async function signInWithPin(name: string, pin: string): Promise<void> {
       const view = await apiLoginPin(name, pin, deviceLabel())
+      queryClient.clear()
       applySession(view.token, view.user)
       setUser(view.user)
       setToken(view.token)
@@ -88,6 +94,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
     async function signUp(name: string, password: string): Promise<void> {
       const view = await registerAccount(name, password)
+      queryClient.clear()
       applySession(view.token, view.user)
       setUser(view.user)
       setToken(view.token)
@@ -100,6 +107,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
           /* la sesión ya no es válida; limpiamos igual */
         })
       }
+      queryClient.clear()
       clearToken()
       setUser(null)
       setToken(null)
@@ -108,7 +116,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return { status, user, token, signIn, signInWithPin, signUp, signOut }
-  }, [status, user, token])
+  }, [status, user, token, queryClient])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

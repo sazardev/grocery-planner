@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
+import { useState } from 'react'
 import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import { ArrowLeft, CheckCircle2, Play, ShoppingCart, XCircle } from 'lucide-react'
-import { activateTrip, assignTrip, cancelTrip, completeTrip, getTrip } from '../lib/api'
-import { ME } from '../lib/me'
+import { activateTrip, assignTrip, cancelTrip, completeTrip, getHome, getTrip, listItems } from '../lib/api'
 import type { TripStatus } from '../domain/trip'
 import Text from '../shared/ui/primitives/Text.tsx'
 import Button from '../shared/ui/primitives/Button.tsx'
@@ -11,7 +11,7 @@ import Chip, { type ChipTone } from '../shared/ui/primitives/Chip.tsx'
 import IconButton from '../shared/ui/primitives/IconButton.tsx'
 import Skeleton from '../shared/ui/primitives/Skeleton.tsx'
 import Alert from '../shared/ui/feedback/Alert.tsx'
-import { Card, Stack } from '../shared/ui/index.ts'
+import { Card, Select, Stack } from '../shared/ui/index.ts'
 import { useMeta } from '../lib/hooks/useMeta.ts'
 import ShareButton from '../shared/ui/navigation/ShareButton.tsx'
 import styles from './TripDetailPage.module.css'
@@ -26,11 +26,13 @@ const tripTone: Record<TripStatus, ChipTone> = {
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
+  const [assignTarget, setAssignTarget] = useState('')
 
   const { data: trip, isLoading, isError, error } = useQuery({
     queryKey: ['trip', id],
     queryFn: () => getTrip(id ?? ''),
     enabled: Boolean(id),
+    refetchInterval: 15_000,
   })
 
   useMeta({
@@ -47,9 +49,14 @@ export default function TripDetailPage() {
   }
 
   const assignMutation = useMutation({
-    mutationFn: () => assignTrip(trip!.id, ME),
+    mutationFn: (member: string) => assignTrip(trip!.id, member),
     onSuccess: invalidate,
   })
+
+  const itemsQuery = useQuery({ queryKey: ['items'], queryFn: listItems, refetchInterval: 15_000 })
+  const homeQuery = useQuery({ queryKey: ['home'], queryFn: getHome, retry: false })
+  const members = homeQuery.data?.members ?? []
+  const itemName = (itemId: string) => itemsQuery.data?.find((i) => i.id === itemId)?.name ?? itemId
 
   const activateMutation = useMutation({
     mutationFn: () => activateTrip(trip!.id),
@@ -122,16 +129,30 @@ export default function TripDetailPage() {
             <Text as="p" variant="note" tone="secondary">
               Creado por {trip.createdBy} · lo lleva {trip.assignedTo}
             </Text>
-          ) : (
+          ) : null}
+          <div className={styles.assignRow}>
+            <Select
+              label={trip.assignedTo ? 'Pasarlo a otro' : '¿Quién lo lleva?'}
+              value={assignTarget}
+              onChange={(e) => setAssignTarget(e.target.value)}
+            >
+              <option value="">Elige un miembro…</option>
+              {members.map((m) => (
+                <option key={m.name} value={m.name}>
+                  {m.name}
+                </option>
+              ))}
+            </Select>
             <Button
               variant="secondary"
               iconLeft={<Play size={16} strokeWidth={2} />}
-              onClick={() => assignMutation.mutate()}
+              onClick={() => assignTarget && assignMutation.mutate(assignTarget)}
+              disabled={!assignTarget}
               loading={assignMutation.isPending}
             >
-              Me toca a mí
+              {trip.assignedTo ? 'Retomar' : 'Asignar'}
             </Button>
-          )}
+          </div>
         </Stack>
       </Card>
 
@@ -147,7 +168,7 @@ export default function TripDetailPage() {
           ) : (
             trip.itemIds.map((itemId) => (
               <Text key={itemId} variant="body">
-                {itemId}
+                {itemName(itemId)}
               </Text>
             ))
           )}

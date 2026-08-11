@@ -1,3 +1,5 @@
+use crate::commands::require_role;
+use crate::domain::home::Role;
 use crate::domain::plan::{Plan, PlanStatus, Recurrence};
 use crate::error::AppError;
 use crate::state::AppStateRef;
@@ -33,6 +35,8 @@ pub fn plan_create(
         &created_by,
     )?;
     let mut store = store::lock(&state.store)?;
+    // Planear compras es de Organizador/Admin (SPEC §3.2 y §7.1).
+    require_role(&store, &created_by, Role::Organizador)?;
     Ok(store.plans.create(plan))
 }
 

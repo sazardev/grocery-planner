@@ -159,6 +159,17 @@ impl AuthStore {
         }
     }
 
+    /// Restablece la contraseña de un miembro (SPEC §2.5, verificado por la
+    /// clave de respaldo del hogar en el command).
+    pub fn reset_password(&mut self, name: &str, new_password: &str) -> Result<(), AppError> {
+        let user = self
+            .user_by_name(name)
+            .ok_or_else(|| AppError::not_found(format!("No existe la cuenta {name}")))?;
+        let updated = User::create(&user.name, new_password)?;
+        self.users.insert(user.id, updated);
+        Ok(())
+    }
+
     /// Fija el PIN rápido de una cuenta (SPEC §2.3).
     pub fn set_pin(&mut self, name: &str, pin: &str) -> Result<(), AppError> {
         let user = self

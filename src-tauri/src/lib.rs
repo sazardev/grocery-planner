@@ -39,6 +39,22 @@ pub fn run() {
                 }
             });
 
+            // Tareas de fondo: recordatorios de eventos y planes recurrentes
+            // (SPEC §7.1, §9.2 y §13). Persiste al instante si algo cambió.
+            let bg_handle = app.handle().clone();
+            std::thread::spawn(move || {
+                let path = crate::persist::default_data_path();
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(60));
+                    let app_state = bg_handle.state::<state::AppState>().inner();
+                    if let Ok(mut store) = app_state.store.lock() {
+                        if crate::commands::background::tick(&mut store) {
+                            let _ = crate::persist::save(&store, &path);
+                        }
+                    }
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -54,6 +70,7 @@ pub fn run() {
             commands::auth::auth_sessions,
             commands::auth::auth_revoke_session,
             commands::auth::auth_change_password,
+            commands::auth::auth_reset_password,
             commands::auth::auth_set_pin,
             commands::auth::auth_remove_pin,
             commands::auth::auth_has_pin,
@@ -141,6 +158,8 @@ pub fn run() {
             commands::events::event_delete,
             commands::events::event_add_item,
             commands::events::event_remove_item,
+            commands::events::event_merge_to_home,
+            commands::events::event_discard_list,
             commands::plans::plans_list,
             commands::plans::plan_create,
             commands::plans::plan_get,

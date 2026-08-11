@@ -46,7 +46,7 @@ export default function TripsPage() {
     },
   })
 
-  const trips = useQuery({ queryKey: ['trips'], queryFn: listTrips })
+  const trips = useQuery({ queryKey: ['trips'], queryFn: listTrips, refetchInterval: 15_000 })
 
   const addTrip = useMutation({
     mutationFn: (t: string) => createTrip({ title: t, by: ME }),

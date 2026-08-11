@@ -19,8 +19,9 @@ export function getRules(): Promise<HomeRules> {
   return request<HomeRules>('rules_get')
 }
 
-export function updateRules(input: UpdateRulesInput): Promise<HomeRules> {
+export function updateRules(input: UpdateRulesInput, by: string): Promise<HomeRules> {
   return request<HomeRules>('rules_update', {
+    by,
     name: input.name ?? null,
     units: input.units ?? null,
     categories: input.categories ?? null,
@@ -34,24 +35,24 @@ export function updateRules(input: UpdateRulesInput): Promise<HomeRules> {
   })
 }
 
-export function addStore(name: string, aisles: string[] = []): Promise<HomeRules> {
-  return request<HomeRules>('rules_store_add', { name, aisles })
+export function addStore(name: string, aisles: string[] = [], by: string): Promise<HomeRules> {
+  return request<HomeRules>('rules_store_add', { name, aisles, by })
 }
 
-export function renameStore(name: string, newName: string): Promise<HomeRules> {
-  return request<HomeRules>('rules_store_rename', { name, newName })
+export function renameStore(name: string, newName: string, by: string): Promise<HomeRules> {
+  return request<HomeRules>('rules_store_rename', { name, newName, by })
 }
 
-export function removeStore(name: string): Promise<HomeRules> {
-  return request<HomeRules>('rules_store_remove', { name })
+export function removeStore(name: string, by: string): Promise<HomeRules> {
+  return request<HomeRules>('rules_store_remove', { name, by })
 }
 
-export function addAisle(storeName: string, aisle: string): Promise<HomeRules> {
-  return request<HomeRules>('rules_aisle_add', { storeName, aisle })
+export function addAisle(storeName: string, aisle: string, by: string): Promise<HomeRules> {
+  return request<HomeRules>('rules_aisle_add', { storeName, aisle, by })
 }
 
-export function removeAisle(storeName: string, aisle: string): Promise<HomeRules> {
-  return request<HomeRules>('rules_aisle_remove', { storeName, aisle })
+export function removeAisle(storeName: string, aisle: string, by: string): Promise<HomeRules> {
+  return request<HomeRules>('rules_aisle_remove', { storeName, aisle, by })
 }
 
 // ----- Notificaciones (SPEC §13) ------------------------------------------

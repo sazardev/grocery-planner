@@ -194,10 +194,15 @@ Cada cosa que se anota es un **ítem**. Un ítem tiene:
 |---|---|---|
 | **Falta** (pendiente) | Hace falta, nadie lo ha tomado aún. | Cualquiera al agregarlo. |
 | **Pedido / "voy por él"** | Alguien ya se comprometió a comprarlo en el mandado. | El miembro que lo toma. |
-| **En la lista** | Ya está agregado y confirmado para el mandado. | Cualquiera. |
 | **Ya lo llevo / en el carrito** | El que está en el mandado lo metió al carrito. | El que está comprando. |
 | **Comprado** | Pagado y/o llegó a casa. | El que compra o el de la casa al recibirlo. |
 | **Cancelado** | Se quita porque ya no se necesita (con motivo opcional). | Cualquiera. |
+
+> **Nota de implementación (fase 1)**: la lista incluye 5 estados. El estado
+> intermedio **"En la lista"** del borrador original se fusionó con
+> "Falta/pedido" para mantener el flujo simple; un ítem que ya fue confirmado
+> para el mandado se ve como "Pedido" o asignado a alguien. DATA.md y el
+> código (`ItemStatus`) son la autoridad de fase 1.
 
 Reglas de estado:
 

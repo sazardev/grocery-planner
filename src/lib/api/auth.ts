@@ -33,6 +33,16 @@ export function changePassword(
   return request<void>('auth_change_password', { token, currentPassword, newPassword })
 }
 
+/** Restablece la contraseña de un miembro con la clave de respaldo (SPEC §2.5). */
+export function resetPassword(
+  token: string,
+  name: string,
+  backupKey: string,
+  newPassword: string,
+): Promise<void> {
+  return request<void>('auth_reset_password', { token, name, backupKey, newPassword })
+}
+
 export function setPin(name: string, pin: string): Promise<void> {
   return request<void>('auth_set_pin', { name, pin })
 }

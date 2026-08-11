@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { exportBackup, importBackup } from '../../lib/api'
 import Text from '../../shared/ui/primitives/Text.tsx'
 import Alert from '../../shared/ui/feedback/Alert.tsx'
@@ -8,6 +8,7 @@ import { Download, Upload } from 'lucide-react'
 import { todayISO } from '../../lib/dates.ts'
 
 export default function BackupSection() {
+  const queryClient = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
@@ -38,6 +39,8 @@ export default function BackupSection() {
       setError(null)
       setDone(true)
       window.setTimeout(() => setDone(false), 3000)
+      // El respaldo reemplaza TODO el estado del hogar: ninguna caché queda válida.
+      queryClient.clear()
     },
     onError: (e) =>
       setError(

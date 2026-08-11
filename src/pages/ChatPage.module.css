@@ -82,8 +82,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: 44px;
+  min-height: 44px;
   border: none;
   border-radius: var(--gp-radius-pill);
   background: transparent;
@@ -105,7 +105,7 @@
 .searchChip {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
+  min-height: 44px;
   padding: var(--gp-space-1) var(--gp-space-3);
   border: none;
   border-radius: var(--gp-radius-pill);
@@ -273,8 +273,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 40px;
-  min-height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   border: none;
   border-radius: var(--gp-radius-pill);
   background: transparent;
@@ -327,7 +327,7 @@
   font: inherit;
   font-size: var(--gp-text-xs);
   font-weight: var(--gp-weight-medium);
-  min-height: 32px;
+  min-height: 44px;
   cursor: pointer;
   transition:
     background-color var(--gp-duration-instant) var(--gp-ease-out),
@@ -353,8 +353,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  min-height: 24px;
+  min-width: 44px;
+  min-height: 44px;
   border: none;
   border-radius: var(--gp-radius-pill);
   background: transparent;

@@ -57,9 +57,10 @@ export default function CalendarPage() {
   const eventsQuery = useQuery({
     queryKey: ['calendar', 'events', start, end],
     queryFn: () => listEventsInRange(start, end),
+    refetchInterval: 15_000,
   })
-  const plansQuery = useQuery({ queryKey: ['calendar', 'plans'], queryFn: listPlans })
-  const tripsQuery = useQuery({ queryKey: ['calendar', 'trips'], queryFn: listTrips })
+  const plansQuery = useQuery({ queryKey: ['calendar', 'plans'], queryFn: listPlans, refetchInterval: 15_000 })
+  const tripsQuery = useQuery({ queryKey: ['calendar', 'trips'], queryFn: listTrips, refetchInterval: 15_000 })
 
   const items = useMemo<CalendarItem[]>(() => {
     const out: CalendarItem[] = []

@@ -39,18 +39,3 @@
   overflow: hidden;
   transition: width var(--gp-duration-slow) var(--gp-ease-spring);
 }
-
-.fill::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 40%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.35),
-    transparent
-  );
-  animation: gp-sheen 2.4s var(--gp-ease-out) infinite;
-}

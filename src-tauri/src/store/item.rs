@@ -200,12 +200,12 @@ impl ItemStore {
     }
 
     /// Fija el precio aproximado del ítem (SPEC §8.2).
-    pub fn set_price(&mut self, id: &str, price: f64) -> Result<GroceryItem, AppError> {
+    pub fn set_price(&mut self, id: &str, price: f64, by: &str) -> Result<GroceryItem, AppError> {
         let item = self
             .items
             .get_mut(id)
             .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
-        item.set_price(price)?;
+        item.set_price(price, by)?;
         Ok(item.clone())
     }
 
@@ -215,22 +215,23 @@ impl ItemStore {
         &mut self,
         id: &str,
         section_id: &str,
+        by: &str,
     ) -> Result<GroceryItem, AppError> {
         let item = self
             .items
             .get_mut(id)
             .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
-        item.set_section(section_id)?;
+        item.set_section(section_id, by)?;
         Ok(item.clone())
     }
 
     /// Fija la tienda del ítem (SPEC §4.1 y §5.4).
-    pub fn set_store(&mut self, id: &str, store: &str) -> Result<GroceryItem, AppError> {
+    pub fn set_store(&mut self, id: &str, store: &str, by: &str) -> Result<GroceryItem, AppError> {
         let item = self
             .items
             .get_mut(id)
             .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
-        item.set_store(store)?;
+        item.set_store(store, by)?;
         Ok(item.clone())
     }
 
@@ -312,22 +313,23 @@ impl ItemStore {
         id: &str,
         photo: &str,
         limit: usize,
+        by: &str,
     ) -> Result<GroceryItem, AppError> {
         let item = self
             .items
             .get_mut(id)
             .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
-        item.add_photo(photo, limit)?;
+        item.add_photo(photo, limit, by)?;
         Ok(item.clone())
     }
 
     /// Quita una foto del ítem por índice (SPEC §10).
-    pub fn remove_photo(&mut self, id: &str, index: usize) -> Result<GroceryItem, AppError> {
+    pub fn remove_photo(&mut self, id: &str, index: usize, by: &str) -> Result<GroceryItem, AppError> {
         let item = self
             .items
             .get_mut(id)
             .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
-        item.remove_photo(index)?;
+        item.remove_photo(index, by)?;
         Ok(item.clone())
     }
 
@@ -584,8 +586,8 @@ mod tests {
     fn precio_y_seccion() {
         let mut store = ItemStore::new();
         let item = store.create(sample());
-        store.set_price(&item.id, 12.5).unwrap();
-        store.set_section(&item.id, "sec-1").unwrap();
+        store.set_price(&item.id, 12.5, "Ana").unwrap();
+        store.set_section(&item.id, "sec-1", "Ana").unwrap();
         let updated = store.get(&item.id).unwrap();
         assert_eq!(updated.price, Some(12.5));
         assert_eq!(updated.section.as_deref(), Some("sec-1"));

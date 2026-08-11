@@ -23,6 +23,15 @@ impl Role {
             Self::Admin => "Admin",
         }
     }
+
+    /// Orden jerárquico para comparar permisos (SPEC §3.2).
+    pub fn rank(self) -> u8 {
+        match self {
+            Self::Miembro => 0,
+            Self::Organizador => 1,
+            Self::Admin => 2,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -316,6 +325,22 @@ impl Home {
         }
         Ok(())
     }
+
+    /// Exige un rol mínimo (Organizador/Admin) para acciones de organización
+    /// (SPEC §3.2 y §14): secciones, planes, reglas y reordenar la lista.
+    pub fn require_role(&self, by: &str, min: Role) -> Result<(), AppError> {
+        let actor = self
+            .members
+            .get(by.trim())
+            .ok_or_else(|| AppError::not_found(format!("Miembro {by} no está en el hogar")))?;
+        if actor.role.rank() < min.rank() {
+            return Err(AppError::conflict(format!(
+                "Se requiere al menos el rol {} para esto",
+                min.label()
+            )));
+        }
+        Ok(())
+    }
 }
 
 /// Genera un código corto de 6 dígitos con formato `492-113` (SPEC §3.3).
@@ -361,6 +386,20 @@ mod tests {
         assert!(home.members().iter().any(|m| m.name == "Ana"));
         home.remove_member("Ana", "Papá").unwrap();
         assert!(!home.members().iter().any(|m| m.name == "Ana"));
+    }
+
+    #[test]
+    fn roles_controlan_permisos() {
+        let mut home = sample_home();
+        home.add_member("Ana", Role::Organizador, "Papá").unwrap();
+        home.add_member("Luis", Role::Miembro, "Papá").unwrap();
+        // Admin y Organizador sí pueden organizar.
+        assert!(home.require_role("Papá", Role::Organizador).is_ok());
+        assert!(home.require_role("Ana", Role::Organizador).is_ok());
+        // Un miembro común no.
+        assert!(home.require_role("Luis", Role::Organizador).is_err());
+        // Nadie fuera del hogar.
+        assert!(home.require_role("Forastero", Role::Organizador).is_err());
     }
 
     #[test]

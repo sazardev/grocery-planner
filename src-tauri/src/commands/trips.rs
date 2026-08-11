@@ -1,4 +1,4 @@
-use crate::domain::notification::{AppNotification, NotificationKind};
+use crate::domain::notification::NotificationKind;
 use crate::domain::trip::{ShoppingTrip, TripStatus};
 use crate::error::AppError;
 use crate::state::AppStateRef;
@@ -55,7 +55,7 @@ pub fn trips_remove_item(
     store.trips.remove_item(&id, &item_id)
 }
 
-/// Asigna (o retoma) el mandado a un miembro.
+/// Asigna (o retoma) el mandado a un miembro. Avisa al asignado (SPEC §13).
 #[tauri::command]
 pub fn trips_assign(
     state: AppStateRef,
@@ -63,14 +63,49 @@ pub fn trips_assign(
     member: String,
 ) -> Result<ShoppingTrip, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.trips.assign(&id, &member)
+    let title = store.trips.get(&id)?.title.clone();
+    let assigned = store.trips.assign(&id, &member)?;
+    crate::commands::notify::push_managed(
+        &mut store.rules,
+        &member,
+        NotificationKind::Assigned,
+        "Te asignaron un mandado",
+        &format!("El mandado \"{title}\" es tuyo."),
+        Some(&format!("/trips/{id}")),
+    );
+    Ok(assigned)
 }
 
-/// Marca el mandado como activo (el mandado está en curso).
+/// Marca el mandado como activo (el mandado está en curso). Avisa a la familia
+/// (SPEC §13: "alguien conectado empieza el mandado").
 #[tauri::command]
 pub fn trips_activate(state: AppStateRef, id: String) -> Result<ShoppingTrip, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.trips.set_status(&id, TripStatus::Activa)
+    let title = store.trips.get(&id)?.title.clone();
+    let who = store.trips.get(&id)?.assigned_to.clone().unwrap_or_default();
+    let activated = store.trips.set_status(&id, TripStatus::Activa)?;
+    let home = store.home.get().ok();
+    let members: Vec<String> = home
+        .map(|h| h.members().into_iter().map(|m| m.name).collect())
+        .unwrap_or_default();
+    for m in members {
+        if m != who {
+            let detail = if who.is_empty() {
+                String::new()
+            } else {
+                format!(" (lo lleva {who})")
+            };
+            crate::commands::notify::push_managed(
+                &mut store.rules,
+                &m,
+                NotificationKind::TripStarted,
+                "Empezó el mandado",
+                &format!("El mandado \"{title}\" está en curso{detail}."),
+                Some(&format!("/trips/{id}")),
+            );
+        }
+    }
+    Ok(activated)
 }
 
 /// Marca el mandado como completado.
@@ -101,13 +136,14 @@ pub fn trips_confirm_received(
     let title = trip.title.clone();
     let received = store.trips.confirm_received(&id, &by)?;
     if buyer != by {
-        store.rules.push_notification(AppNotification::new(
-            NotificationKind::Arrival,
+        crate::commands::notify::push_managed(
+            &mut store.rules,
             &buyer,
+            NotificationKind::Arrival,
             &format!("{by} recibió el mandado"),
             &format!("El mandado \"{title}\" ya llegó a casa. ¡Gracias!"),
             Some(&format!("/trips/{id}")),
-        ));
+        );
     }
     Ok(received)
 }

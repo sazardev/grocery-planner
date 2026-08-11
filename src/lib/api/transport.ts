@@ -62,6 +62,11 @@ const ROUTES: Record<string, Route> = {
     path: () => '/api/auth/password',
     body: (a) => pick(a, ['currentPassword', 'newPassword']),
   },
+  auth_reset_password: {
+    method: 'POST',
+    path: () => '/api/auth/password/reset',
+    body: (a) => pick(a, ['name', 'backupKey', 'newPassword']),
+  },
   auth_set_pin: {
     method: 'POST',
     path: () => '/api/auth/pin',
@@ -133,30 +138,33 @@ const ROUTES: Record<string, Route> = {
         'privacyShowPrices',
         'language',
         'timezone',
+        'by',
       ]),
   },
   rules_store_add: {
     method: 'POST',
     path: () => '/api/rules/stores',
-    body: (a) => pick(a, ['name', 'aisles']),
+    body: (a) => pick(a, ['name', 'aisles', 'by']),
   },
   rules_store_rename: {
     method: 'PATCH',
     path: (a) => `/api/rules/stores/${a['name']}`,
-    body: (a) => pick(a, ['newName']),
+    body: (a) => pick(a, ['newName', 'by']),
   },
   rules_store_remove: {
     method: 'DELETE',
     path: (a) => `/api/rules/stores/${a['name']}`,
+    body: (a) => pick(a, ['by']),
   },
   rules_aisle_add: {
     method: 'POST',
     path: (a) => `/api/rules/stores/${a['storeName']}/aisles`,
-    body: (a) => pick(a, ['aisle']),
+    body: (a) => pick(a, ['aisle', 'by']),
   },
   rules_aisle_remove: {
     method: 'DELETE',
     path: (a) => `/api/rules/stores/${a['storeName']}/aisles/${a['aisle']}`,
+    body: (a) => pick(a, ['by']),
   },
   notifications_list: {
     method: 'GET',
@@ -230,17 +238,17 @@ const ROUTES: Record<string, Route> = {
   item_set_price: {
     method: 'PATCH',
     path: (a) => `/api/items/${a['id']}/price`,
-    body: (a) => pick(a, ['price']),
+    body: (a) => pick(a, ['price', 'by']),
   },
   item_set_section: {
     method: 'PATCH',
     path: (a) => `/api/items/${a['id']}/section`,
-    body: (a) => pick(a, ['section']),
+    body: (a) => pick(a, ['section', 'by']),
   },
   item_set_store: {
     method: 'PATCH',
     path: (a) => `/api/items/${a['id']}/store`,
-    body: (a) => pick(a, ['storeName']),
+    body: (a) => pick(a, ['storeName', 'by']),
   },
   item_set_brand: {
     method: 'PATCH',
@@ -270,11 +278,12 @@ const ROUTES: Record<string, Route> = {
   item_add_photo: {
     method: 'POST',
     path: (a) => `/api/items/${a['id']}/photos`,
-    body: (a) => pick(a, ['photo']),
+    body: (a) => pick(a, ['photo', 'by']),
   },
   item_remove_photo: {
     method: 'DELETE',
     path: (a) => `/api/items/${a['id']}/photos/${a['index']}`,
+    body: (a) => pick(a, ['by']),
   },
   item_recover: {
     method: 'POST',
@@ -298,7 +307,7 @@ const ROUTES: Record<string, Route> = {
   item_move: {
     method: 'POST',
     path: (a) => `/api/items/${a['id']}/move`,
-    body: (a) => pick(a, ['direction']),
+    body: (a) => pick(a, ['direction', 'by']),
   },
   item_delete: { method: 'DELETE', path: (a) => `/api/items/${a['id']}` },
   item_change_status: {
@@ -427,7 +436,7 @@ const ROUTES: Record<string, Route> = {
   event_create: {
     method: 'POST',
     path: () => '/api/events',
-    body: (a) => pick(a, ['title', 'date', 'time', 'allDay', 'kind', 'place', 'participants', 'note', 'recurringYearly', 'createdBy']),
+    body: (a) => pick(a, ['title', 'date', 'time', 'allDay', 'kind', 'place', 'participants', 'note', 'recurringYearly', 'reminderMinutes', 'createdBy']),
   },
   event_get: { method: 'GET', path: (a) => `/api/events/${a['id']}` },
   event_delete: { method: 'DELETE', path: (a) => `/api/events/${a['id']}` },
@@ -440,6 +449,14 @@ const ROUTES: Record<string, Route> = {
     method: 'POST',
     path: (a) => `/api/events/${a['id']}/items/remove`,
     body: (a) => pick(a, ['itemId']),
+  },
+  event_merge_to_home: {
+    method: 'POST',
+    path: (a) => `/api/events/${a['id']}/merge`,
+  },
+  event_discard_list: {
+    method: 'POST',
+    path: (a) => `/api/events/${a['id']}/discard`,
   },
   plans_list: { method: 'GET', path: () => '/api/plans' },
   plan_create: {
@@ -455,18 +472,18 @@ const ROUTES: Record<string, Route> = {
   section_create: {
     method: 'POST',
     path: () => '/api/sections',
-    body: (a) => pick(a, ['name']),
+    body: (a) => pick(a, ['name', 'by']),
   },
   section_rename: {
     method: 'PATCH',
     path: (a) => `/api/sections/${a['id']}`,
-    body: (a) => pick(a, ['name']),
+    body: (a) => pick(a, ['name', 'by']),
   },
-  section_delete: { method: 'DELETE', path: (a) => `/api/sections/${a['id']}` },
+  section_delete: { method: 'DELETE', path: (a) => `/api/sections/${a['id']}`, body: (a) => pick(a, ['by']) },
   section_move: {
     method: 'POST',
     path: (a) => `/api/sections/${a['id']}/move`,
-    body: (a) => pick(a, ['direction']),
+    body: (a) => pick(a, ['direction', 'by']),
   },
   reports_top_products: { method: 'GET', path: () => '/api/reports/top-products' },
   reports_spending: { method: 'GET', path: () => '/api/reports/spending' },

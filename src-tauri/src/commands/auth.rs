@@ -3,8 +3,16 @@ use serde::Serialize;
 use crate::domain::auth::{Session, User};
 use crate::domain::home::Role;
 use crate::error::AppError;
+use crate::persist;
 use crate::state::AppStateRef;
 use crate::store;
+
+/// Guarda el estado al instante tras una mutación de auth, para que una sesión
+/// nueva/cambiada no se pierda si la app se cierra en los segundos del guardado
+/// periódico (misma garantía que el servidor HTTP).
+fn persist_now(store: &store::AppStore) {
+    let _ = persist::save(store, &persist::default_data_path());
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +63,7 @@ pub fn auth_register(
 ) -> Result<AuthView, AppError> {
     let mut store = store::lock(&state.store)?;
     let (user, token) = store.auth.register(&name, &password, "este dispositivo")?;
+    persist_now(&store);
     Ok(AuthView {
         user: user_view(&user),
         token,
@@ -71,6 +80,7 @@ pub fn auth_login(
 ) -> Result<AuthView, AppError> {
     let mut store = store::lock(&state.store)?;
     let (user, token) = store.auth.login(&name, &password, &device)?;
+    persist_now(&store);
     Ok(AuthView {
         user: user_view(&user),
         token,
@@ -81,7 +91,9 @@ pub fn auth_login(
 #[tauri::command]
 pub fn auth_logout(state: AppStateRef, token: String) -> Result<(), AppError> {
     let mut store = store::lock(&state.store)?;
-    store.auth.revoke(&token)
+    store.auth.revoke(&token)?;
+    persist_now(&store);
+    Ok(())
 }
 
 /// Cuenta de la sesión actual (para validar un token guardado al abrir la app).
@@ -143,6 +155,7 @@ pub fn auth_revoke_session(
     }
     let is_current = target_token == token;
     store.auth.revoke(&target_token)?;
+    persist_now(&store);
     Ok(is_current)
 }
 
@@ -157,7 +170,31 @@ pub fn auth_change_password(
     let mut store = store::lock(&state.store)?;
     store
         .auth
-        .change_password(&token, &current_password, &new_password)
+        .change_password(&token, &current_password, &new_password)?;
+    persist_now(&store);
+    Ok(())
+}
+
+/// Restablece la contraseña de un miembro con la clave de respaldo del hogar
+/// (SPEC §2.5). La clave la genera el Admin; cualquiera que la conozca puede
+/// recuperar la cuenta de un miembro.
+#[tauri::command]
+pub fn auth_reset_password(
+    state: AppStateRef,
+    token: String,
+    name: String,
+    backup_key: String,
+    new_password: String,
+) -> Result<(), AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.auth.user_by_token(&token)?;
+    let home = store.home.get()?;
+    if home.backup_key != backup_key.trim() {
+        return Err(AppError::unauthorized("La clave de respaldo no es válida"));
+    }
+    store.auth.reset_password(&name, &new_password)?;
+    persist_now(&store);
+    Ok(())
 }
 
 /// Fija el PIN rápido de 4 dígitos para entrar desde un dispositivo conocido
@@ -165,14 +202,18 @@ pub fn auth_change_password(
 #[tauri::command]
 pub fn auth_set_pin(state: AppStateRef, name: String, pin: String) -> Result<(), AppError> {
     let mut store = store::lock(&state.store)?;
-    store.auth.set_pin(&name, &pin)
+    store.auth.set_pin(&name, &pin)?;
+    persist_now(&store);
+    Ok(())
 }
 
 /// Quita el PIN rápido de la cuenta.
 #[tauri::command]
 pub fn auth_remove_pin(state: AppStateRef, name: String) -> Result<(), AppError> {
     let mut store = store::lock(&state.store)?;
-    store.auth.remove_pin(&name)
+    store.auth.remove_pin(&name)?;
+    persist_now(&store);
+    Ok(())
 }
 
 /// ¿La cuenta tiene PIN configurado? (para ofrecer "Entrar con PIN").
@@ -192,6 +233,7 @@ pub fn auth_login_pin(
 ) -> Result<AuthView, AppError> {
     let mut store = store::lock(&state.store)?;
     let (user, token) = store.auth.login_pin(&name, &pin, &device)?;
+    persist_now(&store);
     Ok(AuthView {
         user: user_view(&user),
         token,

@@ -14,3 +14,14 @@
   align-items: flex-start;
   gap: var(--gp-space-2);
 }
+
+.assignRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--gp-space-3);
+  flex-wrap: wrap;
+}
+
+.assignRow > :first-child {
+  flex: 1 1 180px;
+}

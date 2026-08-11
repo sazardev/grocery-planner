@@ -53,10 +53,11 @@ export default function EventsPage() {
   const [note, setNote] = useState('')
   const [allDay, setAllDay] = useState(true)
   const [recurringYearly, setRecurringYearly] = useState(false)
+  const [reminderMinutes, setReminderMinutes] = useState('')
   const [error, setError] = useState<string | null>(null)
   useDocumentTitle('Eventos · Grocery Planner')
 
-  const eventsQuery = useQuery({ queryKey: ['events'], queryFn: listEvents })
+  const eventsQuery = useQuery({ queryKey: ['events'], queryFn: listEvents, refetchInterval: 15_000 })
 
   const goBack = useGoBack('/calendar')
 
@@ -71,6 +72,7 @@ export default function EventsPage() {
         place: place.trim() || undefined,
         note: note.trim() || undefined,
         recurringYearly,
+        reminderMinutes: reminderMinutes ? Number(reminderMinutes) : undefined,
         createdBy: ME,
       }),
     onSuccess: () => {
@@ -82,6 +84,7 @@ export default function EventsPage() {
       setNote('')
       setAllDay(true)
       setRecurringYearly(false)
+      setReminderMinutes('')
       setError(null)
     },
     onError: (err) => setError(errorMessage(err, 'No se pudo crear el evento')),
@@ -187,6 +190,13 @@ export default function EventsPage() {
             <Switch checked={allDay} onChange={setAllDay} label="Todo el día" />
             <Switch checked={recurringYearly} onChange={setRecurringYearly} label="Se repite cada año" />
           </div>
+          <Select label="Recordatorio" value={reminderMinutes} onChange={(e) => setReminderMinutes(e.target.value)}>
+            <option value="">Sin recordatorio</option>
+            <option value="60">1 hora antes</option>
+            <option value="180">3 horas antes</option>
+            <option value="1440">1 día antes</option>
+            <option value="10080">1 semana antes</option>
+          </Select>
           {error && <Alert tone="danger">{error}</Alert>}
           <Button onClick={submit} loading={createMutation.isPending} disabled={!title.trim() || !date.trim()}>
             Crear evento
