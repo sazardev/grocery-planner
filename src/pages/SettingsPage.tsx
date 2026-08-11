@@ -23,6 +23,7 @@ import NotificationsSection from '../components/settings/NotificationsSection.ts
 import PinSection from '../components/settings/PinSection.tsx'
 import BackupSection from '../components/settings/BackupSection.tsx'
 import RecoverSection from '../components/settings/RecoverSection.tsx'
+import AccountSection from '../components/settings/AccountSection.tsx'
 import styles from './SettingsPage.module.css'
 
 const THEME_TABS = [
@@ -89,6 +90,8 @@ export default function SettingsPage() {
   })
 
   const home: HomeView | undefined = homeQuery.data
+  const myRole = home?.members.find((m) => m.name === (user?.name ?? ME))?.role
+  const isAdmin = myRole === 'admin'
 
   return (
     <Stack gap="6">
@@ -161,6 +164,8 @@ export default function SettingsPage() {
         </Stack>
       </Card>
 
+      <AccountSection />
+
       <Card padding="lg">
         <Stack gap="3">
           <Text as="h2" variant="section">
@@ -194,28 +199,32 @@ export default function SettingsPage() {
               Los miembros y las invitaciones se administran en la sección{' '}
               <strong>Familia</strong>.
             </Text>
-            <div className={styles.line}>
-              <Text variant="note" tone="secondary">
-                <KeyRound size={14} aria-hidden="true" /> Clave de respaldo
-              </Text>
-              <Text variant="note" tone="secondary" numeric>
-                {home.backupKey}
-              </Text>
-            </div>
-            <Text as="p" variant="note" tone="secondary">
-              Con esta clave cualquiera puede recuperar su cuenta si olvida la
-              contraseña. Guárdala en un lugar seguro.
-            </Text>
-            <div className={styles.line}>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => regenKeyMutation.mutate()}
-                loading={regenKeyMutation.isPending}
-              >
-                Regenerar clave
-              </Button>
-            </div>
+            {isAdmin && (
+              <>
+                <div className={styles.line}>
+                  <Text variant="note" tone="secondary">
+                    <KeyRound size={14} aria-hidden="true" /> Clave de respaldo
+                  </Text>
+                  <Text variant="note" tone="secondary" numeric>
+                    {home.backupKey}
+                  </Text>
+                </div>
+                <Text as="p" variant="note" tone="secondary">
+                  Con esta clave cualquiera puede recuperar su cuenta si olvida la
+                  contraseña. Guárdala en un lugar seguro.
+                </Text>
+                <div className={styles.line}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => regenKeyMutation.mutate()}
+                    loading={regenKeyMutation.isPending}
+                  >
+                    Regenerar clave
+                  </Button>
+                </div>
+              </>
+            )}
           </Stack>
         </Card>
       ) : (

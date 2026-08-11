@@ -1,12 +1,13 @@
 import type { HomeView, Invitation, Member, Role } from '../../domain/home'
 import { request } from './transport'
+import { ME } from '../me'
 
 export function createHome(name: string, owner: string): Promise<HomeView> {
   return request<HomeView>('home_create', { name, owner })
 }
 
 export function getHome(): Promise<HomeView> {
-  return request<HomeView>('home_info')
+  return request<HomeView>('home_info', { by: ME })
 }
 
 export function addHomeMember(name: string, role: Role, by: string): Promise<Member> {

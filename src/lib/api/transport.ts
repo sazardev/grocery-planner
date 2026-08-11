@@ -62,6 +62,11 @@ const ROUTES: Record<string, Route> = {
     path: () => '/api/auth/password',
     body: (a) => pick(a, ['currentPassword', 'newPassword']),
   },
+  auth_update_profile: {
+    method: 'POST',
+    path: () => '/api/auth/profile',
+    body: (a) => pick(a, ['alias', 'avatar', 'token']),
+  },
   auth_reset_password: {
     method: 'POST',
     path: () => '/api/auth/password/reset',
@@ -86,6 +91,12 @@ const ROUTES: Record<string, Route> = {
     path: () => '/api/auth/login-pin',
     body: (a) => pick(a, ['name', 'pin', 'device']),
   },
+  auth_host_login: {
+    method: 'POST',
+    path: () => '/api/auth/host-login',
+    body: (a) => pick(a, ['hostKey', 'device']),
+  },
+  host_mode: { method: 'GET', path: () => '/api/host-mode' },
   chat_list: { method: 'GET', path: () => '/api/chat' },
   chat_page: {
     method: 'GET',
@@ -111,6 +122,10 @@ const ROUTES: Record<string, Route> = {
     },
   },
   chat_count: { method: 'GET', path: () => '/api/chat/count' },
+  chat_for_item: {
+    method: 'GET',
+    path: (a) => `/api/chat/item/${encodeURIComponent(String(a['itemId']))}`,
+  },
   chat_send: {
     method: 'POST',
     path: () => '/api/chat',
@@ -123,6 +138,16 @@ const ROUTES: Record<string, Route> = {
   },
   chat_pin: { method: 'POST', path: (a) => `/api/chat/${a['id']}/pin` },
   rules_get: { method: 'GET', path: () => '/api/rules' },
+  rules_host_key_generate: {
+    method: 'POST',
+    path: () => '/api/rules/host-key',
+    body: (a) => pick(a, ['by']),
+  },
+  rules_host_key_clear: {
+    method: 'DELETE',
+    path: () => '/api/rules/host-key',
+    body: (a) => pick(a, ['by']),
+  },
   rules_update: {
     method: 'PATCH',
     path: () => '/api/rules',
@@ -218,17 +243,22 @@ const ROUTES: Record<string, Route> = {
     body: (a) => pick(a, ['data']),
   },
   items_list: { method: 'GET', path: () => '/api/items' },
+  items_complete_batch: {
+    method: 'POST',
+    path: () => '/api/items/complete-batch',
+    body: (a) => pick(a, ['by']),
+  },
   item_get: { method: 'GET', path: (a) => `/api/items/${a['id']}` },
   item_history: { method: 'GET', path: (a) => `/api/items/${a['id']}/history` },
   item_create: {
     method: 'POST',
     path: () => '/api/items',
-    body: (a) => pick(a, ['name', 'quantity', 'unit', 'priority', 'requestedBy', 'note', 'category', 'price', 'section', 'brand', 'quantityMax', 'fallbacks']),
+    body: (a) => pick(a, ['name', 'quantity', 'unit', 'priority', 'requestedBy', 'note', 'category', 'price', 'section', 'store', 'brand', 'quantityMax', 'fallbacks']),
   },
   items_query: {
     method: 'POST',
     path: () => '/api/items/query',
-    body: (a) => pick(a, ['search', 'status', 'category', 'priority', 'section', 'requestedBy', 'assignedTo', 'store', 'urgent', 'onlyComments', 'onlyPhotos', 'sort']),
+    body: (a) => pick(a, ['search', 'status', 'category', 'priority', 'section', 'requestedBy', 'assignedTo', 'store', 'aisle', 'createdFrom', 'createdTo', 'urgent', 'onlyComments', 'onlyPhotos', 'sort']),
   },
   item_add_comment: {
     method: 'POST',
@@ -249,6 +279,11 @@ const ROUTES: Record<string, Route> = {
     method: 'PATCH',
     path: (a) => `/api/items/${a['id']}/store`,
     body: (a) => pick(a, ['storeName', 'by']),
+  },
+  item_set_aisle: {
+    method: 'PATCH',
+    path: (a) => `/api/items/${a['id']}/aisle`,
+    body: (a) => pick(a, ['aisle', 'by']),
   },
   item_set_brand: {
     method: 'PATCH',
@@ -309,7 +344,16 @@ const ROUTES: Record<string, Route> = {
     path: (a) => `/api/items/${a['id']}/move`,
     body: (a) => pick(a, ['direction', 'by']),
   },
-  item_delete: { method: 'DELETE', path: (a) => `/api/items/${a['id']}` },
+  item_delete: {
+    method: 'DELETE',
+    path: (a) => `/api/items/${a['id']}`,
+    body: (a) => pick(a, ['by']),
+  },
+  item_delete_permanent: {
+    method: 'DELETE',
+    path: (a) => `/api/items/${a['id']}/permanent`,
+    body: (a) => pick(a, ['by']),
+  },
   item_change_status: {
     method: 'PATCH',
     path: (a) => `/api/items/${a['id']}/status`,
@@ -340,6 +384,11 @@ const ROUTES: Record<string, Route> = {
     method: 'POST',
     path: () => '/api/parse-quick-entry',
     body: (a) => pick(a, ['text']),
+  },
+  items_suggest: {
+    method: 'POST',
+    path: () => '/api/items/suggest',
+    body: (a) => pick(a, ['query']),
   },
   validate_new_item: {
     method: 'POST',
@@ -439,6 +488,11 @@ const ROUTES: Record<string, Route> = {
     body: (a) => pick(a, ['title', 'date', 'time', 'allDay', 'kind', 'place', 'participants', 'note', 'recurringYearly', 'reminderMinutes', 'createdBy']),
   },
   event_get: { method: 'GET', path: (a) => `/api/events/${a['id']}` },
+  event_update: {
+    method: 'PATCH',
+    path: (a) => `/api/events/${a['id']}`,
+    body: (a) => pick(a, ['by', 'title', 'date', 'time', 'allDay', 'kind', 'place', 'participants', 'note', 'recurringYearly', 'reminderMinutes']),
+  },
   event_delete: { method: 'DELETE', path: (a) => `/api/events/${a['id']}` },
   event_add_item: {
     method: 'POST',
@@ -485,8 +539,20 @@ const ROUTES: Record<string, Route> = {
     path: (a) => `/api/sections/${a['id']}/move`,
     body: (a) => pick(a, ['direction', 'by']),
   },
-  reports_top_products: { method: 'GET', path: () => '/api/reports/top-products' },
-  reports_spending: { method: 'GET', path: () => '/api/reports/spending' },
+  reports_top_products: {
+    method: 'GET',
+    path: (a) => {
+      const qs = a['window'] ? `?window=${encodeURIComponent(String(a['window']))}` : ''
+      return `/api/reports/top-products${qs}`
+    },
+  },
+  reports_spending: {
+    method: 'GET',
+    path: (a) => {
+      const qs = a['window'] ? `?window=${encodeURIComponent(String(a['window']))}` : ''
+      return `/api/reports/spending${qs}`
+    },
+  },
   reports_trips_by_member: { method: 'GET', path: () => '/api/reports/trips-by-member' },
   reports_projection: { method: 'GET', path: () => '/api/reports/projection' },
 }

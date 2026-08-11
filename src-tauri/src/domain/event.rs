@@ -129,6 +129,76 @@ impl Event {
     pub fn in_range(&self, start: &str, end: &str) -> bool {
         self.date >= start.to_string() && self.date <= end.to_string()
     }
+
+    /// Edita campos opcionales del evento (SPEC §9.3). `None` = no tocar;
+    /// `reminder_minutes: Some(None)` = quitar el recordatorio.
+    #[allow(clippy::too_many_arguments)]
+    pub fn update(
+        &mut self,
+        title: Option<&str>,
+        date: Option<&str>,
+        time: Option<&str>,
+        all_day: Option<bool>,
+        kind: Option<EventType>,
+        place: Option<&str>,
+        participants: Option<&[String]>,
+        note: Option<&str>,
+        recurring_yearly: Option<bool>,
+        reminder_minutes: Option<Option<i64>>,
+        _by: &str,
+    ) -> Result<(), AppError> {
+        if let Some(title) = title {
+            let title = title.trim();
+            if title.is_empty() {
+                return Err(AppError::invalid_input(
+                    "El título del evento es obligatorio",
+                ));
+            }
+            self.title = title.to_string();
+        }
+        if let Some(date) = date {
+            time::Date::parse(date.trim(), DATE_FMT).map_err(|_| {
+                AppError::invalid_input(format!("Fecha inválida (se espera AAAA-MM-DD): {date}"))
+            })?;
+            self.date = date.trim().to_string();
+        }
+        if let Some(time) = time {
+            let t = time.trim();
+            self.time = if t.is_empty() {
+                None
+            } else {
+                time::Time::parse(t, TIME_FMT)
+                    .map_err(|_| AppError::invalid_input(format!("Hora inválida (se espera HH:MM): {t}")))?;
+                Some(t.to_string())
+            };
+        }
+        if let Some(all_day) = all_day {
+            self.all_day = all_day;
+        }
+        if let Some(kind) = kind {
+            self.kind = kind;
+        }
+        if let Some(place) = place {
+            self.place = opt_str(Some(place));
+        }
+        if let Some(participants) = participants {
+            self.participants = participants
+                .iter()
+                .map(|p| p.trim().to_string())
+                .filter(|p| !p.is_empty())
+                .collect();
+        }
+        if let Some(note) = note {
+            self.note = opt_str(Some(note));
+        }
+        if let Some(recurring) = recurring_yearly {
+            self.recurring_yearly = recurring;
+        }
+        if let Some(reminder) = reminder_minutes {
+            self.reminder_minutes = reminder;
+        }
+        Ok(())
+    }
 }
 
 fn opt_str(s: Option<&str>) -> Option<String> {

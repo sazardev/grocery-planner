@@ -67,7 +67,8 @@ export default function FamilyPage() {
     refetchInterval: 15_000,
   })
 
-  const online = (presence.data ?? []).filter((p) => p.online)
+  const presenceUsers = presence.data ?? []
+  const online = presenceUsers.filter((p) => p.online)
 
   const upcoming = useMemo(() => {
     const today = todayISO()
@@ -114,7 +115,7 @@ export default function FamilyPage() {
         </div>
         {online.length > 0 && (
           <div className={styles.presence}>
-            <PresenceStrip users={online} />
+            <PresenceStrip users={presenceUsers} />
           </div>
         )}
       </header>

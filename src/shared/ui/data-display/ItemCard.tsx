@@ -15,6 +15,10 @@ interface ItemCardProps {
   requestedBy: string
   requestedBySrc?: string
   assignedTo?: string
+  store?: string
+  aisle?: string
+  commentCount?: number
+  photoCount?: number
   note?: string
   status?: ItemCardStatus
   urgent?: boolean
@@ -42,6 +46,10 @@ export default function ItemCard({
   requestedBy,
   requestedBySrc,
   assignedTo,
+  store,
+  aisle,
+  commentCount,
+  photoCount,
   note,
   status,
   urgent = false,
@@ -123,6 +131,20 @@ export default function ItemCard({
           {assignedTo && <span className={styles.assign}> · lleva {assignedTo}</span>}
         </span>
       </div>
+
+      {(store || aisle) && (
+        <Text variant="note" tone="tertiary" truncate>
+          {[store, aisle].filter(Boolean).join(' › ')}
+        </Text>
+      )}
+
+      {(!!photoCount || !!commentCount) && (
+        <Text variant="note" tone="tertiary">
+          {[photoCount ? `📷 ${photoCount}` : '', commentCount ? `💬 ${commentCount}` : '']
+            .filter(Boolean)
+            .join(' · ')}
+        </Text>
+      )}
 
       {note && (
         <Text variant="note" tone="tertiary" truncate>

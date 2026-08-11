@@ -45,18 +45,25 @@ pub struct Projection {
     pub confirmed: Option<bool>,
 }
 
-/// Productos más comprados, según el historial de ítems (SPEC §8.2).
+/// Productos más comprados, según el historial (SPEC §8.2), en la ventana.
 #[tauri::command]
-pub fn reports_top_products(state: AppStateRef) -> Result<Vec<TopProduct>, AppError> {
+pub fn reports_top_products(
+    state: AppStateRef,
+    window: Option<String>,
+) -> Result<Vec<TopProduct>, AppError> {
     let store = store::lock(&state.store)?;
-    Ok(compute_top_products(&store))
+    Ok(compute_top_products(&store, window.as_deref()))
 }
 
-/// Gasto total aproximado de lo comprado (precio registrado, SPEC §8.2).
+/// Gasto aproximado de lo comprado (precio registrado, SPEC §8.2), en la ventana.
+/// Suma los precios de las compras reales del historial (no solo el estado actual).
 #[tauri::command]
-pub fn reports_spending(state: AppStateRef) -> Result<SpendingReport, AppError> {
+pub fn reports_spending(
+    state: AppStateRef,
+    window: Option<String>,
+) -> Result<SpendingReport, AppError> {
     let store = store::lock(&state.store)?;
-    Ok(compute_spending(&store))
+    Ok(compute_spending(&store, window.as_deref()))
 }
 
 /// Cuántos mandados completados hizo cada quien (SPEC §8.2).
@@ -74,14 +81,49 @@ pub fn reports_projection(state: AppStateRef) -> Result<Vec<Projection>, AppErro
     Ok(compute_projection(&store))
 }
 
-pub fn compute_top_products(store: &AppStore) -> Vec<TopProduct> {
+/// Ventana de tiempo para los reportes (SPEC §7.3/§8.2). `None` = todo.
+/// Devuelve `(desde, hasta)` en UTC.
+fn window_range(window: Option<&str>) -> Option<(time::OffsetDateTime, time::OffsetDateTime)> {
+    use time::{Date, Month, OffsetDateTime};
+    let now = OffsetDateTime::now_utc();
+    let start = |d: Date| d.with_time(time::Time::MIDNIGHT).assume_utc();
+    let end = |d: Date| -> Option<time::OffsetDateTime> {
+        let t = time::Time::from_hms(23, 59, 59).ok()?;
+        Some(d.with_time(t).assume_utc())
+    };
+    match window.unwrap_or("") {
+        "" => None,
+        "hoy" => Some((start(now.date()), end(now.date())?)),
+        "7d" => Some((start(now.date() - time::Duration::days(6)), now)),
+        "30d" => Some((start(now.date() - time::Duration::days(29)), now)),
+        "semana" => {
+            let today = now.date();
+            let monday = today - time::Duration::days(today.weekday().number_from_monday() as i64 - 1);
+            Some((start(monday), now))
+        }
+        "mes" => {
+            let today = now.date();
+            let first = Date::from_calendar_date(today.year(), today.month(), 1).ok()?;
+            Some((start(first), now))
+        }
+        "anio" => {
+            let today = now.date();
+            let first = Date::from_calendar_date(today.year(), Month::January, 1).ok()?;
+            Some((start(first), now))
+        }
+        _ => None,
+    }
+}
+
+pub fn compute_top_products(store: &AppStore, window: Option<&str>) -> Vec<TopProduct> {
+    let range = window_range(window);
     let mut counts: Vec<TopProduct> = store
         .items
         .list()
         .iter()
         .map(|item| TopProduct {
             name: item.name.clone(),
-            times_bought: bought_count(item),
+            times_bought: bought_count(item, range),
         })
         .filter(|p| p.times_bought > 0)
         .collect();
@@ -89,15 +131,24 @@ pub fn compute_top_products(store: &AppStore) -> Vec<TopProduct> {
     counts
 }
 
-pub fn compute_spending(store: &AppStore) -> SpendingReport {
+pub fn compute_spending(store: &AppStore, window: Option<&str>) -> SpendingReport {
+    let range = window_range(window);
     let (total, items_count) = store
         .items
         .list()
         .iter()
-        .filter(|it| it.status == ItemStatus::Comprado)
-        .fold((0.0, 0), |(total, count), it| match it.price {
-            Some(price) => (total + price, count + 1),
-            None => (total, count),
+        .fold((0.0, 0u32), |(total, count), it| {
+            let buys = buy_times(it, range);
+            let n = buys.len();
+            if n > 0 {
+                if let Some(price) = it.price {
+                    (total + price * n as f64, count + n as u32)
+                } else {
+                    (total, count + n as u32)
+                }
+            } else {
+                (total, count)
+            }
         });
     SpendingReport {
         total,
@@ -182,14 +233,32 @@ fn project(
     })
 }
 
-fn bought_count(item: &GroceryItem) -> u32 {
+/// Fechas en las que el ítem se compró dentro de la ventana (opcional).
+fn buy_times(
+    item: &GroceryItem,
+    range: Option<(time::OffsetDateTime, time::OffsetDateTime)>,
+) -> Vec<time::OffsetDateTime> {
     item.history
         .iter()
-        .filter(|ev| {
-            matches!(
-                &ev.kind,
-                ItemEventKind::StatusChanged { to: ItemStatus::Comprado, .. }
-            )
+        .filter_map(|ev| match &ev.kind {
+            ItemEventKind::StatusChanged { to: ItemStatus::Comprado, .. } => {
+                let t = time::OffsetDateTime::parse(
+                    &ev.at,
+                    &time::format_description::well_known::Rfc3339,
+                )
+                .ok()?;
+                if let Some((from, to)) = range {
+                    if t < from || t > to {
+                        return None;
+                    }
+                }
+                Some(t)
+            }
+            _ => None,
         })
-        .count() as u32
+        .collect()
+}
+
+fn bought_count(item: &GroceryItem, range: Option<(time::OffsetDateTime, time::OffsetDateTime)>) -> u32 {
+    buy_times(item, range).len() as u32
 }

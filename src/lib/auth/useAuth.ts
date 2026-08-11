@@ -11,6 +11,8 @@ export interface AuthContextValue {
   signInWithPin: (name: string, pin: string) => Promise<void>
   signUp: (name: string, password: string) => Promise<void>
   signOut: () => Promise<void>
+  /** Entrada del quiosco con la llave del modo host (SPEC §2.3). */
+  hostSignIn: (hostKey: string) => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

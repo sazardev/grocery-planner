@@ -6,6 +6,8 @@ export type NotificationKind =
   | 'mention'
   | 'event_reminder'
   | 'projection'
+  | 'daily_summary'
+  | 'weekly_summary'
 
 export interface AppNotification {
   id: string
@@ -26,4 +28,6 @@ export const NOTIFICATION_KIND_LABEL: Record<NotificationKind, string> = {
   mention: 'Mención',
   event_reminder: 'Evento',
   projection: 'Proyección',
+  daily_summary: 'Resumen diario',
+  weekly_summary: 'Resumen semanal',
 }

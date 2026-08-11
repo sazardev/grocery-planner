@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { getNotificationSettings, updateNotificationSettings } from '../../lib/api'
 import { ME } from '../../lib/me'
 import type { NotificationSettings } from '../../domain/rules'
+import { EVENT_TYPE_LABEL, type EventType } from '../../domain/event'
 import Text from '../../shared/ui/primitives/Text.tsx'
 import Skeleton from '../../shared/ui/primitives/Skeleton.tsx'
 import Alert from '../../shared/ui/feedback/Alert.tsx'
+import Chip from '../../shared/ui/primitives/Chip.tsx'
 import { Button, Card, Input, Stack, Switch } from '../../shared/ui/index.ts'
 import { BellRing } from 'lucide-react'
 
@@ -22,6 +24,8 @@ const SWITCHES: { key: keyof NotificationSettings; label: string }[] = [
   { key: 'dailySummary', label: 'Resumen diario (lo que falta hoy)' },
   { key: 'weeklySummary', label: 'Resumen semanal (lo que faltará)' },
 ]
+
+const EVENT_TYPES: EventType[] = ['cumpleanos', 'union', 'comida', 'celebracion', 'reunion', 'mandado']
 
 export default function NotificationsSection() {
   const queryClient = useQueryClient()
@@ -66,6 +70,23 @@ export default function NotificationsSection() {
           ))}
         </Stack>
 
+        {settings.dailySummary && (
+          <Input
+            type="time"
+            label="Hora del resumen diario"
+            value={settings.dailySummaryHour ?? ''}
+            onChange={(e) => update.mutate({ dailySummaryHour: e.target.value || undefined })}
+          />
+        )}
+        {settings.weeklySummary && (
+          <Input
+            type="time"
+            label="Hora del resumen semanal"
+            value={settings.weeklySummaryHour ?? ''}
+            onChange={(e) => update.mutate({ weeklySummaryHour: e.target.value || undefined })}
+          />
+        )}
+
         <div className="switchRow" style={{ display: 'flex', gap: 'var(--gp-space-3)' }}>
           <Input
             type="time"
@@ -84,6 +105,31 @@ export default function NotificationsSection() {
             }
           />
         </div>
+
+        <Stack gap="2">
+          <Text as="p" variant="note" tone="secondary">
+            Recibir recordatorios de (vacío = todos):
+          </Text>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--gp-space-2)' }}>
+            {EVENT_TYPES.map((t) => {
+              const active = settings.eventTypes.length === 0 || settings.eventTypes.includes(t)
+              return (
+                <Chip
+                  key={t}
+                  tone={active ? 'default' : 'muted'}
+                  onClick={() => {
+                    const next = active
+                      ? settings.eventTypes.filter((x) => x !== t)
+                      : [...settings.eventTypes, t]
+                    update.mutate({ eventTypes: next })
+                  }}
+                >
+                  {EVENT_TYPE_LABEL[t]}
+                </Chip>
+              )
+            })}
+          </div>
+        </Stack>
       </Stack>
     </Card>
   )

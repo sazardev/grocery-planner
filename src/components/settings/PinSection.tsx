@@ -30,7 +30,7 @@ export default function PinSection() {
   }
 
   const setMutation = useMutation({
-    mutationFn: () => setPin(ME, pin),
+    mutationFn: () => setPin(ME, pin, ME),
     onSuccess: () => {
       invalidate()
       setDone(true)
@@ -40,7 +40,7 @@ export default function PinSection() {
   })
 
   const removeMutation = useMutation({
-    mutationFn: () => removePin(ME),
+    mutationFn: () => removePin(ME, ME),
     onSuccess: invalidate,
   })
 

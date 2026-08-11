@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { listEventsInRange, listPlans, listTrips } from '../lib/api'
+import { listEventsInRange, listPlans, listTrips, presenceHeartbeat } from '../lib/api'
+import { ME } from '../lib/me'
+import PresenceStrip from '../components/PresenceStrip.tsx'
 import { Card, Chip, Stack, Text } from '../shared/ui/index.ts'
 import IconButton from '../shared/ui/primitives/IconButton.tsx'
 import Button from '../shared/ui/primitives/Button.tsx'
@@ -61,6 +63,14 @@ export default function CalendarPage() {
   })
   const plansQuery = useQuery({ queryKey: ['calendar', 'plans'], queryFn: listPlans, refetchInterval: 15_000 })
   const tripsQuery = useQuery({ queryKey: ['calendar', 'trips'], queryFn: listTrips, refetchInterval: 15_000 })
+
+  const presence = useQuery({
+    queryKey: ['calendar', 'presence'],
+    queryFn: () => presenceHeartbeat(ME),
+    refetchInterval: 15_000,
+  })
+  const presenceUsers = presence.data ?? []
+  const online = presenceUsers.filter((p) => p.online)
 
   const items = useMemo<CalendarItem[]>(() => {
     const out: CalendarItem[] = []
@@ -148,6 +158,7 @@ export default function CalendarPage() {
             Calendario familiar
           </Text>
           <div className={styles.headerSpacer} />
+          {online.length > 0 && <PresenceStrip users={presenceUsers} />}
           <Button size="sm" onClick={() => navigate(`/events?date=${anchor}`)}>
             <Plus size={16} strokeWidth={2.5} aria-hidden="true" /> Evento
           </Button>

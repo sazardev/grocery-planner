@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { login as apiLogin, loginPin as apiLoginPin, logout as apiLogout, me, registerAccount } from '../api'
+import { hostLogin as apiHostLogin, login as apiLogin, loginPin as apiLoginPin, logout as apiLogout, me, registerAccount } from '../api'
 import { onUnauthorized } from '../api/transport'
 import { setMe } from '../me'
 import { loadToken, clearToken, saveToken } from './storage'
@@ -101,6 +101,15 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setStatus('authenticated')
     }
 
+    async function hostSignIn(hostKey: string): Promise<void> {
+      const view = await apiHostLogin(hostKey, 'quiosco')
+      queryClient.clear()
+      applySession(view.token, view.user)
+      setUser(view.user)
+      setToken(view.token)
+      setStatus('authenticated')
+    }
+
     async function signOut(): Promise<void> {
       if (token) {
         apiLogout(token).catch(() => {
@@ -115,7 +124,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setMe(null)
     }
 
-    return { status, user, token, signIn, signInWithPin, signUp, signOut }
+    return { status, user, token, signIn, signInWithPin, signUp, signOut, hostSignIn }
   }, [status, user, token, queryClient])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

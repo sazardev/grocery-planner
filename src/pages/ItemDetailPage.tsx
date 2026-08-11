@@ -10,6 +10,7 @@ import {
   unassignItem,
   changeItemStatus,
   deleteItem,
+  getChatForItem,
   getHome,
   getItem,
   getItemHistory,
@@ -24,6 +25,7 @@ import {
   setItemQuantityMax,
   setItemSection,
   setItemStore,
+  setItemAisle,
   updateItem,
   applyItemFallback,
 } from '../lib/api'
@@ -68,6 +70,20 @@ function historyText(kind: ItemEventKind): string {
       return `no había ${kind.from}; usó ${kind.to}`
     case 'fallbacks_changed':
       return 'cambió las alternativas'
+    case 'price_changed':
+      return `puso precio de ${kind.price}`
+    case 'section_changed':
+      return `la movió a la sección ${kind.section}`
+    case 'store_changed':
+      return `dijo que se consigue en ${kind.store}`
+    case 'aisle_changed':
+      return kind.aisle ? `la puso en el pasillo ${kind.aisle}` : 'le quitó el pasillo'
+    case 'photos_changed':
+      return 'cambió las fotos'
+    case 'deleted':
+      return 'lo movió a la papelera'
+    case 'recovered':
+      return 'lo recuperó a la lista'
   }
 }
 
@@ -94,10 +110,15 @@ export default function ItemDetailPage() {
   const sectionsQuery = useQuery({ queryKey: ['sections'], queryFn: listSections })
   const rulesQuery = useQuery({ queryKey: ['rules'], queryFn: getRules })
   const historyQuery = useQuery({
-    queryKey: ['item', id, 'history'],
+    queryKey: ['item-history', id],
     queryFn: () => getItemHistory(id ?? ''),
     enabled: Boolean(id),
-    refetchInterval: 20_000,
+  })
+  const itemChatQuery = useQuery({
+    queryKey: ['item-chat', id],
+    queryFn: () => getChatForItem(id ?? ''),
+    enabled: Boolean(id),
+    refetchInterval: 15_000,
   })
 
   useMeta({
@@ -120,6 +141,7 @@ export default function ItemDetailPage() {
   const [assignedTo, setAssignedTo] = useState('')
   const [section, setSection] = useState('')
   const [store, setStore] = useState('')
+  const [aisle, setAisle] = useState('')
   const [commentBody, setCommentBody] = useState('')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -169,6 +191,7 @@ export default function ItemDetailPage() {
     setAssignedTo(item.assignedTo ?? '')
     setSection(item.section ?? '')
     setStore(item.store ?? '')
+    setAisle(item.aisle ?? '')
     setLoadedFor(item.id)
     setSaved(false)
   }
@@ -201,7 +224,7 @@ export default function ItemDetailPage() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteItem(item!.id),
+    mutationFn: () => deleteItem(item!.id, ME),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] })
       navigate('/home')
@@ -264,6 +287,11 @@ export default function ItemDetailPage() {
   })
   const storeMutation = useMutation({
     mutationFn: (storeName: string) => setItemStore(item!.id, storeName, ME),
+    onSuccess: invalidateItem,
+  })
+
+  const aisleMutation = useMutation({
+    mutationFn: (value: string) => setItemAisle(item!.id, value, ME),
     onSuccess: invalidateItem,
   })
 
@@ -561,6 +589,29 @@ export default function ItemDetailPage() {
               </Select>
             </Field>
           )}
+
+          {store && (
+            <Field label="Pasillo">
+              <Input
+                list="item-aisles"
+                value={aisle}
+                placeholder="ej. Lácteos"
+                onChange={(e) => {
+                  const value = e.target.value
+                  setAisle(value)
+                  aisleMutation.mutate(value)
+                }}
+                aria-label="Pasillo del ítem"
+              />
+              <datalist id="item-aisles">
+                {rulesQuery.data?.stores
+                  .find((s) => s.name === store)
+                  ?.aisles.map((a) => (
+                    <option key={a} value={a} />
+                  ))}
+              </datalist>
+            </Field>
+          )}
         </Stack>
       </Card>
 
@@ -744,11 +795,13 @@ export default function ItemDetailPage() {
         </div>
       </section>
 
-      {item.status === 'cancelado' && (
+      {(item.status === 'cancelado' || item.deleted) && (
         <Alert tone="info">
           <div className={styles.recoverRow}>
             <Text variant="note">
-              Cancelado por error? Tráelo de vuelta a la lista con su historial intacto.
+              {item.deleted
+                ? 'Este ítem está en la papelera. Recupéralo a la lista con su historial intacto.'
+                : '¿Cancelado por error? Tráelo de vuelta a la lista con su historial intacto.'}
             </Text>
             <Button size="sm" onClick={() => recoverMutation.mutate()} loading={recoverMutation.isPending}>
               <Undo2 size={14} aria-hidden="true" /> Recuperar
@@ -814,19 +867,29 @@ export default function ItemDetailPage() {
           <History size={16} aria-hidden="true" /> Historial
         </Text>
         <Stack gap="2">
-          {history.length === 0 ? (
+          {history.length === 0 && (itemChatQuery.data ?? []).length === 0 ? (
             <Text variant="note" tone="secondary">
               Sin movimientos todavía.
             </Text>
           ) : (
-            history.map((ev, i) => (
-              <div key={i} className={styles.historyRow}>
-                <span className={styles.historyDot} />
-                <Text variant="note" tone="secondary">
-                  <strong>{ev.by}</strong> {historyText(ev.kind)} · {formatTime(ev.at)}
-                </Text>
-              </div>
-            ))
+            <>
+              {history.map((ev, i) => (
+                <div key={i} className={styles.historyRow}>
+                  <span className={styles.historyDot} />
+                  <Text variant="note" tone="secondary">
+                    <strong>{ev.by}</strong> {historyText(ev.kind)} · {formatTime(ev.at)}
+                  </Text>
+                </div>
+              ))}
+              {(itemChatQuery.data ?? []).map((m) => (
+                <div key={m.id} className={styles.historyRow}>
+                  <span className={styles.historyDot} />
+                  <Text variant="note" tone="secondary">
+                    <strong>{m.by}</strong> en el chat: “{m.body}” · {formatTime(m.at)}
+                  </Text>
+                </div>
+              ))}
+            </>
           )}
         </Stack>
       </section>

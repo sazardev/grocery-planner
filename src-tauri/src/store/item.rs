@@ -30,6 +30,12 @@ impl ItemStore {
         items
     }
 
+    /// Ítems visibles en la lista (excluye los eliminados, SPEC §8). El
+    /// historial/reportes usan `list()` completo.
+    pub fn active(&self) -> Vec<GroceryItem> {
+        self.list().into_iter().filter(|i| !i.deleted).collect()
+    }
+
     pub fn get(&self, id: &str) -> Result<GroceryItem, AppError> {
         self.items
             .get(id)
@@ -49,6 +55,27 @@ impl ItemStore {
             .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
         item.change_status(to, by)?;
         Ok(item.clone())
+    }
+
+    /// Marca de golpe todo lo que está "ya lo llevo" como comprado (SPEC §5.1:
+    /// "al pagar marca todo como comprado"). Devuelve los ítems cambiados.
+    pub fn complete_carried(&mut self, by: &str) -> Result<Vec<GroceryItem>, AppError> {
+        let ids: Vec<String> = self
+            .items
+            .values()
+            .filter(|i| i.status == ItemStatus::Llevo)
+            .map(|i| i.id.clone())
+            .collect();
+        let mut changed = Vec::new();
+        for id in ids {
+            let item = self
+                .items
+                .get_mut(&id)
+                .expect("id recopilado del propio mapa");
+            item.change_status(ItemStatus::Comprado, by)?;
+            changed.push(item.clone());
+        }
+        Ok(changed)
     }
 
     pub fn assign(&mut self, id: &str, member: &str, by: &str) -> Result<GroceryItem, AppError> {
@@ -177,12 +204,33 @@ impl ItemStore {
         Ok(self.items.get(id).unwrap().clone())
     }
 
-    /// Elimina un ítem de la lista (SPEC §3.1: "quitar"; sin persistencia real en fase 1).
-    pub fn delete(&mut self, id: &str) -> Result<(), AppError> {
-        self.items
-            .remove(id)
-            .map(|_| ())
-            .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))
+    /// "Elimina" un ítem de la lista (SPEC §8: soft delete, nada se borra de
+    /// verdad; el historial y los reportes lo conservan).
+    pub fn delete(&mut self, id: &str, by: &str) -> Result<(), AppError> {
+        let item = self
+            .items
+            .get_mut(id)
+            .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
+        item.delete(by)
+    }
+
+    /// Borrado físico: elimina el ítem del store por completo (limpieza real,
+    /// no la usa la UI normal). Requiere confirmación explícita del usuario.
+    pub fn delete_permanent(&mut self, id: &str) -> Result<(), AppError> {
+        if self.items.remove(id).is_none() {
+            return Err(AppError::not_found(format!("Ítem {id} no encontrado")));
+        }
+        Ok(())
+    }
+
+    /// Recupera un ítem de la papelera o un cancelado (SPEC §8.2).
+    pub fn recover(&mut self, id: &str, by: &str) -> Result<GroceryItem, AppError> {
+        let item = self
+            .items
+            .get_mut(id)
+            .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
+        item.recover(by)?;
+        Ok(item.clone())
     }
 
     /// Agrega un comentario al ítem (SPEC §4.6 y §11.3).
@@ -232,6 +280,15 @@ impl ItemStore {
             .get_mut(id)
             .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
         item.set_store(store, by)?;
+        Ok(item.clone())
+    }
+
+    pub fn set_aisle(&mut self, id: &str, aisle: &str, by: &str) -> Result<GroceryItem, AppError> {
+        let item = self
+            .items
+            .get_mut(id)
+            .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
+        item.set_aisle(aisle, by)?;
         Ok(item.clone())
     }
 
@@ -338,7 +395,7 @@ impl ItemStore {
         let mut items: Vec<GroceryItem> = self
             .items
             .values()
-            .filter(|it| matches(q, it))
+            .filter(|it| !it.deleted && matches(q, it))
             .cloned()
             .collect();
         sort_items(&mut items, q.sort);
@@ -376,6 +433,12 @@ fn sort_items(items: &mut [GroceryItem], sort: Option<ItemSort>) {
             .as_deref()
             .unwrap_or("")
             .cmp(b.store.as_deref().unwrap_or("")),
+        ItemSort::Aisle => {
+            let by = |it: &GroceryItem| {
+                (it.store.as_deref().unwrap_or("").to_string(), it.aisle.clone())
+            };
+            by(a).cmp(&by(b))
+        }
     });
 }
 
@@ -400,6 +463,7 @@ pub enum ItemSort {
     RequestedBy,
     Price,
     Store,
+    Aisle,
 }
 
 /// Filtros de búsqueda de la lista de compras (SPEC §4.5).
@@ -413,6 +477,10 @@ pub struct ItemQuery {
     pub requested_by: Option<String>,
     pub assigned_to: Option<String>,
     pub store: Option<String>,
+    pub aisle: Option<String>,
+    /// Ventana de fecha: límites ISO RFC3339 del `created_at` (SPEC §4.5).
+    pub created_from: Option<String>,
+    pub created_to: Option<String>,
     pub urgent: bool,
     pub only_comments: bool,
     /// Solo ítems con foto (SPEC §4.5 y §10).
@@ -456,7 +524,21 @@ fn matches(q: &ItemQuery, item: &GroceryItem) -> bool {
             return false;
         }
     }
-    if q.urgent && item.priority != Priority::Urgente {
+    if let Some(aisle) = q.aisle.as_deref() {
+        if item.aisle.as_deref() != Some(aisle) {
+            return false;
+        }
+    }
+    if let Some(from) = q.created_from.as_deref() {
+        if item.created_at.as_str() < from {
+            return false;
+        }
+    }
+    if let Some(to) = q.created_to.as_deref() {
+        if item.created_at.as_str() > to {
+            return false;
+        }
+    }    if q.urgent && item.priority != Priority::Urgente {
         return false;
     }
     if q.only_comments && item.comments.is_empty() {
@@ -723,13 +805,22 @@ mod tests {
     }
 
     #[test]
-    fn eliminar_quita_de_la_lista() {
+    fn eliminar_es_soft_delete_y_puede_recuperarse() {
         let mut store = ItemStore::new();
         let item = store.create(sample());
         assert_eq!(store.list().len(), 1);
-        store.delete(&item.id).unwrap();
+        store.delete(&item.id, "Ana").unwrap();
+        // Soft delete: desaparece de la lista activa pero vive en el historial.
+        assert_eq!(store.active().len(), 0);
+        assert_eq!(store.list().len(), 1);
+        assert!(store.get(&item.id).is_ok());
+        // Recuperar lo vuelve a la lista.
+        store.recover(&item.id, "Ana").unwrap();
+        assert_eq!(store.active().len(), 1);
+        // Borrado físico: sí lo quita de todo.
+        store.delete(&item.id, "Ana").unwrap();
+        store.delete_permanent(&item.id).unwrap();
         assert_eq!(store.list().len(), 0);
-        assert!(store.get(&item.id).is_err());
-        assert!(store.delete(&item.id).is_err());
+        assert!(store.delete(&item.id, "Ana").is_err());
     }
 }

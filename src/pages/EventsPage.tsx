@@ -50,6 +50,7 @@ export default function EventsPage() {
   const [time, setTime] = useState('')
   const [kind, setKind] = useState<EventType>('comida')
   const [place, setPlace] = useState('')
+  const [participants, setParticipants] = useState('')
   const [note, setNote] = useState('')
   const [allDay, setAllDay] = useState(true)
   const [recurringYearly, setRecurringYearly] = useState(false)
@@ -70,6 +71,7 @@ export default function EventsPage() {
         allDay,
         kind,
         place: place.trim() || undefined,
+        participants: participants.split(',').map((p) => p.trim()).filter(Boolean),
         note: note.trim() || undefined,
         recurringYearly,
         reminderMinutes: reminderMinutes ? Number(reminderMinutes) : undefined,
@@ -81,6 +83,7 @@ export default function EventsPage() {
       setDate('')
       setTime('')
       setPlace('')
+      setParticipants('')
       setNote('')
       setAllDay(true)
       setRecurringYearly(false)
@@ -179,6 +182,13 @@ export default function EventsPage() {
             placeholder="casa de la abuela"
             value={place}
             onChange={(e) => setPlace(e.target.value)}
+          />
+          <Input
+            label="Participantes (opcional, separados por coma)"
+            placeholder="Papá, Ana, Abuela"
+            value={participants}
+            onChange={(e) => setParticipants(e.target.value)}
+            aria-label="Participantes del evento"
           />
           <Input
             label="Nota (opcional)"

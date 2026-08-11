@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { createItem, parseQuickEntry } from '../lib/api'
+import { createItem, parseQuickEntry, suggestItems } from '../lib/api'
 import type { FallbackInput } from '../lib/api/items.ts'
 import { ME } from '../lib/me'
 import type { Priority } from '../domain/item'
@@ -14,6 +14,7 @@ import Field from '../shared/ui/form/Field.tsx'
 import Textarea from '../shared/ui/form/Textarea.tsx'
 import Select from '../shared/ui/form/Select.tsx'
 import Alert from '../shared/ui/feedback/Alert.tsx'
+import Chip from '../shared/ui/primitives/Chip.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
 import { useGoBack } from '../lib/hooks/useGoBack.ts'
@@ -55,6 +56,30 @@ export default function NewItemPage() {
   const [note, setNote] = useState('')
 
   useDocumentTitle('¿Qué falta? Agregar · Grocery Planner')
+
+  // Sugerencias inteligentes (§4.2): debounce de 250ms sobre lo que se escribe.
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQuery(text.trim() || name.trim()), 250)
+    return () => window.clearTimeout(t)
+  }, [text, name])
+  const suggestionsQuery = useQuery({
+    queryKey: ['items-suggest', debouncedQuery],
+    queryFn: () => suggestItems(debouncedQuery),
+    enabled: debouncedQuery.length >= 2,
+    staleTime: 30_000,
+  })
+
+  const applySuggestion = (s: { name: string; quantity: number; unit: string; category?: string }) => {
+    if (mode === 'rapido') {
+      setText(`${s.name} ${s.quantity}${s.unit}`)
+    } else {
+      setName(s.name)
+      setQuantity(String(s.quantity))
+      setUnit(s.unit)
+      setCategory(s.category ?? '')
+    }
+  }
 
   const addMutation = useMutation({
     mutationFn: async () => {
@@ -155,6 +180,25 @@ export default function NewItemPage() {
               />
             </Field>
 
+            {suggestionsQuery.data && suggestionsQuery.data.length > 0 && (
+              <div className={styles.suggestions} role="listbox" aria-label="Ya han comprado">
+                <Text as="p" variant="note" tone="tertiary">
+                  Ya han comprado:
+                </Text>
+                <div className={styles.suggestionRow}>
+                  {suggestionsQuery.data.map((s) => (
+                    <Chip
+                      key={s.name}
+                      tone="default"
+                      onClick={() => applySuggestion(s)}
+                    >
+                      {s.name} · {s.quantity} {s.unit}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <FallbackEditor value={fallbacks} onChange={setFallbacks} productName={quickName} />
 
             {error && <Alert tone="danger">{error}</Alert>}
@@ -180,6 +224,25 @@ export default function NewItemPage() {
                 aria-label="Producto"
               />
             </Field>
+
+            {suggestionsQuery.data && suggestionsQuery.data.length > 0 && (
+              <div className={styles.suggestions} role="listbox" aria-label="Ya han comprado">
+                <Text as="p" variant="note" tone="tertiary">
+                  Ya han comprado:
+                </Text>
+                <div className={styles.suggestionRow}>
+                  {suggestionsQuery.data.map((s) => (
+                    <Chip
+                      key={s.name}
+                      tone="default"
+                      onClick={() => applySuggestion(s)}
+                    >
+                      {s.name} · {s.quantity} {s.unit}
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+            )}
             <Field label="Marca (opcional)">
               <Input
                 value={brand}

@@ -23,6 +23,12 @@ pub struct NotificationSettings {
     pub on_projection: bool,
     pub daily_summary: bool,
     pub weekly_summary: bool,
+    /// Hora local `HH:MM` del resumen diario (SPEC §13: "a la hora que elija la familia").
+    #[serde(default)]
+    pub daily_summary_hour: Option<String>,
+    /// Hora local `HH:MM` del resumen semanal (SPEC §13).
+    #[serde(default)]
+    pub weekly_summary_hour: Option<String>,
     /// Horario silencioso (no molestar): `HH:MM` opcional desde/hasta (SPEC §13).
     pub silent_from: Option<String>,
     pub silent_to: Option<String>,
@@ -42,6 +48,8 @@ impl Default for NotificationSettings {
             on_projection: true,
             daily_summary: false,
             weekly_summary: false,
+            daily_summary_hour: None,
+            weekly_summary_hour: None,
             silent_from: None,
             silent_to: None,
             event_types: Vec::new(),
@@ -66,6 +74,10 @@ pub struct HomeRules {
     pub host_mode: bool,
     /// Si el quiosco se pausa cuando hay visita (SPEC §2.3).
     pub host_pause_with_visitors: bool,
+    /// Llave del modo host (SPEC §2.3): permite entrar al quiosco sin
+    /// credenciales en la red de la casa. `None` = desactivado.
+    #[serde(default)]
+    pub host_key: Option<String>,
     /// Privacidad: quién puede ver fotos y precios (SPEC §14).
     pub privacy_show_photos: bool,
     pub privacy_show_prices: bool,
@@ -103,6 +115,7 @@ impl Default for HomeRules {
             photo_limit: 4,
             host_mode: false,
             host_pause_with_visitors: false,
+            host_key: None,
             privacy_show_photos: true,
             privacy_show_prices: true,
             language: "es".to_string(),

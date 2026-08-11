@@ -103,7 +103,7 @@ export async function launch({ token } = {}) {
 export async function goto(page, route, { waitFor, timeout = 20000 } = {}) {
   await page.goto(APP + route, { waitUntil: 'networkidle0', timeout })
   if (waitFor) {
-    await page.waitForFunction((t) => document.body.innerText.includes(t), { timeout }, waitFor)
+    await page.waitForFunction((t) => document.body.innerText.includes(t), { timeout, polling: 250 }, waitFor)
   }
 }
 
@@ -132,7 +132,7 @@ export async function typeIn(page, label, value) {
           x.placeholder?.includes(lbl) ||
           [...(x.labels ?? [])].some((l) => l.textContent?.includes(lbl)),
         ),
-      { timeout: 8000 },
+      { timeout: 8000, polling: 250 },
       label,
     )
   } catch {
@@ -175,7 +175,7 @@ export async function typeIn(page, label, value) {
       )
       return el ? el.value === v : false
     },
-    { timeout: 4000 },
+    { timeout: 4000, polling: 250 },
     [label, value],
   ).catch(() => false)
   if (!committed) await setValue()

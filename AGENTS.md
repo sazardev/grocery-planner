@@ -20,9 +20,11 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
 | Check HTTP server binary | `cargo check --features server --bin server` in `src-tauri/` |
 
 > Los E2E viven en `scripts/e2e/` (`harness.mjs`, `run.mjs`, suites `spec-core`/`live-refresh`/
-> `design`). `run.mjs` compila el binario server, arranca `vite preview` y el backend en puertos
+> `design`/`spec-gaps`). `run.mjs` compila el binario server, arranca `vite preview` y el backend en puertos
 > libres con `GROCERY_PLANNER_DATA` aislada, corre las suites y mata los procesos (grupo detached).
 > Requiere un chromium del sistema (default `/usr/bin/chromium`, override `GP_CHROMIUM`).
+> Nota: `waitForFunction` en el harness usa `polling: 250` (el rAF por defecto no detecta
+> cambios tardíos en pestañas headless).
 
 ## Gotchas
 
@@ -71,9 +73,18 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
   (`npm run seed`) crea cuenta por miembro y actúa con la sesión de cada uno. Tauri IPC sigue
   recibiendo `by` (app local de confianza).
 - **Auth**: todo `/api/*` exige `Authorization: Bearer <token>` salvo `PUBLIC_PATHS` en
-  `src-tauri/src/bin/server.rs` (health, app-info, greet, auth register/login/login-pin/has-pin).
+  `src-tauri/src/bin/server.rs` (health, app-info, greet, auth register/login/login-pin/has-pin,
+  **host-login**, **host-mode**). La llave del modo host la genera el Admin en Reglas y permite
+  entrar al quiosco sin credenciales (SPEC §2.3); `hostPauseWithVisitors` pausa el quiosco si hay
+  otra persona conectada.
   Cuenta de bypass de desarrollo: `admin` / `admin123` (sembrada en `AuthStore::seed_default_account`).
   Si el login da 401, el server en :8787 es un binario viejo → recompilar y reiniciar.
+- **Privacidad (§14)**: `privacyShowPhotos`/`privacyShowPrices` se aplican en el server HTTP
+  (`redact_item` en `server.rs`): si no se muestran, las fotos/precios se redactan en list/get/query
+  y el reporte de gasto se pone en cero. El dato se conserva.
+- **Soft-delete (§8)**: `item_delete` marca `GroceryItem.deleted` (la lista lo oculta, el historial
+  y los reportes lo conservan); `item_delete_permanent` borra de verdad (solo ítems en la papelera);
+  `item_recover` trae de vuelta un ítem eliminado o cancelado → Falta.
 - **react-router-dom pinned at 7.11.0** (GHSA-qwww-vcr4-c8h2, CSRF advisory). Do not bump.
 - **AppImage bundle fails** on this machine (linuxdeploy on Arch/CachyOS); `.deb`/`.rpm`
   and the raw binary build fine. Known, non-blocking.

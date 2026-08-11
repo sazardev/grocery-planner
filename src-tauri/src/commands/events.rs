@@ -1,4 +1,6 @@
+use crate::commands::require_role;
 use crate::domain::event::{Event, EventType};
+use crate::domain::home::Role;
 use crate::error::AppError;
 use crate::state::AppStateRef;
 use crate::store;
@@ -62,10 +64,56 @@ pub fn event_get(state: AppStateRef, id: String) -> Result<Event, AppError> {
     store.events.get(&id)
 }
 
-/// Borra un evento del calendario.
+/// Edita un evento (SPEC §9.3: ver, editar, mover, borrar). Cambiar la fecha
+/// equivale a moverlo. Cualquier miembro puede editar lo que creó; para lo ajeno
+/// se exige Organizador/Admin.
 #[tauri::command]
-pub fn event_delete(state: AppStateRef, id: String) -> Result<(), AppError> {
+#[allow(clippy::too_many_arguments)]
+pub fn event_update(
+    state: AppStateRef,
+    id: String,
+    by: String,
+    title: Option<String>,
+    date: Option<String>,
+    time: Option<String>,
+    all_day: Option<bool>,
+    kind: Option<EventType>,
+    place: Option<String>,
+    participants: Option<Vec<String>>,
+    note: Option<String>,
+    recurring_yearly: Option<bool>,
+    reminder_minutes: Option<Option<i64>>,
+) -> Result<Event, AppError> {
     let mut store = store::lock(&state.store)?;
+    let event = store.events.get(&id)?;
+    if event.created_by != by {
+        require_role(&store, &by, Role::Organizador)?;
+    }
+    store.events.update(
+        &id,
+        title.as_deref(),
+        date.as_deref(),
+        time.as_deref(),
+        all_day,
+        kind,
+        place.as_deref(),
+        participants.as_deref(),
+        note.as_deref(),
+        recurring_yearly,
+        reminder_minutes,
+        &by,
+    )
+}
+
+/// Borra un evento del calendario. El creador puede borrar el suyo; para los
+/// ajenos se exige Organizador/Admin (SPEC §9.3: según el rol).
+#[tauri::command]
+pub fn event_delete(state: AppStateRef, id: String, by: String) -> Result<(), AppError> {
+    let mut store = store::lock(&state.store)?;
+    let event = store.events.get(&id)?;
+    if event.created_by != by {
+        require_role(&store, &by, Role::Organizador)?;
+    }
     store.events.delete(&id)
 }
 
@@ -107,8 +155,9 @@ pub fn event_discard_list(state: AppStateRef, id: String) -> Result<Event, AppEr
     let mut store = store::lock(&state.store)?;
     let event = store.events.get(&id)?;
     let ids = event.item_ids.clone();
+    let by = event.created_by.clone();
     for item_id in &ids {
-        store.items.delete(item_id)?;
+        store.items.delete(item_id, &by)?;
     }
     store.events.clear_items(&id)
 }

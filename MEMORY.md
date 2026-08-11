@@ -628,5 +628,82 @@ más importantes. `cargo test` **107 passed** · `cargo check --features server 
 
 
 
+## Cierre "al máximo" SPEC/DESIGN: bugs, gaps y verificación (2026-08-10, 2ª pasada)
+
+Auditoría integral contra SPEC/DESIGN/DATA/AGENTS (4 agentes + verificación manual). Se cerraron
+los bugs de flujo/seguridad y los gaps de SPEC más importantes. `cargo test` **109 passed** ·
+`cargo check --features server --bin server` ✓ · `npm run verify` ✓ (lint + build + **E2E 50/50**:
+spec-core 20, live-refresh 6, design 6, **spec-gaps 18**).
+
+### WS1 — Bugs de flujo y seguridad
+- **Enlace de invitación con `#TOKEN`**: `RequireAuth` conserva path+hash; `LoginPage`/`RegisterPage`
+  vuelven a `from` incluyendo el hash → unirse por enlace/QR funciona para usuarios nuevos (SPEC §3.3).
+- **`home_info` sin fuga**: en HTTP exige ser miembro y devuelve `backupKey` solo al Admin; IPC idem
+  vía `by`. `SettingsPage` muestra la clave solo a Admin.
+- **Notificaciones HTTP/web**: `item_assign`, `trips_assign`, `trips_activate`, `item_create` (urgente)
+  y `trips_confirm_received` ahora usan `push_managed` (antes se perdían en web).
+- **Actor-scoping**: presencia (heartbeat/leave), notificaciones (list/unread/settings) y PIN
+  (set/remove) usan el actor del token, no el `name`/`member` del body.
+- **`home_add_member` valida cuenta existente** (`AuthStore::account_exists`).
+
+### WS2 — Presencia y notificaciones al máximo
+- **Zona horaria del hogar**: `notify.rs` calcula horario silencioso/resúmenes con `chrono`+`chrono-tz`
+  (IANA); antes era UTC.
+- **Generadores nuevos en `background::tick`**: proyección de faltas (1/día), resumen diario y
+  semanal (con `dailySummaryHour`/`weeklySummaryHour`), progreso de mandado (debounce 10 min vía
+  `trip_progress_notified`). `eventTypes` ya filtra recordatorios.
+- **Presencia**: estado "en el mandado" al activar un mandado; se muestra "hace X min/desconectado"
+  (prune a 24 h en vez de 30 s); strip en Calendario y estado por miembro en MembersSection.
+
+### WS3 — La lista de compras al máximo
+- **`aisle` (pasillo)** en ítems: setter, filtro, orden y agrupación tienda→pasillo en "Lo mío".
+- **Filtros §4.5 completos en HomePage**: categoría, prioridad, sección, quién lo pidió, asignado,
+  tienda, pasillo, ventanas de fecha (hoy/7d/30d/semana/mes/año), "de este evento", "lo que me toca".
+- **Sugerencias inteligentes §4.2**: endpoint `items_suggest` (historial+cadencia) + autocomplete en
+  captura rápida/detallada.
+- **Bulk "marcar todo lo llevado como comprado"** (`items_complete_batch`) en "Lo mío".
+- **Optimistic updates** en toggle "ya lo llevo" (Home/Mine) y bulk complete (setQueryData + rollback).
+- Store/pasillo se muestran en ItemRow/ItemCard.
+
+### WS4 — Historial que nada se borra + proyección real
+- **Soft-delete §8**: `GroceryItem.deleted`; `item_delete` marca, `item_delete_permanent` borra,
+  `item_recover` trae de vuelta eliminados/cancelados; list/query ocultan; timeline/reportes/
+  top/spending conservan.
+- **Proyección §7.2**: confirmar "Sí, falta" ahora CREA el ítem en la lista (sin duplicar activos).
+- **Reportes históricos**: `reports_spending`/`top` con ventana (`?window=hoy|7d|30d|semana|mes|anio`)
+  contando compras reales del historial, no solo el estado actual.
+- **Timeline completo §8.3**: todos los kinds (edición, prioridad, precio, sección, tienda, fotos,
+  alternativa, papelera, recuperado) + mandado completado/recibido con timestamps reales
+  (`ShoppingTrip.completed_at`).
+- **Repetir compra editable**: 30 días, quita/marca ítems y ajusta cantidad.
+
+### WS5 — Eventos y calendario
+- **`event_update`**: editar/mover eventos (PATCH), con rol (creador u Organizador/Admin).
+- **Participantes editables** en crear y editar.
+- **Recurrencia anual materializada**: `list_in_range` expande a años futuros.
+- **`event_delete` con rol** (creador u Organizador/Admin).
+
+### WS6 — Chat y comentarios
+- Mensajes de sistema faltantes: "llegó el mandado", "no había X", "mañana es el cumple 🎂".
+- **`chat_for_item`**: mensajes que citan un ítem visibles en su historial (SPEC §11.3).
+- **Badges** de comentarios/fotos en ItemRow/ItemCard.
+
+### WS7 — Cuenta, reglas y modo host
+- **`AccountSection`**: alias, avatar/foto (data URL) y cambio de contraseña (antes sin UI).
+- **Privacidad aplicada §14**: `redact_item` en server.rs (fotos/precios) + gasto a cero.
+- **Modo host §2.3**: `host_key` en reglas (Admin la genera), `POST /api/auth/host-login` público,
+  `/kiosk` sin RequireAuth con entrada por llave, `hostPauseWithVisitors` pausa con visita.
+
+### WS8 — Verificación al máximo
+- Nueva suite **`spec-gaps`** (18 checks): soft-delete→timeline→recuperar, bulk complete, editar
+  evento, recurrencia anual, notificaciones HTTP, presencia "en el mandado", privacidad, modo host
+  y enlace de invitación de extremo a extremo.
+- **Harness robusto**: `waitForFunction` con `polling: 250` (el rAF por defecto no detectaba
+  cambios tardíos en pestañas headless).
+- Tests Rust nuevos: soft-delete/recover, proyección confirmada crea ítem, recurrencia anual.
+- Docs actualizados (AGENTS.md, DATA.md).
+
+
+
 
 

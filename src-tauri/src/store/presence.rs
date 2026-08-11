@@ -7,6 +7,9 @@ use crate::error::AppError;
 
 /// Un miembro se considera desconectado si no manda heartbeat en este lapso.
 const OFFLINE_AFTER_SECS: i64 = 30;
+/// Un miembro desaparece de la lista de presencia tras este lapso sin heartbeat
+/// (para poder mostrar "hace X min / desconectado" por un rato, SPEC §12).
+const PRUNE_AFTER_SECS: i64 = 24 * 60 * 60;
 
 #[derive(Clone)]
 struct PresenceEntry {
@@ -58,7 +61,7 @@ impl PresenceStore {
     pub fn prune(&mut self) {
         let now = OffsetDateTime::now_utc();
         self.members
-            .retain(|_, e| (now - e.last_seen).whole_seconds() < OFFLINE_AFTER_SECS);
+            .retain(|_, e| (now - e.last_seen).whole_seconds() < PRUNE_AFTER_SECS);
     }
 
     fn view(&self, name: &str) -> Result<PresenceView, AppError> {
@@ -115,7 +118,10 @@ mod tests {
         store.members.get_mut("Ana").unwrap().last_seen = now - time::Duration::seconds(60);
         let views = store.list();
         assert_eq!(views.len(), 1);
+        // Se sigue mostrando (como "hace X min / desconectado"), ya no online.
         assert!(!views[0].online);
+        // Pero un día sin heartbeat sí desaparece.
+        store.members.get_mut("Ana").unwrap().last_seen = now - time::Duration::days(2);
         store.prune();
         assert!(store.list().is_empty());
     }

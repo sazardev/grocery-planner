@@ -29,7 +29,7 @@ async function main() {
   check('Ítem previo sembrado', seedItem.status === 200)
 
   // Espera a que página B vea el ítem previo (primer polling/re-fetch).
-  await pageB.waitForFunction(() => document.body.innerText.includes('item previo'), { timeout: 20000 })
+  await pageB.waitForFunction(() => document.body.innerText.includes('item previo'), { timeout: 20000, polling: 250 })
   check('Página B ve ítem previo sin recargar', true)
 
   // Página A agrega un ítem nuevo por la UI (patrón probado: click + respiro).
@@ -38,12 +38,13 @@ async function main() {
   await sleep(300)
   await clickByText(pageA, 'Agregar', { selector: 'button' })
   await sleep(2000)
-  await pageA.waitForFunction(() => location.pathname === '/home', { timeout: 25000 })
+  await pageA.waitForFunction(() => location.pathname === '/home', { timeout: 25000, polling: 250 })
 
   // Página B debe verlo SOLA (sin recarga, gracias al polling de la lista).
   const t0 = Date.now()
   await pageB.waitForFunction(() => document.body.innerText.includes('fruta fresca live'), {
     timeout: 30000,
+    polling: 250,
   })
   const elapsed = Date.now() - t0
   check('Página B ve el ítem nuevo al momento (≤30s)', true, `${elapsed}ms`)
@@ -60,7 +61,7 @@ async function main() {
         (x) =>
           x.textContent?.includes('fruta fresca live') && x.textContent.includes('Ya lo llevo'),
       ),
-    { timeout: 30000 },
+    { timeout: 30000, polling: 250 },
   )
   check('Página B ve el estado "ya lo llevo" sin recargar', true)
 

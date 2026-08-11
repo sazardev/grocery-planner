@@ -137,6 +137,14 @@ pub enum ItemEventKind {
     StoreChanged {
         store: String,
     },
+    /// Cambió el pasillo dentro de la tienda (SPEC §4.1/§4.4).
+    AisleChanged {
+        aisle: String,
+    },
+    /// El ítem se "eliminó" (soft delete: nada se borra de verdad, SPEC §8).
+    Deleted,
+    /// El ítem se recuperó de la papelera (SPEC §8.2).
+    Recovered,
     /// Se agregó/quitó una foto (SPEC §8.1).
     PhotosChanged,
 }
@@ -171,6 +179,13 @@ pub struct GroceryItem {
     pub section: Option<String>,
     /// Tienda donde se consigue (SPEC §4.1 y §5.4).
     pub store: Option<String>,
+    /// Pasillo dentro de la tienda (SPEC §4.1: "Tienda y pasillo").
+    #[serde(default)]
+    pub aisle: Option<String>,
+    /// Soft delete (SPEC §8: "nada se borra de verdad"). Un ítem eliminado
+    /// desaparece de la lista pero sigue en el historial y los reportes.
+    #[serde(default)]
+    pub deleted: bool,
     /// Fotos del ítem como data URLs (SPEC §10).
     pub photos: Vec<String>,
     /// Posición en la lista para orden manual (SPEC §3.4). A menor valor, más arriba.
@@ -220,6 +235,8 @@ impl GroceryItem {
             price: None,
             section: None,
             store: None,
+            aisle: None,
+            deleted: false,
             photos: Vec::new(),
             position,
             created_at: now.clone(),
@@ -476,6 +493,35 @@ impl GroceryItem {
         Ok(())
     }
 
+    /// "Elimina" el ítem: soft delete, el historial se conserva (SPEC §8).
+    pub fn delete(&mut self, by: &str) -> Result<(), AppError> {
+        self.deleted = true;
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::Deleted,
+        });
+        Ok(())
+    }
+
+    /// Recupera un ítem de la papelera: vuelve a la lista como "Falta"
+    /// conservando su historial (SPEC §8.2).
+    pub fn recover(&mut self, by: &str) -> Result<(), AppError> {
+        if !self.deleted && self.status != ItemStatus::Cancelado {
+            return Err(AppError::conflict(
+                "Solo se recupera un ítem eliminado o cancelado",
+            ));
+        }
+        self.deleted = false;
+        self.status = ItemStatus::Falta;
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::Recovered,
+        });
+        Ok(())
+    }
+
     /// Mueve el ítem a una sección de la lista (SPEC §4.4).
     pub fn set_section(&mut self, section: &str, by: &str) -> Result<(), AppError> {
         let section = section.trim();
@@ -509,6 +555,25 @@ impl GroceryItem {
             by: by.to_string(),
             kind: ItemEventKind::StoreChanged {
                 store: store.to_string(),
+            },
+        });
+        Ok(())
+    }
+
+    /// Fija el pasillo del ítem dentro de su tienda (SPEC §4.1). `None` no
+    /// existe aquí: para quitar el pasillo se manda la cadena vacía.
+    pub fn set_aisle(&mut self, aisle: &str, by: &str) -> Result<(), AppError> {
+        let aisle = aisle.trim();
+        self.aisle = if aisle.is_empty() {
+            None
+        } else {
+            Some(aisle.to_string())
+        };
+        self.history.push(ItemEvent {
+            at: super::now_iso(),
+            by: by.to_string(),
+            kind: ItemEventKind::AisleChanged {
+                aisle: aisle.to_string(),
             },
         });
         Ok(())

@@ -77,13 +77,15 @@ pub fn trips_assign(
 }
 
 /// Marca el mandado como activo (el mandado está en curso). Avisa a la familia
-/// (SPEC §13: "alguien conectado empieza el mandado").
+/// (SPEC §13: "alguien conectado empieza el mandado") y declara a quien lo
+/// empieza como "en el mandado" en la presencia (SPEC §12).
 #[tauri::command]
-pub fn trips_activate(state: AppStateRef, id: String) -> Result<ShoppingTrip, AppError> {
+pub fn trips_activate(state: AppStateRef, id: String, by: String) -> Result<ShoppingTrip, AppError> {
     let mut store = store::lock(&state.store)?;
     let title = store.trips.get(&id)?.title.clone();
     let who = store.trips.get(&id)?.assigned_to.clone().unwrap_or_default();
     let activated = store.trips.set_status(&id, TripStatus::Activa)?;
+    store.presence.heartbeat(&by, Some("mandado"))?;
     let home = store.home.get().ok();
     let members: Vec<String> = home
         .map(|h| h.members().into_iter().map(|m| m.name).collect())

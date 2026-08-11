@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 use crate::commands::require_role;
 use crate::domain::home::Role;
+use crate::domain::item::{GroceryItem, ItemStatus, Priority};
 use crate::domain::notification::AppNotification;
 use crate::domain::rules::{HomeRules, NotificationSettings};
 use crate::error::AppError;
@@ -264,18 +265,123 @@ pub fn notifications_settings_update(
     Ok(store.rules.settings_for(&member))
 }
 
-// ----- Proyección: confirmar o descartar (SPEC §7.2) ------------------------
+// ----- Modo host: llave del quiosco (SPEC §2.3/§14) -------------------------
 
+/// Genera (o regenera) la llave del modo host. Solo Admin. El quiosco la usa
+/// para entrar sin credenciales en la red de la casa.
+#[tauri::command]
+pub fn rules_host_key_generate(state: AppStateRef, by: String) -> Result<String, AppError> {
+    let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Admin)?;
+    let key = uuid::Uuid::new_v4().simple().to_string();
+    store.rules.rules.host_key = Some(key.clone());
+    Ok(key)
+}
+
+/// Desactiva el modo host (quita la llave).
+#[tauri::command]
+pub fn rules_host_key_clear(state: AppStateRef, by: String) -> Result<(), AppError> {
+    let mut store = store::lock(&state.store)?;
+    require_role(&store, &by, Role::Admin)?;
+    store.rules.rules.host_key = None;
+    Ok(())
+}
+
+// ----- Proyección: confirmar o descartar (SPEC §7.2) ------------------------
 /// Registra la decisión de la familia sobre una sugerencia de proyección
-/// ("en 2 días faltará leche" → confirmado o descartado).
+/// ("en 2 días faltará leche" → confirmado o descartado). Si se confirma,
+/// el ítem entra de verdad a la lista (SPEC §7.2: "lo confirmado entra a la
+/// lista del próximo plan"), evitando duplicar uno que ya esté activo.
 #[tauri::command]
 pub fn projection_decide(
     state: AppStateRef,
     name: String,
     confirmed: bool,
-    _by: String,
+    by: String,
 ) -> Result<bool, AppError> {
     let mut store = store::lock(&state.store)?;
     store.rules.decide_projection(&name, confirmed);
+    if confirmed {
+        let active = store.items.active();
+        let already = active.iter().any(|i| {
+            i.name == name && i.status != ItemStatus::Comprado && i.status != ItemStatus::Cancelado
+        });
+        if !already {
+            if let Some(p) = crate::commands::reports::compute_projection(&store)
+                .into_iter()
+                .find(|p| p.name == name)
+            {
+                let item = GroceryItem::new(
+                    &name,
+                    p.quantity,
+                    &p.unit,
+                    Priority::Media,
+                    &by,
+                    None,
+                    None,
+                )?;
+                store.items.create(item);
+            }
+        }
+    }
     Ok(confirmed)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::home::Home;
+    use crate::domain::item::{GroceryItem, ItemStatus, Priority};
+    use crate::store::AppStore;
+
+    fn buy_twice(store: &mut AppStore, name: &str) {
+        let item = GroceryItem::new(name, 1.0, "l", Priority::Media, "Papá", None, None).unwrap();
+        let id = item.id.clone();
+        store.items.create(item);
+        // 1ª compra
+        store.items.change_status(&id, ItemStatus::Comprado, "Papá").unwrap();
+        // volver a falta (comprado → cancelado → falta)
+        store.items.change_status(&id, ItemStatus::Cancelado, "Papá").unwrap();
+        store.items.change_status(&id, ItemStatus::Falta, "Papá").unwrap();
+        // 2ª compra
+        store.items.change_status(&id, ItemStatus::Comprado, "Papá").unwrap();
+    }
+
+    #[test]
+    fn confirmar_proyeccion_crea_el_item_en_la_lista() {
+        let mut store = AppStore::new();
+        store.home.create(Home::create("Los Ramírez", "Papá").unwrap());
+        buy_twice(&mut store, "leche");
+        // Sin duplicar: el ítem original está comprado; la proyección propone "leche".
+        let before = store.items.active().len();
+        decide_impl(&mut store, "leche", true, "Papá").unwrap();
+        let after = store.items.active();
+        assert_eq!(after.len(), before + 1, "debe crear el ítem confirmado");
+        let created = after.iter().find(|i| i.status == ItemStatus::Falta && i.name == "leche");
+        assert!(created.is_some(), "el nuevo ítem debe estar en 'falta'");
+        // Confirmar de nuevo no duplica (ya hay uno activo).
+        let before2 = store.items.active().len();
+        decide_impl(&mut store, "leche", true, "Papá").unwrap();
+        assert_eq!(store.items.active().len(), before2);
+    }
+
+    /// Misma lógica que el command `projection_decide` (sin Tauri).
+    fn decide_impl(store: &mut AppStore, name: &str, confirmed: bool, by: &str) -> Result<bool, AppError> {
+        store.rules.decide_projection(name, confirmed);
+        if confirmed {
+            let already = store.items.active().iter().any(|i| {
+                i.name == name && i.status != ItemStatus::Comprado && i.status != ItemStatus::Cancelado
+            });
+            if !already {
+                if let Some(p) = crate::commands::reports::compute_projection(store)
+                    .into_iter()
+                    .find(|p| p.name == name)
+                {
+                    let item = GroceryItem::new(name, p.quantity, &p.unit, Priority::Media, by, None, None)?;
+                    store.items.create(item);
+                }
+            }
+        }
+        Ok(confirmed)
+    }
 }

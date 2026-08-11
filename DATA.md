@@ -34,6 +34,7 @@ duplican en el store: `compute_chat` los genera al vuelo.
 | `passwordHash` | string | Argon2id con salt aleatorio; nunca en claro |
 | `pinHash` | string? | PIN rápido (argon2id), opcional |
 | `alias` | string? | Ej. "la mamá de Ana" |
+| `avatar` | string? | Foto de perfil como data URL (§2.1 "foto o iniciales") |
 | `timezone` | string? | Zona horaria del usuario |
 | `homeId` | string? | Hogar al que pertenece (un miembro = un hogar) |
 | `createdAt` | ISO UTC | |
@@ -74,6 +75,8 @@ Regla: el último Admin no se puede expulsar ni degradar.
 | `price` | f64? | Precio aprox. (reportes) |
 | `section` | string? | Sección de la lista |
 | `store` | string? | Tienda donde se consigue |
+| `aisle` | string? | Pasillo dentro de la tienda (§4.1) |
+| `deleted` | bool (default false) | Soft delete (§8): oculto de la lista, sigue en historial/reportes |
 | `photos` | string[] | Data URLs (límite en reglas) |
 | `position` | f64 | Orden manual/secciones |
 | `createdAt` | ISO UTC | |
@@ -91,7 +94,7 @@ un cancelado se recupera con `item_recover` (→ `falta`).
 
 `id`, `title`, `store?`, `assignedTo?`, `createdBy`, `createdAt`,
 `status` (`planificado` | `activo` | `completada` | `cancelada`), `itemIds[]`,
-`receivedAt?`, `receivedBy?` (confirmación de recibo §6).
+`receivedAt?`, `receivedBy?` (confirmación de recibo §6), `completedAt?` (cuándo se completó, §8.1).
 
 ### `Plan` (plan de compra §7.1)
 
@@ -122,11 +125,12 @@ Los mensajes del sistema se derivan del historial (no se guardan).
 ### `HomeRules` (reglas §14) + `NotificationSettings` (§13)
 
 - `HomeRules`: `name`, `stores[]` (cada una con `name` + `aisles[]`), `units[]`,
-  `categories[]`, `photoLimit`, `hostMode`, `hostPauseWithVisitors`,
-  `privacyShowPhotos`, `privacyShowPrices`, `language`, `timezone`,
-  `notifications` (por miembro).
+  `categories[]`, `photoLimit`, `hostMode`, `hostPauseWithVisitors`, `hostKey?`
+  (llave del modo host §2.3), `privacyShowPhotos`, `privacyShowPrices`, `language`,
+  `timezone`, `notifications` (por miembro).
 - `NotificationSettings`: `onAssigned`, `onUrgent`, `onTripStarted`, `onArrival`,
   `onMention`, `onEventReminder`, `onProjection`, `dailySummary`, `weeklySummary`,
+  `dailySummaryHour?`, `weeklySummaryHour?` (hora local `HH:MM` del resumen, §13),
   `silentFrom?`, `silentTo?`, `eventTypes[]`.
 
 ### `AppNotification` (§13)

@@ -55,6 +55,25 @@ export function removeAisle(storeName: string, aisle: string, by: string): Promi
   return request<HomeRules>('rules_aisle_remove', { storeName, aisle, by })
 }
 
+/** Llave del modo host del quiosco (SPEC §2.3), solo Admin. */
+export function generateHostKey(by: string): Promise<string> {
+  return request<string>('rules_host_key_generate', { by })
+}
+
+export function clearHostKey(by: string): Promise<void> {
+  return request<void>('rules_host_key_clear', { by })
+}
+
+export interface HostModeInfo {
+  hostMode: boolean
+  hostPauseWithVisitors: boolean
+}
+
+/** Info pública del modo host (el quiosco la consulta sin sesión). */
+export function getHostMode(): Promise<HostModeInfo> {
+  return request<HostModeInfo>('host_mode')
+}
+
 // ----- Notificaciones (SPEC §13) ------------------------------------------
 
 export function listNotifications(member: string): Promise<AppNotification[]> {

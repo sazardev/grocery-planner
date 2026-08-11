@@ -159,6 +159,9 @@ fn system_messages(store: &AppStore) -> Vec<ChatMessage> {
                 ItemEventKind::Commented { body } => {
                     format!("{} comentó en {}: {body}", ev.by, item.name)
                 }
+                ItemEventKind::FallbackUsed { from, to } => {
+                    format!("No había {from} de {item_name}; llevaron {to}", item_name = item.name)
+                }
                 _ => continue,
             };
             out.push(ChatMessage {
@@ -199,9 +202,60 @@ fn system_messages(store: &AppStore) -> Vec<ChatMessage> {
                 pinned: false,
             });
         }
+        if let Some(received_at) = &trip.received_at {
+            let receiver = trip.received_by.clone().unwrap_or_default();
+            out.push(ChatMessage {
+                id: format!("sys-trip-recv-{}", trip.id),
+                at: received_at.clone(),
+                by: receiver.clone(),
+                kind: ChatMessageKind::System,
+                body: format!("El mandado llegó y {receiver} lo recibió: {}", trip.title),
+                item_id: None,
+                item_name: None,
+                photo: None,
+                mentions: Vec::new(),
+                refs: Vec::new(),
+                reactions: Vec::new(),
+                pinned: false,
+            });
+        }
+    }
+
+    // "Mañana es el cumple de X 🎂" (SPEC §11.2): el día anterior a un cumpleaños.
+    let tomorrow = (time::OffsetDateTime::now_utc() + time::Duration::days(1)).date();
+    for event in store.events.list() {
+        if event.kind != crate::domain::event::EventType::Cumpleanos {
+            continue;
+        }
+        let Some((_, m, d)) = parse_ymd(&event.date) else { continue };
+        if (tomorrow.month() as u8, tomorrow.day()) == (m as u8, d as u8) {
+            out.push(ChatMessage {
+                id: format!("sys-bday-{}-{}", event.id, tomorrow),
+                at: crate::domain::now_iso(),
+                by: event.created_by.clone(),
+                kind: ChatMessageKind::System,
+                body: format!("Mañana es el cumple de {} 🎂", event.title),
+                item_id: None,
+                item_name: None,
+                photo: None,
+                mentions: Vec::new(),
+                refs: Vec::new(),
+                reactions: Vec::new(),
+                pinned: false,
+            });
+        }
     }
 
     out
+}
+
+/// `(año, mes, día)` de una fecha `YYYY-MM-DD`.
+fn parse_ymd(s: &str) -> Option<(i32, u32, u32)> {
+    let mut it = s.split('-');
+    let y: i32 = it.next()?.parse().ok()?;
+    let m: u32 = it.next()?.parse().ok()?;
+    let d: u32 = it.next()?.parse().ok()?;
+    Some((y, m, d))
 }
 
 /// Formatea una cantidad sin ceros a la derecha (2.0 → "2", 1.5 → "1.5").
@@ -224,6 +278,14 @@ pub struct ChatStats {
 pub fn chat_count(state: AppStateRef) -> Result<usize, AppError> {
     let store = store::lock(&state.store)?;
     Ok(compute_chat(&store).len())
+}
+
+/// Mensajes del chat que citan a un ítem (SPEC §11.3): se muestran en su
+/// historial junto con los eventos del ítem.
+#[tauri::command]
+pub fn chat_for_item(state: AppStateRef, item_id: String) -> Result<Vec<ChatMessage>, AppError> {
+    let store = store::lock(&state.store)?;
+    Ok(store.chat.for_item(&item_id))
 }
 
 /// Una página del chat (para el infinite scroll, SPEC §11.1).

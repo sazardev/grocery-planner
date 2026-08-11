@@ -6,6 +6,10 @@
   padding: 0 var(--gp-space-1);
 }
 
+.aisleHeader {
+  padding: 0 var(--gp-space-1);
+}
+
 .headerRow {
   display: flex;
   align-items: flex-start;

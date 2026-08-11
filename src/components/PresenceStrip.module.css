@@ -38,6 +38,10 @@
   border: 2px solid var(--gp-background);
 }
 
+.dotMandado {
+  background: var(--gp-amber);
+}
+
 .popover {
   position: absolute;
   top: 0;
@@ -72,4 +76,10 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.whoLine {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
 }

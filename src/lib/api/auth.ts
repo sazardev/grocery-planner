@@ -33,6 +33,15 @@ export function changePassword(
   return request<void>('auth_change_password', { token, currentPassword, newPassword })
 }
 
+/** Actualiza alias y avatar de la cuenta (SPEC §2.1). `undefined` = no tocar. */
+export function updateProfile(
+  token: string,
+  alias?: string,
+  avatar?: string,
+): Promise<User> {
+  return request<User>('auth_update_profile', { token, alias: alias ?? null, avatar: avatar ?? null })
+}
+
 /** Restablece la contraseña de un miembro con la clave de respaldo (SPEC §2.5). */
 export function resetPassword(
   token: string,
@@ -43,12 +52,12 @@ export function resetPassword(
   return request<void>('auth_reset_password', { token, name, backupKey, newPassword })
 }
 
-export function setPin(name: string, pin: string): Promise<void> {
-  return request<void>('auth_set_pin', { name, pin })
+export function setPin(name: string, pin: string, by: string): Promise<void> {
+  return request<void>('auth_set_pin', { name, pin, by })
 }
 
-export function removePin(name: string): Promise<void> {
-  return request<void>('auth_remove_pin', { name })
+export function removePin(name: string, by: string): Promise<void> {
+  return request<void>('auth_remove_pin', { name, by })
 }
 
 export function hasPin(name: string): Promise<boolean> {
@@ -57,4 +66,9 @@ export function hasPin(name: string): Promise<boolean> {
 
 export function loginPin(name: string, pin: string, device: string): Promise<AuthView> {
   return request<AuthView>('auth_login_pin', { name, pin, device })
+}
+
+/** Entrada del modo host del quiosco (SPEC §2.3): llave del hogar, sin credenciales. */
+export function hostLogin(hostKey: string, device: string): Promise<AuthView> {
+  return request<AuthView>('auth_host_login', { hostKey, device })
 }

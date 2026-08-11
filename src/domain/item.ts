@@ -12,6 +12,13 @@ export type ItemEventKind =
   | { type: 'priority_changed'; from: Priority; to: Priority }
   | { type: 'fallback_used'; from: string; to: string }
   | { type: 'fallbacks_changed' }
+  | { type: 'price_changed'; price: number }
+  | { type: 'section_changed'; section: string }
+  | { type: 'store_changed'; store: string }
+  | { type: 'aisle_changed'; aisle: string }
+  | { type: 'photos_changed' }
+  | { type: 'deleted' }
+  | { type: 'recovered' }
 
 export interface ItemEvent {
   at: string
@@ -51,6 +58,8 @@ export interface GroceryItem {
   price?: number
   section?: string
   store?: string
+  aisle?: string
+  deleted?: boolean
   photos: string[]
   createdAt: string
   history: ItemEvent[]

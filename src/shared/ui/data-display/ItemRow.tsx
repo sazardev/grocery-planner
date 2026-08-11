@@ -15,6 +15,10 @@ interface ItemRowProps {
   requestedBy: string
   requestedBySrc?: string
   assignedTo?: string
+  store?: string
+  aisle?: string
+  commentCount?: number
+  photoCount?: number
   note?: string
   status?: ItemRowStatus
   urgent?: boolean
@@ -43,6 +47,10 @@ export default function ItemRow({
   requestedBy,
   requestedBySrc,
   assignedTo,
+  store,
+  aisle,
+  commentCount,
+  photoCount,
   note,
   status,
   urgent = false,
@@ -119,6 +127,13 @@ export default function ItemRow({
           <Avatar name={requestedBy} src={requestedBySrc} size="sm" />
           <span>{requestedBy}</span>
           {assignedTo && <span className={styles.assign}>· lleva {assignedTo}</span>}
+          {(store || aisle) && (
+            <span className={styles.note}>
+              · {[store, aisle].filter(Boolean).join(' › ')}
+            </span>
+          )}
+          {!!photoCount && <span className={styles.note}>· 📷 {photoCount}</span>}
+          {!!commentCount && <span className={styles.note}>· 💬 {commentCount}</span>}
           {note && <span className={styles.note}>· {note}</span>}
         </div>
       </div>

@@ -27,6 +27,15 @@ impl ChatStore {
         messages
     }
 
+    /// Mensajes ligados a un ítem (SPEC §11.3: "citar un ítem" visible en su
+    /// historial).
+    pub fn for_item(&self, item_id: &str) -> Vec<ChatMessage> {
+        self.list()
+            .into_iter()
+            .filter(|m| m.item_id.as_deref() == Some(item_id))
+            .collect()
+    }
+
     pub fn get(&self, id: &str) -> Result<ChatMessage, AppError> {
         self.messages
             .iter()

@@ -49,3 +49,15 @@
   flex: 1;
   min-width: 0;
 }
+
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gp-space-2);
+}
+
+.suggestionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gp-space-2);
+}

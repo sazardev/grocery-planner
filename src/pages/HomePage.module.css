@@ -37,6 +37,14 @@
   flex-wrap: wrap;
 }
 
+/* --- Filtros avanzados (SPEC §4.5) --- */
+.advRow {
+  display: flex;
+  align-items: center;
+  gap: var(--gp-space-2);
+  flex-wrap: wrap;
+}
+
 /* --- Vista en cuadrícula (fluida, móvil-first) --- */
 .itemGrid {
   display: grid;

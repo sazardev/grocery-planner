@@ -43,8 +43,40 @@ export function getEvent(id: string): Promise<Event> {
   return request<Event>('event_get', { id })
 }
 
-export function deleteEvent(id: string): Promise<void> {
-  return request<void>('event_delete', { id })
+export interface UpdateEventInput {
+  by: string
+  title?: string
+  date?: string
+  time?: string
+  allDay?: boolean
+  kind?: EventType
+  place?: string
+  participants?: string[]
+  note?: string
+  recurringYearly?: boolean
+  reminderMinutes?: number | null
+}
+
+/** Edita un evento (SPEC §9.3); cambiar la fecha lo mueve. */
+export function updateEvent(id: string, input: UpdateEventInput): Promise<Event> {
+  return request<Event>('event_update', {
+    id,
+    by: input.by,
+    title: input.title ?? null,
+    date: input.date ?? null,
+    time: input.time ?? null,
+    allDay: input.allDay ?? null,
+    kind: input.kind ?? null,
+    place: input.place ?? null,
+    participants: input.participants ?? null,
+    note: input.note ?? null,
+    recurringYearly: input.recurringYearly ?? null,
+    reminderMinutes: input.reminderMinutes ?? null,
+  })
+}
+
+export function deleteEvent(id: string, by: string): Promise<void> {
+  return request<void>('event_delete', { id, by })
 }
 
 export function addItemToEvent(id: string, itemId: string): Promise<Event> {

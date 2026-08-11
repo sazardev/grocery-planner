@@ -1,5 +1,6 @@
 import type { ShoppingTrip } from '../../domain/trip'
 import { request } from './transport'
+import { ME } from '../me'
 
 export interface CreateTripInput {
   title: string
@@ -38,7 +39,7 @@ export function assignTrip(id: string, member: string): Promise<ShoppingTrip> {
 }
 
 export function activateTrip(id: string): Promise<ShoppingTrip> {
-  return request<ShoppingTrip>('trips_activate', { id })
+  return request<ShoppingTrip>('trips_activate', { id, by: ME })
 }
 
 export function completeTrip(id: string): Promise<ShoppingTrip> {

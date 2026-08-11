@@ -23,7 +23,10 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
 
   if (status === 'loading') return <AuthLoader />
   if (status !== 'authenticated') {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />
+    // Conserva path + query + hash: un enlace de invitación `/family/join#TOKEN`
+    // debe seguir funcionando después de entrar (SPEC §3.3).
+    const from = location.pathname + location.search + location.hash
+    return <Navigate to="/login" state={{ from }} replace />
   }
   return <>{children}</>
 }

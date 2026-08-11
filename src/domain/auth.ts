@@ -2,6 +2,7 @@ export interface User {
   id: string
   name: string
   alias: string | null
+  avatar: string | null
   homeId: string | null
   createdAt: string
 }

@@ -20,6 +20,7 @@ pub struct UserView {
     pub id: String,
     pub name: String,
     pub alias: Option<String>,
+    pub avatar: Option<String>,
     pub home_id: Option<String>,
     pub created_at: String,
 }
@@ -48,6 +49,7 @@ fn user_view(user: &User) -> UserView {
         id: user.id.clone(),
         name: user.name.clone(),
         alias: user.alias.clone(),
+        avatar: user.avatar.clone(),
         home_id: user.home_id.clone(),
         created_at: user.created_at.clone(),
     }
@@ -175,6 +177,23 @@ pub fn auth_change_password(
     Ok(())
 }
 
+/// Actualiza el perfil de la cuenta: alias (ej. "la mamá de Ana") y avatar/foto
+/// (SPEC §2.1). `None` = no tocar; cadena vacía = limpiar.
+#[tauri::command]
+pub fn auth_update_profile(
+    state: AppStateRef,
+    token: String,
+    alias: Option<String>,
+    avatar: Option<String>,
+) -> Result<UserView, AppError> {
+    let mut store = store::lock(&state.store)?;
+    let user = store
+        .auth
+        .update_profile(&token, alias.as_deref(), avatar.as_deref())?;
+    persist_now(&store);
+    Ok(user_view(&user))
+}
+
 /// Restablece la contraseña de un miembro con la clave de respaldo del hogar
 /// (SPEC §2.5). La clave la genera el Admin; cualquiera que la conozca puede
 /// recuperar la cuenta de un miembro.
@@ -199,21 +218,52 @@ pub fn auth_reset_password(
 
 /// Fija el PIN rápido de 4 dígitos para entrar desde un dispositivo conocido
 /// (SPEC §2.3). La biometría nunca viaja al servidor; el PIN sí (hasheado).
+/// Cada quien solo puede cambiar su propio PIN (o el Admin el de cualquier miembro).
 #[tauri::command]
-pub fn auth_set_pin(state: AppStateRef, name: String, pin: String) -> Result<(), AppError> {
+pub fn auth_set_pin(
+    state: AppStateRef,
+    by: String,
+    name: String,
+    pin: String,
+) -> Result<(), AppError> {
     let mut store = store::lock(&state.store)?;
+    require_self_or_admin(&store, &by, &name)?;
     store.auth.set_pin(&name, &pin)?;
     persist_now(&store);
     Ok(())
 }
 
-/// Quita el PIN rápido de la cuenta.
+/// Quita el PIN rápido de la cuenta (propia o la de cualquier miembro como Admin).
 #[tauri::command]
-pub fn auth_remove_pin(state: AppStateRef, name: String) -> Result<(), AppError> {
+pub fn auth_remove_pin(state: AppStateRef, by: String, name: String) -> Result<(), AppError> {
     let mut store = store::lock(&state.store)?;
+    require_self_or_admin(&store, &by, &name)?;
     store.auth.remove_pin(&name)?;
     persist_now(&store);
     Ok(())
+}
+
+/// ¿`by` es la misma cuenta que `name`, o es Admin del hogar? (SPEC §2.3/§3.2).
+fn require_self_or_admin(store: &store::AppStore, by: &str, name: &str) -> Result<(), AppError> {
+    if by.trim() == name.trim() {
+        return Ok(());
+    }
+    let home = store.home.get().ok();
+    let is_admin = home
+        .as_ref()
+        .map(|h| {
+            h.member(by)
+                .map(|m| m.role == Role::Admin)
+                .unwrap_or(false)
+        })
+        .unwrap_or(false);
+    if is_admin {
+        Ok(())
+    } else {
+        Err(AppError::unauthorized(
+            "Solo puedes configurar tu propio PIN (o el de un miembro como Admin)",
+        ))
+    }
 }
 
 /// ¿La cuenta tiene PIN configurado? (para ofrecer "Entrar con PIN").
@@ -233,6 +283,41 @@ pub fn auth_login_pin(
 ) -> Result<AuthView, AppError> {
     let mut store = store::lock(&state.store)?;
     let (user, token) = store.auth.login_pin(&name, &pin, &device)?;
+    persist_now(&store);
+    Ok(AuthView {
+        user: user_view(&user),
+        token,
+    })
+}
+
+/// Entrada del modo host (SPEC §2.3): el quiosco entra sin credenciales si el
+/// Admin activó `hostMode` y quien tiene la llave del hogar la introduce. Abre
+/// sesión con la cuenta `admin` del hogar.
+#[tauri::command]
+pub fn auth_host_login(
+    state: AppStateRef,
+    host_key: String,
+    device: String,
+) -> Result<AuthView, AppError> {
+    let mut store = store::lock(&state.store)?;
+    let rules = store.rules.rules();
+    if !rules.host_mode {
+        return Err(AppError::conflict(
+            "El modo host está desactivado en las reglas de la familia",
+        ));
+    }
+    let valid = rules
+        .host_key
+        .as_deref()
+        .map(|k| k == host_key.trim())
+        .unwrap_or(false);
+    if !valid {
+        return Err(AppError::unauthorized("La llave del modo host no es válida"));
+    }
+    let (user, token) = store.auth.session_for(
+        crate::store::auth::DEFAULT_ACCOUNT,
+        &device,
+    )?;
     persist_now(&store);
     Ok(AuthView {
         user: user_view(&user),

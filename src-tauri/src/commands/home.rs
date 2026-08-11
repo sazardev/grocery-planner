@@ -29,6 +29,21 @@ fn to_view(home: &Home) -> HomeView {
     }
 }
 
+/// Vista del hogar para `who`: la clave de respaldo solo la ven los Admin
+/// (SPEC §3.2). Quien no es miembro obtiene `None`.
+fn to_view_for(home: &Home, who: &str) -> Option<HomeView> {
+    let member = home.member(who)?;
+    let view = to_view(home);
+    Some(HomeView {
+        backup_key: if member.role == Role::Admin {
+            view.backup_key
+        } else {
+            String::new()
+        },
+        ..view
+    })
+}
+
 /// Crea el hogar de la familia; el primer miembro queda como Admin (SPEC §3.1).
 #[tauri::command]
 pub fn home_create(state: AppStateRef, name: String, owner: String) -> Result<HomeView, AppError> {
@@ -39,14 +54,17 @@ pub fn home_create(state: AppStateRef, name: String, owner: String) -> Result<Ho
     Ok(to_view(&home))
 }
 
-/// Datos del hogar: nombre, miembros, invitaciones y clave de respaldo.
+/// Datos del hogar: nombre, miembros, invitaciones y clave de respaldo. La clave
+/// solo se devuelve al Admin; quien no es miembro no ve nada del hogar (SPEC §3.2/§15).
 #[tauri::command]
-pub fn home_info(state: AppStateRef) -> Result<HomeView, AppError> {
+pub fn home_info(state: AppStateRef, by: String) -> Result<HomeView, AppError> {
     let store = store::lock(&state.store)?;
-    Ok(to_view(store.home.get()?))
+    to_view_for(store.home.get()?, &by)
+        .ok_or_else(|| AppError::unauthorized("No perteneces a ningún hogar"))
 }
 
-/// Agrega un miembro al hogar con un rol (solo Admin, SPEC §3.5).
+/// Agrega un miembro al hogar con un rol (solo Admin, SPEC §3.5). El miembro
+/// debe tener una cuenta para poder entrar después.
 #[tauri::command]
 pub fn home_add_member(
     state: AppStateRef,
@@ -55,6 +73,11 @@ pub fn home_add_member(
     by: String,
 ) -> Result<Member, AppError> {
     let mut store = store::lock(&state.store)?;
+    if !store.auth.account_exists(&name) {
+        return Err(AppError::invalid_input(format!(
+            "No existe una cuenta con el nombre {name}"
+        )));
+    }
     store.home.add_member(&name, role, &by)
 }
 
@@ -107,6 +130,11 @@ pub fn home_invite_accept(
     member: String,
 ) -> Result<Member, AppError> {
     let mut store = store::lock(&state.store)?;
+    if !store.auth.account_exists(&member) {
+        return Err(AppError::unauthorized(
+            "Crea tu cuenta antes de aceptar una invitación",
+        ));
+    }
     let home = store.home.get()?;
     let home_id = home.id.clone();
     let member = store.home.accept_invitation(&code, &member)?;

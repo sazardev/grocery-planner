@@ -18,6 +18,18 @@ pub struct RulesStore {
     /// Ids de eventos cuyo recordatorio ya se notificó (para no repetir).
     #[serde(default)]
     pub reminders_fired: Vec<String>,
+    /// Fecha local (YYYY-MM-DD) en la que se generó la proyección de faltas, para
+    /// avisar una vez por día (SPEC §13).
+    #[serde(default)]
+    pub projection_notified_on: Option<String>,
+    /// Última fecha en la que se envió cada resumen: `member|daily|YYYY-MM-DD` /
+    /// `member|weekly|YYYY-Www` (SPEC §13).
+    #[serde(default)]
+    pub summaries_sent: HashMap<String, String>,
+    /// Progreso del mandado: tripId → hora (ISO UTC) de la última notificación
+    /// "X marcó comprado", para no saturar a la familia (SPEC §13, debounce).
+    #[serde(default)]
+    pub trip_progress_notified: HashMap<String, String>,
 }
 
 impl RulesStore {
@@ -27,6 +39,9 @@ impl RulesStore {
             notifications: Vec::new(),
             projection_choices: HashMap::new(),
             reminders_fired: Vec::new(),
+            projection_notified_on: None,
+            summaries_sent: HashMap::new(),
+            trip_progress_notified: HashMap::new(),
         }
     }
 
@@ -125,6 +140,27 @@ impl RulesStore {
             active_names.iter().cloned().collect();
         self.projection_choices
             .retain(|name, _| active.contains(name));
+    }
+
+    /// ¿Puedo avisar progreso de este mandado? (debounce de ~10 min para no
+    /// saturar a la familia mientras el que compra va marcando, SPEC §13).
+    pub fn trip_progress_allowed(&self, trip_id: &str) -> bool {
+        let Some(at) = self.trip_progress_notified.get(trip_id) else {
+            return true;
+        };
+        let Ok(t) = time::OffsetDateTime::parse(
+            at,
+            &time::format_description::well_known::Rfc3339,
+        ) else {
+            return true;
+        };
+        (time::OffsetDateTime::now_utc() - t).whole_seconds() >= 600
+    }
+
+    /// Registra la hora del último aviso de progreso de un mandado.
+    pub fn mark_trip_progress(&mut self, trip_id: &str) {
+        self.trip_progress_notified
+            .insert(trip_id.to_string(), crate::domain::now_iso());
     }
 }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { UserPlus } from 'lucide-react'
 import AuthShell from './AuthShell.tsx'
 import { useAuth } from '../../lib/auth/useAuth.ts'
@@ -14,6 +14,7 @@ import Alert from '../../shared/ui/feedback/Alert.tsx'
 export default function RegisterPage() {
   const { signUp } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   useDocumentTitle('Crear cuenta · Grocery Planner')
 
   const [name, setName] = useState('')
@@ -41,7 +42,9 @@ export default function RegisterPage() {
     setError(null)
     try {
       await signUp(trimmed, password)
-      navigate('/settings', { replace: true })
+      // Si llegó con un enlace de invitación, vuelve a él para aceptar el hogar.
+      const from = (location.state as { from?: string } | null)?.from
+      navigate(from && from !== '/' ? from : '/settings', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo crear la cuenta.')
       setSubmitting(false)

@@ -63,6 +63,11 @@ impl TripStore {
 
     pub fn set_status(&mut self, id: &str, status: TripStatus) -> Result<ShoppingTrip, AppError> {
         let trip = mutable(&mut self.trips, id)?;
+        if status == TripStatus::Completada {
+            if trip.completed_at.is_none() {
+                trip.completed_at = Some(crate::domain::now_iso());
+            }
+        }
         trip.status = status;
         Ok(trip.clone())
     }

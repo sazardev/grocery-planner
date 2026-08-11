@@ -1,8 +1,12 @@
 //! Tareas de fondo que ejecutan las promesas del SPEC que no dependen de una
-//! acción del usuario: recordatorios de eventos (SPEC §9.2/§13) y planes
-//! recurrentes automáticos (SPEC §7.1).
+//! acción del usuario: recordatorios de eventos (SPEC §9.2/§13), planes
+//! recurrentes automáticos (SPEC §7.1), proyección de faltas y resúmenes
+//! diario/semanal (SPEC §13).
 
-use crate::domain::notification::NotificationKind;
+use crate::commands::notify;
+use crate::domain::event::EventType;
+use crate::domain::item::ItemStatus;
+use crate::domain::notification::{AppNotification, NotificationKind};
 use crate::domain::plan::{Plan, PlanStatus, Recurrence};
 use crate::store::AppStore;
 
@@ -14,11 +18,14 @@ const DATETIME_FMT: &[time::format_description::FormatItem<'static>] =
 pub fn tick(store: &mut AppStore) -> bool {
     let reminders = fire_event_reminders(store);
     let plans = advance_recurring_plans(store);
-    reminders || plans
+    let projection = fire_projection_notifications(store);
+    let summaries = fire_summaries(store);
+    reminders || plans || projection || summaries
 }
 
 /// Recordatorios de eventos: notifica a los miembros del hogar cuando faltan
 /// `reminder_minutes` para el evento, una sola vez por evento (SPEC §9.2/§13).
+/// Respeta los tipos de evento elegidos por cada miembro (`event_types`).
 fn fire_event_reminders(store: &mut AppStore) -> bool {
     let now = time::OffsetDateTime::now_utc();
     let events = store.events.list();
@@ -47,8 +54,15 @@ fn fire_event_reminders(store: &mut AppStore) -> bool {
         }
         // Dentro de la ventana del recordatorio → notificar una vez.
         if now >= reminder_at {
+            let kind_key = event_type_key(ev.kind);
             for m in &members {
-                crate::commands::notify::push_managed(
+                let settings = store.rules.settings_for(m);
+                if !settings.event_types.is_empty()
+                    && !settings.event_types.iter().any(|t| t == &kind_key)
+                {
+                    continue;
+                }
+                notify::push_managed(
                     &mut store.rules,
                     m,
                     NotificationKind::EventReminder,
@@ -62,6 +76,144 @@ fn fire_event_reminders(store: &mut AppStore) -> bool {
         }
     }
     changed
+}
+
+/// Proyección de faltas (SPEC §13): una vez al día, avisa a quienes tienen
+/// activado `on_projection` qué está por faltar (según la cadencia aprendida).
+fn fire_projection_notifications(store: &mut AppStore) -> bool {
+    let today = notify::today_local(&store.rules);
+    if store.rules.projection_notified_on.as_deref() == Some(&today) {
+        return false;
+    }
+    store.rules.projection_notified_on = Some(today.clone());
+    let pending: Vec<String> = crate::commands::reports::compute_projection(store)
+        .into_iter()
+        .filter(|p| {
+            !p.decided && p.est_falta_in_days.map(|d| d <= 2).unwrap_or(false)
+        })
+        .map(|p| p.name)
+        .collect();
+    if pending.is_empty() {
+        return false;
+    }
+    let members: Vec<String> = store
+        .home
+        .get()
+        .ok()
+        .map(|h| h.members().into_iter().map(|m| m.name).collect())
+        .unwrap_or_default();
+    let names = pending[..pending.len().min(3)].join(", ");
+    for m in &members {
+        notify::push_managed(
+            &mut store.rules,
+            m,
+            NotificationKind::Projection,
+            "Pronto hará falta…",
+            &format!("Según lo que consumen, pronto faltará: {names}."),
+            Some("/home"),
+        );
+    }
+    true
+}
+
+/// Resúmenes diario y semanal (SPEC §13): en la hora que eligió cada miembro
+/// (`daily_summary_hour`/`weekly_summary_hour`), una vez por periodo.
+fn fire_summaries(store: &mut AppStore) -> bool {
+    let members: Vec<String> = store
+        .home
+        .get()
+        .ok()
+        .map(|h| h.members().into_iter().map(|m| m.name).collect())
+        .unwrap_or_default();
+    let mut changed = false;
+
+    for m in &members {
+        let settings = store.rules.settings_for(m);
+        if settings.daily_summary {
+            if let Some(hour) = settings.daily_summary_hour.as_deref() {
+                if matches_hour(hour, store) {
+                    let key = format!("{m}|daily|{}", notify::today_local(&store.rules));
+                    if !store.rules.summaries_sent.contains_key(&key) {
+                        let count = store
+                            .items
+                            .list()
+                            .iter()
+                            .filter(|i| {
+                                i.status == ItemStatus::Falta || i.status == ItemStatus::Pedido
+                            })
+                            .count();
+                        store.rules.push_notification(AppNotification::new(
+                            NotificationKind::DailySummary,
+                            m,
+                            "Resumen del día",
+                            &format!(
+                                "Hoy faltan {count} {item_word} por comprar.",
+                                item_word = if count == 1 { "cosa" } else { "cosas" }
+                            ),
+                            Some("/home"),
+                        ));
+                        store.rules.summaries_sent.insert(key.clone(), key);
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if settings.weekly_summary {
+            if let Some(hour) = settings.weekly_summary_hour.as_deref() {
+                if matches_hour(hour, store) {
+                    let key = format!(
+                        "{m}|weekly|{}",
+                        notify::today_local(&store.rules)
+                    );
+                    if !store.rules.summaries_sent.contains_key(&key) {
+                        let pending: Vec<String> = crate::commands::reports::compute_projection(store)
+                            .into_iter()
+                            .filter(|p| p.est_falta_in_days.map(|d| d <= 7).unwrap_or(false))
+                            .map(|p| p.name)
+                            .take(4)
+                            .collect();
+                        let detail = if pending.is_empty() {
+                            "Todo bajo control.".to_string()
+                        } else {
+                            format!("Esta semana faltará: {}.", pending.join(", "))
+                        };
+                        store.rules.push_notification(AppNotification::new(
+                            NotificationKind::WeeklySummary,
+                            m,
+                            "Resumen de la semana",
+                            &detail,
+                            Some("/home"),
+                        ));
+                        store.rules.summaries_sent.insert(key.clone(), key);
+                        changed = true;
+                    }
+                }
+            }
+        }
+    }
+    changed
+}
+
+/// ¿La hora local del hogar coincide con `HH:MM`? (la pasada del tick es cada 60 s).
+fn matches_hour(hhmm: &str, store: &AppStore) -> bool {
+    let mut parts = hhmm.split(':');
+    let h: u32 = parts.next().and_then(|s| s.trim().parse().ok()).unwrap_or(u32::MAX);
+    let m: u32 = parts.next().and_then(|s| s.trim().parse().ok()).unwrap_or(u32::MAX);
+    notify::local_minutes_now(&store.rules) == h * 60 + m
+}
+
+/// Clave serde de un tipo de evento (igual que `EventType` serializa), para
+/// compararla con `NotificationSettings.event_types`.
+fn event_type_key(kind: EventType) -> String {
+    match kind {
+        EventType::Cumpleanos => "cumpleanos",
+        EventType::Union => "union",
+        EventType::Comida => "comida",
+        EventType::Celebracion => "celebracion",
+        EventType::Reunion => "reunion",
+        EventType::Mandado => "mandado",
+    }
+    .to_string()
 }
 
 /// Planes recurrentes: cuando un plan programado quedó en el pasado y sigue

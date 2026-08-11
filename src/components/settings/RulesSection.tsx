@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getRules, updateRules } from '../../lib/api'
+import { clearHostKey, generateHostKey, getHome, getRules, updateRules } from '../../lib/api'
 import Text from '../../shared/ui/primitives/Text.tsx'
 import Skeleton from '../../shared/ui/primitives/Skeleton.tsx'
 import Alert from '../../shared/ui/feedback/Alert.tsx'
 import { Button, Card, Input, Select, Stack, Switch } from '../../shared/ui/index.ts'
 import { ME } from '../../lib/me'
-import { Settings2 } from 'lucide-react'
+import { KeyRound, Settings2 } from 'lucide-react'
 import styles from './RulesSection.module.css'
 
 const RULES_KEY = ['rules']
@@ -17,6 +17,26 @@ export default function RulesSection() {
   const [saved, setSaved] = useState(false)
 
   const { data: rules, isLoading } = useQuery({ queryKey: RULES_KEY, queryFn: getRules })
+  const homeQuery = useQuery({ queryKey: ['home'], queryFn: getHome, retry: false })
+  const isAdmin = homeQuery.data?.members.find((m) => m.name === ME)?.role === 'admin'
+  const [hostKeyShown, setHostKeyShown] = useState<string | null>(null)
+
+  const genHostKey = useMutation({
+    mutationFn: () => generateHostKey(ME),
+    onSuccess: (key) => {
+      setHostKeyShown(key)
+      invalidate()
+    },
+    onError: (e) => setError(e instanceof Error ? e.message : 'No se pudo generar la llave'),
+  })
+
+  const clearHostKeyMutation = useMutation({
+    mutationFn: () => clearHostKey(ME),
+    onSuccess: () => {
+      setHostKeyShown(null)
+      invalidate()
+    },
+  })
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: RULES_KEY })
@@ -139,6 +159,40 @@ export default function RulesSection() {
             onChange={(v) => toggle.mutate({ privacyShowPrices: v })}
           />
         </div>
+
+        {rules.hostMode && isAdmin && (
+          <Stack gap="2">
+            <div className={styles.line}>
+              <Text as="h3" variant="section">
+                <KeyRound size={18} aria-hidden="true" /> Llave del modo host
+              </Text>
+              <Text as="p" variant="note" tone="secondary">
+                El quiosco entra con esta llave sin contraseña (SPEC §2.3).
+              </Text>
+            </div>
+            {hostKeyShown || (rules.hostKey && <Text variant="item" numeric>{hostKeyShown ?? rules.hostKey}</Text>)}
+            <div className={styles.rowFields}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => genHostKey.mutate()}
+                loading={genHostKey.isPending}
+              >
+                {rules.hostKey || hostKeyShown ? 'Regenerar llave' : 'Generar llave'}
+              </Button>
+              {(rules.hostKey || hostKeyShown) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => clearHostKeyMutation.mutate()}
+                  loading={clearHostKeyMutation.isPending}
+                >
+                  Desactivar
+                </Button>
+              )}
+            </div>
+          </Stack>
+        )}
 
         <Button
           onClick={() => update.mutate()}

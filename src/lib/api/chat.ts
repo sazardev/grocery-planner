@@ -60,3 +60,8 @@ export function togglePinnedMessage(id: string): Promise<ChatMessage> {
 export function getChatCount(): Promise<number> {
   return request<number>('chat_count')
 }
+
+/** Mensajes del chat que citan a un ítem (SPEC §11.3). */
+export function getChatForItem(itemId: string): Promise<ChatMessage[]> {
+  return request<ChatMessage[]>('chat_for_item', { itemId })
+}

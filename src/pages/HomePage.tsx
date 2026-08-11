@@ -6,13 +6,17 @@ import {
   decideProjection,
   getHome,
   getProjection,
+  getRules,
+  listEvents,
+  listSections,
   presenceHeartbeat,
   queryItems,
 } from '../lib/api'
 import { ME } from '../lib/me'
-import type { GroceryItem, ItemStatus } from '../domain/item'
+import type { GroceryItem, ItemStatus, Priority } from '../domain/item'
 import type { ItemSort } from '../lib/api/items.ts'
 import { ITEM_SORT_LABEL } from '../lib/api/items.ts'
+import { addDays, localWindowRangeISO, todayISO } from '../lib/dates.ts'
 import PresenceStrip from '../components/PresenceStrip.tsx'
 import FilterMenu from '../components/FilterMenu.tsx'
 import ViewToggle from '../components/ViewToggle.tsx'
@@ -42,8 +46,6 @@ const filterTabs: { key: string; label: string }[] = [
   { key: 'llevo', label: 'Llevo' },
   { key: 'comprado', label: 'Comprado' },
 ]
-
-const ITEMS_KEY = ['items']
 
 const SECTION_ORDER: ItemStatus[] = ['falta', 'pedido', 'llevo', 'comprado', 'cancelado']
 const SECTION_TITLE: Record<ItemStatus, string> = {
@@ -75,14 +77,61 @@ export default function HomePage() {
   const [urgentOnly, setUrgentOnly] = useState(false)
   const [commentsOnly, setCommentsOnly] = useState(false)
   const [photosOnly, setPhotosOnly] = useState(false)
+  const [category, setCategory] = useState('')
+  const [priority, setPriority] = useState('')
+  const [sectionFilter, setSectionFilter] = useState('')
+  const [member, setMember] = useState('')
+  const [assigned, setAssigned] = useState('')
+  const [store, setStore] = useState('')
+  const [aisle, setAisle] = useState('')
+  const [dateWindow, setDateWindow] = useState('')
+  const [onlyMine, setOnlyMine] = useState(false)
+  const [eventId, setEventId] = useState('')
   const [sort, setSort] = useState<ItemSort>('priority')
   const [view, setView] = useState<ListViewMode>(loadViewMode)
   useEffect(() => saveViewMode(view), [view])
+
+  const rulesQuery = useQuery({ queryKey: ['rules'], queryFn: getRules, staleTime: 30_000 })
+  const sectionsQuery = useQuery({ queryKey: ['sections'], queryFn: listSections, staleTime: 30_000 })
+  const eventsQuery = useQuery({ queryKey: ['events'], queryFn: listEvents, staleTime: 30_000 })
+
+  // Ventana de fecha local → rango ISO UTC (SPEC §4.5).
+  const dateRange = (() => {
+    if (!dateWindow) return { from: undefined, to: undefined }
+    const today = todayISO()
+    const end =
+      dateWindow === 'anio' ? `${today.slice(0, 4)}-12-31` : today
+    const start =
+      dateWindow === 'hoy'
+        ? today
+        : dateWindow === 'semana'
+          ? today
+          : dateWindow === 'mes'
+            ? today
+            : dateWindow === 'anio'
+              ? `${today.slice(0, 4)}-01-01`
+              : dateWindow === '7d'
+                ? addDays(today, -6)
+                : addDays(today, -29)
+    const r = localWindowRangeISO(start, end)
+    return { from: r.start, to: r.end }
+  })()
+
   const activeFilters: string[] = [
     ...(statusFilter ? [statusFilter] : []),
     ...(urgentOnly ? ['urgent'] : []),
     ...(commentsOnly ? ['comments'] : []),
     ...(photosOnly ? ['photos'] : []),
+    ...(category ? ['cat'] : []),
+    ...(priority ? ['pri'] : []),
+    ...(sectionFilter ? ['sec'] : []),
+    ...(member ? ['who'] : []),
+    ...(assigned ? ['assigned'] : []),
+    ...(store ? ['store'] : []),
+    ...(aisle ? ['aisle'] : []),
+    ...(dateWindow ? ['when'] : []),
+    ...(onlyMine ? ['mine'] : []),
+    ...(eventId ? ['event'] : []),
   ]
   useDocumentTitle('¿Qué falta? · Grocery Planner')
   usePresenceLeave(ME)
@@ -99,7 +148,7 @@ export default function HomePage() {
     isError,
     error,
   } = useQuery({
-    queryKey: ['items', search, statusFilter, urgentOnly, commentsOnly, photosOnly, sort],
+    queryKey: ['items', search, statusFilter, urgentOnly, commentsOnly, photosOnly, category, priority, sectionFilter, member, assigned, store, aisle, dateWindow, onlyMine, eventId, sort],
     queryFn: () =>
       queryItems({
         search: search.trim() || undefined,
@@ -107,8 +156,28 @@ export default function HomePage() {
         urgent: urgentOnly || undefined,
         onlyComments: commentsOnly || undefined,
         onlyPhotos: photosOnly || undefined,
+        category: category || undefined,
+        priority: (priority || undefined) as Priority | undefined,
+        section: sectionFilter || undefined,
+        requestedBy: member || undefined,
+        assignedTo: assigned || undefined,
+        store: store || undefined,
+        aisle: aisle || undefined,
+        createdFrom: dateRange.from,
+        createdTo: dateRange.to,
         sort,
-      }),
+      }).then((rows) =>
+        // "Lo que me toca a mí" y "de este evento" se filtran en el cliente
+        // (asignación propia y lista del evento, SPEC §4.5).
+        rows.filter((i) => {
+          if (onlyMine && i.assignedTo !== ME) return false
+          if (eventId) {
+            const ev = eventsQuery.data?.find((e) => e.id === eventId)
+            if (!ev || !ev.itemIds.includes(i.id)) return false
+          }
+          return true
+        }),
+      ),
     refetchInterval: 10_000,
   })
 
@@ -117,7 +186,8 @@ export default function HomePage() {
     queryFn: () => presenceHeartbeat(ME),
     refetchInterval: 15_000,
   })
-  const online = (presence.data ?? []).filter((p) => p.online)
+  const presenceUsers = presence.data ?? []
+  const online = presenceUsers.filter((p) => p.online)
 
   const projection = useQuery({ queryKey: ['projection'], queryFn: getProjection })
 
@@ -148,7 +218,24 @@ export default function HomePage() {
   const statusMutation = useMutation({
     mutationFn: ({ id, to }: { id: string; to: ItemStatus }) =>
       changeItemStatus(id, to, ME),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ITEMS_KEY }),
+    // Optimistic: la fila cambia al instante; el polling/re-fetch reconcilia.
+    onMutate: async ({ id, to }) => {
+      await queryClient.cancelQueries({ queryKey: ['items'] })
+      const prev = queryClient
+        .getQueryCache()
+        .findAll({ queryKey: ['items'] })
+        .map((q) => [q.queryKey, q.state.data] as const)
+      queryClient.setQueriesData(
+        { queryKey: ['items'] },
+        (old: GroceryItem[] | undefined) =>
+          old?.map((i) => (i.id === id ? { ...i, status: to } : i)),
+      )
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      for (const [k, d] of ctx?.prev ?? []) queryClient.setQueryData(k, d)
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['items'] }),
   })
 
   const toggle = (item: GroceryItem) => {
@@ -171,6 +258,10 @@ export default function HomePage() {
     urgent: item.priority === 'urgente',
     requestedBy: item.requestedBy,
     assignedTo: item.assignedTo,
+    store: item.store,
+    aisle: item.aisle,
+    commentCount: item.comments.length,
+    photoCount: item.photos.length,
     note: item.note,
     actionLabel: SECTION_TITLE[item.status],
     checked: item.status === 'llevo' || item.status === 'comprado',
@@ -192,7 +283,7 @@ export default function HomePage() {
               Faltan {pendingCount} {pendingCount === 1 ? 'cosa' : 'cosas'} por comprar
             </Text>
           </div>
-          {online.length > 0 && <PresenceStrip users={online} />}
+          {online.length > 0 && <PresenceStrip users={presenceUsers} />}
         </div>
         {isError && (
           <Alert
@@ -294,6 +385,137 @@ export default function HomePage() {
             }
           }}
         />
+      </div>
+
+      <div className={styles.advRow}>
+        <Select
+          size="md"
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          aria-label="Filtrar por categoría"
+        >
+          <option value="">Categoría</option>
+          {rulesQuery.data?.categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </Select>
+        <Select
+          size="md"
+          value={priority}
+          onChange={(e) => setPriority(e.target.value)}
+          aria-label="Filtrar por prioridad"
+        >
+          <option value="">Prioridad</option>
+          <option value="urgente">Urgente</option>
+          <option value="alta">Alta</option>
+          <option value="media">Media</option>
+          <option value="baja">Baja</option>
+        </Select>
+        <Select
+          size="md"
+          value={sectionFilter}
+          onChange={(e) => setSectionFilter(e.target.value)}
+          aria-label="Filtrar por sección"
+        >
+          <option value="">Sección</option>
+          {sectionsQuery.data?.map((s) => (
+            <option key={s.id} value={s.name}>
+              {s.name}
+            </option>
+          ))}
+        </Select>
+        <Select
+          size="md"
+          value={member}
+          onChange={(e) => setMember(e.target.value)}
+          aria-label="Filtrar por quien lo pidió"
+        >
+          <option value="">Quién lo pidió</option>
+          {homeQuery.data?.members.map((m) => (
+            <option key={m.name} value={m.name}>
+              {m.name}
+            </option>
+          ))}
+        </Select>
+        <Select
+          size="md"
+          value={assigned}
+          onChange={(e) => setAssigned(e.target.value)}
+          aria-label="Filtrar por asignado a"
+        >
+          <option value="">Asignado a</option>
+          {homeQuery.data?.members.map((m) => (
+            <option key={m.name} value={m.name}>
+              {m.name}
+            </option>
+          ))}
+        </Select>
+        <Select
+          size="md"
+          value={store}
+          onChange={(e) => {
+            setStore(e.target.value)
+            setAisle('')
+          }}
+          aria-label="Filtrar por tienda"
+        >
+          <option value="">Tienda</option>
+          {rulesQuery.data?.stores.map((s) => (
+            <option key={s.name} value={s.name}>
+              {s.name}
+            </option>
+          ))}
+        </Select>
+        {store && (
+          <Select
+            size="md"
+            value={aisle}
+            onChange={(e) => setAisle(e.target.value)}
+            aria-label="Filtrar por pasillo"
+          >
+            <option value="">Pasillo</option>
+            {rulesQuery.data?.stores.find((s) => s.name === store)?.aisles.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </Select>
+        )}
+        <Select
+          size="md"
+          value={dateWindow}
+          onChange={(e) => setDateWindow(e.target.value)}
+          aria-label="Filtrar por ventana de tiempo"
+        >
+          <option value="">Fecha</option>
+          <option value="hoy">Hoy</option>
+          <option value="7d">Últimos 7 días</option>
+          <option value="30d">Últimos 30 días</option>
+          <option value="semana">Esta semana</option>
+          <option value="mes">Este mes</option>
+          <option value="anio">Este año</option>
+        </Select>
+        <Select
+          size="md"
+          value={eventId}
+          onChange={(e) => setEventId(e.target.value)}
+          aria-label="Filtrar por evento"
+        >
+          <option value="">De un evento</option>
+          {eventsQuery.data?.map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.title}
+            </option>
+          ))}
+        </Select>
+        <Chip
+          tone={onlyMine ? 'default' : 'muted'}
+          onClick={() => setOnlyMine((v) => !v)}
+        >
+          Lo que me toca
+        </Chip>
       </div>
 
       <Select

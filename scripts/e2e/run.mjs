@@ -52,7 +52,7 @@ async function main() {
   const suite = process.argv[2]
   const suites = suite
     ? [suite]
-    : ['spec-core', 'live-refresh', 'design']
+    : ['spec-core', 'live-refresh', 'design', 'spec-gaps']
 
   // 1) Binario del server.
   console.log('[e2e] Compilando binario server (features=server)…')

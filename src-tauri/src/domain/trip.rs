@@ -41,6 +41,9 @@ pub struct ShoppingTrip {
     pub received_at: Option<String>,
     /// Quién confirmó la recepción.
     pub received_by: Option<String>,
+    /// Cuándo se marcó como completado (SPEC §8.1: "cuándo llegó").
+    #[serde(default)]
+    pub completed_at: Option<String>,
 }
 
 impl ShoppingTrip {
@@ -79,6 +82,7 @@ impl ShoppingTrip {
             item_ids: Vec::new(),
             received_at: None,
             received_by: None,
+            completed_at: None,
         })
     }
 

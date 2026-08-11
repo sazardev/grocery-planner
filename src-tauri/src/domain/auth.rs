@@ -23,6 +23,9 @@ pub struct User {
     /// PIN rápido opcional de 4 dígitos (hash argon2id, SPEC §2.3).
     pub pin_hash: Option<String>,
     pub alias: Option<String>,
+    /// Foto/avatar de la cuenta como data URL (SPEC §2.1: "foto o iniciales").
+    #[serde(default)]
+    pub avatar: Option<String>,
     pub timezone: Option<String>,
     /// Hogar al que pertenece (fase 1: una cuenta = un hogar, SPEC §3.6).
     pub home_id: Option<String>,
@@ -55,6 +58,7 @@ impl User {
             password_hash: hash,
             pin_hash: None,
             alias: None,
+            avatar: None,
             timezone: None,
             home_id: None,
             created_at: now_iso(),

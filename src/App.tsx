@@ -95,9 +95,7 @@ export default function App() {
             <Route
               path="/kiosk"
               element={
-                <RequireAuth>
-                  <KioskPage />
-                </RequireAuth>
+                <KioskPage />
               }
             />
           </Routes>

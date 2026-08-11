@@ -30,19 +30,19 @@ async function main() {
   check('Home no muestra error de conexión', !homeText.includes('No se pudo conectar'))
   await page.waitForFunction(
     () => document.querySelector('[aria-label*="persona conectada"]'),
-    { timeout: 15000 },
+    { timeout: 15000, polling: 250 },
   ).catch(() => {})
   check('Home muestra presencia (alguien conectado)', await page.evaluate(() =>
     Boolean(document.querySelector('[aria-label*="persona conectada"]'))))
 
   // ── Ítem rápido por texto libre
   await clickByText(page, 'Falta…')
-  await page.waitForFunction(() => location.pathname === '/items/new', { timeout: 10000 })
+  await page.waitForFunction(() => location.pathname === '/items/new', { timeout: 10000, polling: 250 })
   await typeIn(page, 'Qué falta', 'pollo 2kg')
   await clickByText(page, 'Agregar', { selector: 'button' })
   await page.waitForFunction(
     () => document.body.innerText.includes('pollo'),
-    { timeout: 15000 },
+    { timeout: 15000, polling: 250 },
   )
   check('Ítem "pollo 2kg" agregado por texto libre', true)
 
@@ -56,7 +56,7 @@ async function main() {
   await clickByText(page, 'Agregar ítem', { selector: 'button' })
   await page.waitForFunction(
     () => document.body.innerText.includes('arroz'),
-    { timeout: 15000 },
+    { timeout: 15000, polling: 250 },
   )
   check('Ítem detallado "arroz integral 2kg" agregado', true)
 
@@ -84,7 +84,7 @@ async function main() {
   await clickByText(page, 'Crear mandado', { selector: 'button' })
   await page.waitForFunction(
     () => document.body.innerText.includes('Mandado sábado E2E'),
-    { timeout: 10000 },
+    { timeout: 10000, polling: 250 },
   )
   check('Mandado creado desde /trips', true)
 
@@ -111,7 +111,7 @@ async function main() {
   await clickByText(page, 'Crear evento', { selector: 'button' })
   await page.waitForFunction(
     () => document.body.innerText.includes('BBQ domingo E2E'),
-    { timeout: 10000 },
+    { timeout: 10000, polling: 250 },
   )
   check('Evento creado desde /events', true)
 
@@ -130,7 +130,7 @@ async function main() {
     )
     btn?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
   })
-  await page.waitForFunction(() => document.body.innerText.includes('Hola familia E2E'), { timeout: 10000 })
+  await page.waitForFunction(() => document.body.innerText.includes('Hola familia E2E'), { timeout: 10000, polling: 250 })
   check('Mensaje de chat enviado y visible', true)
 
   // ── Reportes renderizan

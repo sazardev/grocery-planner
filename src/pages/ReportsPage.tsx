@@ -7,12 +7,16 @@ import {
   getSpending,
   getTopProducts,
   getTripsByMember,
+  type ReportWindow,
+  REPORT_WINDOW_LABEL,
 } from '../lib/api'
 import { ME } from '../lib/me'
 import type { GroceryItem } from '../domain/item'
 import Text from '../shared/ui/primitives/Text.tsx'
 import Skeleton from '../shared/ui/primitives/Skeleton.tsx'
 import Chip from '../shared/ui/primitives/Chip.tsx'
+import Checkbox from '../shared/ui/primitives/Checkbox.tsx'
+import Input from '../shared/ui/form/Input.tsx'
 import { Button, Card, Select, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
 import { useGoBack } from '../lib/hooks/useGoBack.ts'
@@ -23,17 +27,20 @@ import styles from './ReportsPage.module.css'
 
 export default function ReportsPage() {
   const queryClient = useQueryClient()
+  const [window, setWindow] = useState<ReportWindow>('30d')
   const [repeatDate, setRepeatDate] = useState<string>(() => addDays(todayISO(), -1))
+  const [repeatInclude, setRepeatInclude] = useState<Record<string, boolean>>({})
+  const [repeatQty, setRepeatQty] = useState<Record<string, string>>({})
   useDocumentTitle('Reportes · Grocery Planner')
 
-  const top = useQuery({ queryKey: ['reports', 'top'], queryFn: getTopProducts, refetchInterval: 20_000 })
-  const spending = useQuery({ queryKey: ['reports', 'spending'], queryFn: getSpending, refetchInterval: 20_000 })
+  const top = useQuery({ queryKey: ['reports', 'top', window], queryFn: () => getTopProducts(window), refetchInterval: 20_000 })
+  const spending = useQuery({ queryKey: ['reports', 'spending', window], queryFn: () => getSpending(window), refetchInterval: 20_000 })
   const trips = useQuery({ queryKey: ['reports', 'trips'], queryFn: getTripsByMember, refetchInterval: 20_000 })
   // Misma clave que HomePage: decidir la proyección en un lado refresca el otro.
   const projection = useQuery({ queryKey: ['projection'], queryFn: getProjection, refetchInterval: 20_000 })
 
   const days = useMemo(() => {
-    return Array.from({ length: 7 }, (_, i) => addDays(todayISO(), -i))
+    return Array.from({ length: 30 }, (_, i) => addDays(todayISO(), -i))
   }, [])
 
   const repeatQuery = useQuery({
@@ -48,17 +55,22 @@ export default function ReportsPage() {
   const repeatMutation = useMutation({
     mutationFn: (items: GroceryItem[]) =>
       Promise.all(
-        items.map((it) =>
-          createItem({
-            name: it.name,
-            quantity: it.quantity,
-            unit: it.unit,
-            priority: 'media',
-            requestedBy: ME,
-            category: it.category,
-            note: it.note,
-          }),
-        ),
+        items
+          .filter((it) => repeatInclude[it.id] !== false)
+          .map((it) =>
+            createItem({
+              name: it.name,
+              quantity: Number(repeatQty[it.id]) || it.quantity,
+              unit: it.unit,
+              priority: it.priority,
+              requestedBy: ME,
+              category: it.category,
+              note: it.note,
+              store: it.store,
+              section: it.section,
+              brand: it.brand,
+            }),
+          ),
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['items'] })
@@ -118,9 +130,24 @@ export default function ReportsPage() {
       </section>
 
       <section>
-        <Text as="h2" variant="section">
-          Lo que más compramos
-        </Text>
+        <div className={styles.line}>
+          <Text as="h2" variant="section">
+            Lo que más compramos
+          </Text>
+          <Select
+            size="md"
+            value={window}
+            onChange={(e) => setWindow(e.target.value as ReportWindow)}
+            aria-label="Ventana de los reportes"
+          >
+            <option value="">Todo el historial</option>
+            {(Object.keys(REPORT_WINDOW_LABEL) as Exclude<ReportWindow, ''>[]).map((w) => (
+              <option key={w} value={w}>
+                {REPORT_WINDOW_LABEL[w]}
+              </option>
+            ))}
+          </Select>
+        </div>
         {top.isLoading ? (
           <Skeleton variant="rect" height={120} />
         ) : (top.data ?? []).length === 0 ? (
@@ -200,16 +227,41 @@ export default function ReportsPage() {
               <Stack gap="2">
                 <Text variant="note" tone="secondary">
                   Ese día se compraron {repeatItems.length}{' '}
-                  {repeatItems.length === 1 ? 'ítem' : 'ítems'}:
+                  {repeatItems.length === 1 ? 'ítem' : 'ítems'}. Marca los que quieras y
+                  ajusta la cantidad antes de recrear la lista.
                 </Text>
-                {repeatItems.map((it) => (
-                  <div key={it.id} className={styles.line}>
-                    <Text variant="item">
-                      {it.name} · {it.quantity} {it.unit}
-                    </Text>
-                    {it.category && <Chip tone="muted">{it.category}</Chip>}
-                  </div>
-                ))}
+                {repeatItems.map((it) => {
+                  const included = repeatInclude[it.id] !== false
+                  return (
+                    <div key={it.id} className={styles.repeatRow}>
+                      <Checkbox
+                        checked={included}
+                        onChange={() =>
+                          setRepeatInclude((s) => ({ ...s, [it.id]: !included }))
+                        }
+                        size="sm"
+                        ariaLabel={`Recrear ${it.name}`}
+                      />
+                      <div className={styles.repeatInfo}>
+                        <Text variant="item">{it.name}</Text>
+                        {it.category && <Chip tone="muted">{it.category}</Chip>}
+                      </div>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        size="md"
+                        value={repeatQty[it.id] ?? String(it.quantity)}
+                        onChange={(e) =>
+                          setRepeatQty((s) => ({ ...s, [it.id]: e.target.value }))
+                        }
+                        aria-label={`Cantidad de ${it.name}`}
+                      />
+                      <Text variant="note" tone="secondary">
+                        {it.unit}
+                      </Text>
+                    </div>
+                  )
+                })}
                 <Button
                   onClick={() => repeatMutation.mutate(repeatItems)}
                   loading={repeatMutation.isPending}

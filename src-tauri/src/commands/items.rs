@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::commands::require_role;
 use crate::domain::home::Role;
 use crate::domain::item::{
-    self, GroceryItem, ItemComment, ItemEvent, ItemFallback, ItemStatus, Priority,
+    self, GroceryItem, ItemComment, ItemEvent, ItemEventKind, ItemFallback, ItemStatus, Priority,
 };
 use crate::domain::notification::NotificationKind;
 use crate::error::AppError;
@@ -71,11 +71,81 @@ pub fn validate_new_item(name: String, quantity: f64, unit: String) -> Result<()
     Ok(())
 }
 
-/// Lista todos los ítems, ordenados por fecha de creación.
+/// Una sugerencia de ítem basada en lo que la familia ya ha comprado (SPEC §4.2).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ItemSuggestion {
+    pub name: String,
+    pub quantity: f64,
+    pub unit: String,
+    pub category: Option<String>,
+    pub times_bought: u32,
+    pub last_bought_at: Option<String>,
+}
+
+/// Sugerencias inteligentes: ítems que la familia ya compró, aprendidos del
+/// historial y la cadencia (SPEC §4.2: "sugiere ítems que ya ha comprado").
+#[tauri::command]
+pub fn items_suggest(state: AppStateRef, query: String) -> Result<Vec<ItemSuggestion>, AppError> {
+    let store = store::lock(&state.store)?;
+    Ok(suggest_impl(&store, &query))
+}
+
+/// Lógica compartida entre IPC y HTTP (mismo patrón que `health_report`).
+pub fn suggest_impl(store: &crate::store::AppStore, query: &str) -> Vec<ItemSuggestion> {
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return Vec::new();
+    }
+    let mut suggestions: Vec<ItemSuggestion> = store
+        .items
+        .list()
+        .iter()
+        .filter_map(|it| {
+            let buys: Vec<&ItemEvent> = it
+                .history
+                .iter()
+                .filter(|ev| {
+                    matches!(
+                        &ev.kind,
+                        ItemEventKind::StatusChanged { to: ItemStatus::Comprado, .. }
+                    )
+                })
+                .collect();
+            if buys.is_empty() {
+                return None;
+            }
+            let last_bought_at = buys.iter().map(|ev| ev.at.clone()).max();
+            Some(ItemSuggestion {
+                name: it.name.clone(),
+                quantity: it.quantity,
+                unit: it.unit.clone(),
+                category: it.category.clone(),
+                times_bought: buys.len() as u32,
+                last_bought_at,
+            })
+        })
+        .filter(|s| {
+            let name = s.name.to_lowercase();
+            name.contains(&q) || q.contains(&name)
+        })
+        .collect();
+    suggestions.sort_by(|a, b| {
+        let a_starts = a.name.to_lowercase().starts_with(&q);
+        let b_starts = b.name.to_lowercase().starts_with(&q);
+        b_starts
+            .cmp(&a_starts)
+            .then(b.last_bought_at.cmp(&a.last_bought_at))
+    });
+    suggestions.truncate(6);
+    suggestions
+}
+
+/// Lista todos los ítems visibles (excluye los eliminados, SPEC §8).
 #[tauri::command]
 pub fn items_list(state: AppStateRef) -> Result<Vec<GroceryItem>, AppError> {
     let store = store::lock(&state.store)?;
-    Ok(store.items.list())
+    Ok(store.items.active())
 }
 
 /// Crea un ítem nuevo (estado inicial: Falta).
@@ -91,6 +161,7 @@ pub fn item_create(
     category: Option<String>,
     price: Option<f64>,
     section: Option<String>,
+    store: Option<String>,
     brand: Option<String>,
     quantity_max: Option<f64>,
     fallbacks: Option<Vec<FallbackInput>>,
@@ -109,6 +180,9 @@ pub fn item_create(
     }
     if let Some(section) = section {
         item.set_section(&section, &requested_by)?;
+    }
+    if let Some(store) = store {
+        item.set_store(&store, &requested_by)?;
     }
     if let Some(brand) = brand {
         item.set_brand(&brand, &requested_by)?;
@@ -210,11 +284,25 @@ pub fn item_move(
     store.items.move_item(&id, direction)
 }
 
-/// Elimina un ítem de la lista (SPEC §3.1: "quitar").
+/// "Elimina" un ítem de la lista (SPEC §8: soft delete — el historial y los
+/// reportes lo conservan; se puede recuperar desde el historial).
 #[tauri::command]
-pub fn item_delete(state: AppStateRef, id: String) -> Result<(), AppError> {
+pub fn item_delete(state: AppStateRef, id: String, by: String) -> Result<(), AppError> {
     let mut store = store::lock(&state.store)?;
-    store.items.delete(&id)
+    store.items.delete(&id, &by)
+}
+
+/// Borrado físico (limpieza real de la papelera). No lo usa la UI normal.
+#[tauri::command]
+pub fn item_delete_permanent(state: AppStateRef, id: String, _by: String) -> Result<(), AppError> {
+    let mut store = store::lock(&state.store)?;
+    let item = store.items.get(&id)?;
+    if !item.deleted {
+        return Err(AppError::conflict(
+            "Solo se borra definitivamente un ítem que ya está en la papelera",
+        ));
+    }
+    store.items.delete_permanent(&id)
 }
 
 /// Cambia el estado de un ítem validando la transición (SPEC §3.3).
@@ -226,7 +314,34 @@ pub fn item_change_status(
     by: String,
 ) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.items.change_status(&id, to, &by)
+    let item_name = store.items.get(&id)?.name.clone();
+    let changed = store.items.change_status(&id, to, &by)?;
+    // Si alguien compró algo durante un mandado activo, avisa a la familia del
+    // avance (SPEC §13, con debounce por mandado).
+    if to == ItemStatus::Comprado {
+        for trip in store.trips.list() {
+            if trip.status == crate::domain::trip::TripStatus::Activa
+                && trip.item_ids.contains(&id)
+            {
+                crate::commands::notify::maybe_notify_trip_progress(
+                    &mut store,
+                    &trip.id,
+                    &by,
+                    &item_name,
+                );
+                break;
+            }
+        }
+    }
+    Ok(changed)
+}
+
+/// Marca de golpe todo lo que está "ya lo llevo" como comprado (SPEC §5.1:
+/// "al pagar marca todo como comprado").
+#[tauri::command]
+pub fn items_complete_batch(state: AppStateRef, by: String) -> Result<Vec<GroceryItem>, AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.items.complete_carried(&by)
 }
 
 /// Asigna un ítem a un miembro (SPEC §5).
@@ -316,6 +431,18 @@ pub fn item_set_section(
     store.items.set_section(&id, &section, &by)
 }
 
+/// Fija el pasillo del ítem dentro de su tienda (SPEC §4.1). Cadena vacía = sin pasillo.
+#[tauri::command]
+pub fn item_set_aisle(
+    state: AppStateRef,
+    id: String,
+    aisle: String,
+    by: String,
+) -> Result<GroceryItem, AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.items.set_aisle(&id, &aisle, &by)
+}
+
 /// Búsqueda y filtros combinables de la lista (SPEC §4.5).
 #[tauri::command]
 pub fn items_query(state: AppStateRef, filters: ItemFilters) -> Result<Vec<GroceryItem>, AppError> {
@@ -335,6 +462,10 @@ pub struct ItemFilters {
     pub requested_by: Option<String>,
     pub assigned_to: Option<String>,
     pub store: Option<String>,
+    pub aisle: Option<String>,
+    /// Límites ISO RFC3339 del `created_at` (ventanas: hoy/semana/mes/año/7d/30d).
+    pub created_from: Option<String>,
+    pub created_to: Option<String>,
     #[serde(default)]
     pub urgent: bool,
     #[serde(default)]
@@ -356,6 +487,9 @@ impl ItemFilters {
             requested_by: self.requested_by,
             assigned_to: self.assigned_to,
             store: self.store,
+            aisle: self.aisle,
+            created_from: self.created_from,
+            created_to: self.created_to,
             urgent: self.urgent,
             only_comments: self.only_comments,
             only_photos: self.only_photos,
@@ -468,18 +602,12 @@ pub fn item_use_fallback(
     store.items.use_fallback(&id, index, &by)
 }
 
-/// Trae de vuelta un ítem cancelado por error (SPEC §8.2: recuperación).
-/// Solo aplica a ítems cancelados; los vuelve a "Falta" con su historial intacto.
+/// Trae de vuelta un ítem cancelado o eliminado por error (SPEC §8.2:
+/// recuperación). Vuelve a "Falta" con su historial intacto.
 #[tauri::command]
 pub fn item_recover(state: AppStateRef, id: String, by: String) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
-    let item = store.items.get(&id)?;
-    if item.status != ItemStatus::Cancelado {
-        return Err(AppError::conflict(
-            "Solo se recupera un ítem que fue cancelado",
-        ));
-    }
-    store.items.change_status(&id, ItemStatus::Falta, &by)
+    store.items.recover(&id, &by)
 }
 
 /// Ítems que se compraron entre dos marcas ISO (SPEC §8.2: "comprar lo mismo

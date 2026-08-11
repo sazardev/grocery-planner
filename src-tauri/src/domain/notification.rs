@@ -14,6 +14,8 @@ pub enum NotificationKind {
     Mention,
     EventReminder,
     Projection,
+    DailySummary,
+    WeeklySummary,
 }
 
 /// Un aviso generado por el sistema para un miembro (SPEC §13).

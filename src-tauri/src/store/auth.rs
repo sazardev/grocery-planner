@@ -85,6 +85,22 @@ impl AuthStore {
         Ok((user.clone(), token))
     }
 
+    /// Abre una sesión para una cuenta existente sin contraseña (solo modo host
+    /// del quiosco, SPEC §2.3: la llave del hogar ya autorizó).
+    pub fn session_for(
+        &mut self,
+        name: &str,
+        device: &str,
+    ) -> Result<(User, String), AppError> {
+        let user = self
+            .user_by_name(name)
+            .ok_or_else(|| AppError::unauthorized("La cuenta del modo host no existe"))?;
+        let session = Session::new(&user.id, device);
+        let token = session.token.clone();
+        self.sessions.insert(token.clone(), session);
+        Ok((user.clone(), token))
+    }
+
     /// Devuelve la cuenta dueña de una sesión activa (marca el último uso).
     pub fn user_by_token(&mut self, token: &str) -> Result<User, AppError> {
         let session = self
@@ -202,6 +218,43 @@ impl AuthStore {
         self.user_by_name(name)
             .map(|u| u.pin_hash.is_some())
             .unwrap_or(false)
+    }
+
+    /// Actualiza el perfil de la cuenta: alias y avatar (SPEC §2.1). `None` =
+    /// no tocar; cadena vacía = limpiar.
+    pub fn update_profile(
+        &mut self,
+        token: &str,
+        alias: Option<&str>,
+        avatar: Option<&str>,
+    ) -> Result<User, AppError> {
+        let user = self.user_by_token(token)?;
+        let stored = self
+            .users
+            .get_mut(&user.id)
+            .ok_or_else(|| AppError::unauthorized("Cuenta no encontrada"))?;
+        if let Some(alias) = alias {
+            let alias = alias.trim();
+            stored.alias = if alias.is_empty() {
+                None
+            } else {
+                Some(alias.to_string())
+            };
+        }
+        if let Some(avatar) = avatar {
+            let avatar = avatar.trim();
+            stored.avatar = if avatar.is_empty() {
+                None
+            } else {
+                Some(avatar.to_string())
+            };
+        }
+        Ok(stored.clone())
+    }
+
+    /// ¿Existe una cuenta con este nombre? (para validar miembros, SPEC §3.5).
+    pub fn account_exists(&self, name: &str) -> bool {
+        self.user_by_name(name).is_some()
     }
 
     /// Inicia sesión con el PIN rápido de 4 dígitos (SPEC §2.3).

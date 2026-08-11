@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { applyItemFallback, cancelItem, changeItemStatus, confirmTripReceived, listTrips, queryItems } from '../lib/api'
+import { applyItemFallback, cancelItem, changeItemStatus, completeCarriedItems, confirmTripReceived, listTrips, queryItems } from '../lib/api'
 import { ME } from '../lib/me'
 import type { GroceryItem } from '../domain/item'
 import Text from '../shared/ui/primitives/Text.tsx'
@@ -16,7 +16,7 @@ import { loadViewMode, saveViewMode } from '../lib/viewMode.ts'
 import type { ListViewMode } from '../lib/viewMode.ts'
 import { Button, Card, EmptyState, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
-import { Ban, PackageCheck, ShoppingBag } from 'lucide-react'
+import { Ban, CheckCheck, PackageCheck, ShoppingBag } from 'lucide-react'
 import styles from './MinePage.module.css'
 
 const MINE_KEY = ['mine']
@@ -48,7 +48,27 @@ export default function MinePage() {
   const toggleMutation = useMutation({
     mutationFn: ({ id, to }: { id: string; to: GroceryItem['status'] }) =>
       changeItemStatus(id, to, ME),
-    onSuccess: () => {
+    onMutate: async ({ id, to }) => {
+      await queryClient.cancelQueries({ queryKey: MINE_KEY })
+      queryClient.setQueryData<GroceryItem[]>(MINE_KEY, (old) =>
+        old?.map((i) => (i.id === id ? { ...i, status: to } : i)),
+      )
+    },
+    onSettled: () => {
+      invalidate()
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+    },
+  })
+
+  const completeBatchMutation = useMutation({
+    mutationFn: () => completeCarriedItems(ME),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: MINE_KEY })
+      queryClient.setQueryData<GroceryItem[]>(MINE_KEY, (old) =>
+        old?.map((i) => (i.status === 'llevo' ? { ...i, status: 'comprado' } : i)),
+      )
+    },
+    onSettled: () => {
       invalidate()
       queryClient.invalidateQueries({ queryKey: ['items'] })
     },
@@ -59,15 +79,26 @@ export default function MinePage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['trips'] }),
   })
 
+  // Agrupa por tienda → pasillo (SPEC §6: "lo mío agrupado por tienda y pasillo").
   const grouped = useMemo(() => {
-    const map = new Map<string, GroceryItem[]>()
+    const map = new Map<string, { aisle: string; items: GroceryItem[] }[]>()
     for (const it of itemsQuery.data ?? []) {
-      const key = it.store ?? 'Sin tienda'
-      const list = map.get(key) ?? []
-      list.push(it)
-      map.set(key, list)
+      const store = it.store ?? 'Sin tienda'
+      const aisle = it.aisle ?? 'Otros'
+      const storeGroups = map.get(store) ?? []
+      let group = storeGroups.find((g) => g.aisle === aisle)
+      if (!group) {
+        group = { aisle, items: [] }
+        storeGroups.push(group)
+      }
+      group.items.push(it)
+      map.set(store, storeGroups)
     }
-    return Array.from(map.entries())
+    const out = Array.from(map.entries())
+    for (const [, groups] of out) {
+      groups.sort((a, b) => a.aisle.localeCompare(b.aisle))
+    }
+    return out
   }, [itemsQuery.data])
 
   return (
@@ -91,6 +122,15 @@ export default function MinePage() {
           <Stack gap="2">
             <Text variant="section">Llevas {carrying.length} de {items.length}</Text>
             <ProgressBar value={carrying.length} max={items.length} showValue label="Progreso del mandado" />
+            {carrying.length > 0 && (
+              <Button
+                variant="secondary"
+                onClick={() => completeBatchMutation.mutate()}
+                loading={completeBatchMutation.isPending}
+              >
+                <CheckCheck size={16} strokeWidth={2} aria-hidden="true" /> Marcar todo lo que llevo como comprado
+              </Button>
+            )}
           </Stack>
         </Card>
       )}
@@ -137,90 +177,105 @@ export default function MinePage() {
           description="Cuando alguien te asigne ítems o un mandado, aparecerán aquí."
         />
       ) : (
-        grouped.map(([store, list]) => (
+        grouped.map(([store, groups]) => (
           <Stack key={store} gap="2">
             <div className={styles.storeHeader}>
               <Text as="h2" variant="section">
                 {store}
               </Text>
-              <Chip tone="default">{list.length}</Chip>
+              <Chip tone="default">
+                {groups.reduce((n, g) => n + g.items.length, 0)}
+              </Chip>
             </div>
-            {view === 'grid' ? (
-              <div className={styles.itemGrid}>
-                {list.map((item) => (
-                  <ItemCard
-                    key={item.id}
-                    name={item.name}
-                    quantity={item.quantity}
-                    unit={item.unit}
-                    status={item.status}
-                    urgent={item.priority === 'urgente'}
-                    requestedBy={item.requestedBy}
-                    assignedTo={item.assignedTo}
-                    checked={item.status === 'llevo'}
-                    onToggle={() =>
-                      toggleMutation.mutate({
-                        id: item.id,
-                        to: item.status === 'llevo' ? 'falta' : 'llevo',
-                      })
-                    }
-                    onClick={() => navigate(`/items/${item.id}`)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <List gap="2" columns={2}>
-                {list.map((item) => (
-                  <ItemRow
-                    key={item.id}
-                    as="li"
-                    name={item.name}
-                    quantity={item.quantity}
-                    unit={item.unit}
-                    status={item.status}
-                    urgent={item.priority === 'urgente'}
-                    requestedBy={item.requestedBy}
-                    assignedTo={item.assignedTo}
-                    checked={item.status === 'llevo'}
-                    onToggle={() =>
-                      toggleMutation.mutate({
-                        id: item.id,
-                        to: item.status === 'llevo' ? 'falta' : 'llevo',
-                      })
-                    }
-                    onClick={() => navigate(`/items/${item.id}`)}
-                  />
-                ))}
-              </List>
-            )}
-            {list.some(
-              (it) =>
-                (it.fallbacks?.length ?? 0) > 0 &&
-                it.status !== 'comprado' &&
-                it.status !== 'cancelado',
+            {groups.map((group) => (
+              <Stack key={group.aisle} gap="2">
+                <div className={styles.aisleHeader}>
+                  <Text variant="note" tone="secondary" uppercase>
+                    {group.aisle}
+                  </Text>
+                </div>
+                {view === 'grid' ? (
+                  <div className={styles.itemGrid}>
+                    {group.items.map((item) => (
+                      <ItemCard
+                        key={item.id}
+                        name={item.name}
+                        quantity={item.quantity}
+                        unit={item.unit}
+                        status={item.status}
+                        urgent={item.priority === 'urgente'}
+                        requestedBy={item.requestedBy}
+                        assignedTo={item.assignedTo}
+                        store={item.store}
+                        aisle={item.aisle}
+                        checked={item.status === 'llevo'}
+                        onToggle={() =>
+                          toggleMutation.mutate({
+                            id: item.id,
+                            to: item.status === 'llevo' ? 'falta' : 'llevo',
+                          })
+                        }
+                        onClick={() => navigate(`/items/${item.id}`)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <List gap="2" columns={2}>
+                    {group.items.map((item) => (
+                      <ItemRow
+                        key={item.id}
+                        as="li"
+                        name={item.name}
+                        quantity={item.quantity}
+                        unit={item.unit}
+                        status={item.status}
+                        urgent={item.priority === 'urgente'}
+                        requestedBy={item.requestedBy}
+                        assignedTo={item.assignedTo}
+                        store={item.store}
+                        aisle={item.aisle}
+                        checked={item.status === 'llevo'}
+                        onToggle={() =>
+                          toggleMutation.mutate({
+                            id: item.id,
+                            to: item.status === 'llevo' ? 'falta' : 'llevo',
+                          })
+                        }
+                        onClick={() => navigate(`/items/${item.id}`)}
+                      />
+                    ))}
+                  </List>
+                )}
+              </Stack>
+            ))}
+            {groups.some((g) =>
+              g.items.some(
+                (it) =>
+                  (it.fallbacks?.length ?? 0) > 0 &&
+                  it.status !== 'comprado' &&
+                  it.status !== 'cancelado',
+              ),
             ) && (
               <Card padding="md">
                 <Stack gap="2">
                   <Text variant="section">
                     No había…
                   </Text>
-                  {list
-                    .filter(
-                      (it) =>
-                        (it.fallbacks?.length ?? 0) > 0 &&
-                        it.status !== 'comprado' &&
-                        it.status !== 'cancelado',
-                    )
-                    .map((it) => (
-                      <NoAvailableFlow
-                        key={it.id}
-                        item={it}
-                        onApplied={() => {
-                          invalidate()
-                          queryClient.invalidateQueries({ queryKey: ['items'] })
-                        }}
-                      />
-                    ))}
+                  {groups.flatMap((g) => g.items).filter(
+                    (it) =>
+                      (it.fallbacks?.length ?? 0) > 0 &&
+                      it.status !== 'comprado' &&
+                      it.status !== 'cancelado',
+                  ).map((it) => (
+                    <NoAvailableFlow
+                      key={it.id}
+                      item={it}
+                      onApplied={() => {
+                        invalidate()
+                        queryClient.invalidateQueries({ queryKey: ['items'] })
+                      }}
+                    />
+                  ))}
                 </Stack>
               </Card>
             )}

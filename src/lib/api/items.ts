@@ -30,6 +30,7 @@ export interface CreateItemInput {
   category?: string
   price?: number
   section?: string
+  store?: string
   brand?: string
   quantityMax?: number
   fallbacks?: FallbackInput[]
@@ -44,13 +45,16 @@ export interface ItemFilters {
   requestedBy?: string
   assignedTo?: string
   store?: string
+  aisle?: string
+  createdFrom?: string
+  createdTo?: string
   urgent?: boolean
   onlyComments?: boolean
   onlyPhotos?: boolean
   sort?: ItemSort
 }
 
-export type ItemSort = 'manual' | 'priority' | 'name' | 'category' | 'requestedBy' | 'price' | 'store'
+export type ItemSort = 'manual' | 'priority' | 'name' | 'category' | 'requestedBy' | 'price' | 'store' | 'aisle'
 
 export const ITEM_SORT_LABEL: Record<ItemSort, string> = {
   manual: 'Orden manual',
@@ -60,6 +64,7 @@ export const ITEM_SORT_LABEL: Record<ItemSort, string> = {
   requestedBy: 'Quién lo pidió',
   price: 'Precio',
   store: 'Tienda',
+  aisle: 'Pasillo',
 }
 
 export interface UpdateItemInput {
@@ -86,6 +91,20 @@ export function parseQuickEntry(text: string): Promise<QuickEntry> {
   return request<QuickEntry>('parse_quick_entry', { text })
 }
 
+export interface ItemSuggestion {
+  name: string
+  quantity: number
+  unit: string
+  category?: string
+  timesBought: number
+  lastBoughtAt?: string
+}
+
+/** Sugerencias de ítems que la familia ya compró (SPEC §4.2). */
+export function suggestItems(query: string): Promise<ItemSuggestion[]> {
+  return request<ItemSuggestion[]>('items_suggest', { query })
+}
+
 export function validateNewItem(name: string, quantity: number, unit: string): Promise<void> {
   return request<void>('validate_new_item', { name, quantity, unit })
 }
@@ -105,6 +124,7 @@ export function createItem(input: CreateItemInput): Promise<GroceryItem> {
     category: input.category ?? null,
     price: input.price ?? null,
     section: input.section ?? null,
+    store: input.store ?? null,
     brand: input.brand ?? null,
     quantityMax: input.quantityMax ?? null,
     fallbacks: input.fallbacks ?? [],
@@ -121,6 +141,9 @@ export function queryItems(filters: ItemFilters = {}): Promise<GroceryItem[]> {
     requestedBy: filters.requestedBy ?? null,
     assignedTo: filters.assignedTo ?? null,
     store: filters.store ?? null,
+    aisle: filters.aisle ?? null,
+    createdFrom: filters.createdFrom ?? null,
+    createdTo: filters.createdTo ?? null,
     urgent: filters.urgent ?? false,
     onlyComments: filters.onlyComments ?? false,
     onlyPhotos: filters.onlyPhotos ?? false,
@@ -157,12 +180,23 @@ export function moveItem(id: string, direction: MoveDirection, by: string): Prom
   return request<GroceryItem>('item_move', { id, direction, by })
 }
 
-export function deleteItem(id: string): Promise<void> {
-  return request<void>('item_delete', { id })
+/** "Elimina" un ítem (soft delete: el historial se conserva, SPEC §8). */
+export function deleteItem(id: string, by: string): Promise<void> {
+  return request<void>('item_delete', { id, by })
+}
+
+/** Borrado físico de un ítem que ya está en la papelera (limpieza real). */
+export function deleteItemPermanent(id: string, by: string): Promise<void> {
+  return request<void>('item_delete_permanent', { id, by })
 }
 
 export function changeItemStatus(id: string, to: ItemStatus, by: string): Promise<GroceryItem> {
   return request<GroceryItem>('item_change_status', { id, to, by })
+}
+
+/** Marca todo lo que está "ya lo llevo" como comprado de golpe (SPEC §5.1). */
+export function completeCarriedItems(by: string): Promise<GroceryItem[]> {
+  return request<GroceryItem[]>('items_complete_batch', { by })
 }
 
 export function assignItem(id: string, member: string, by: string): Promise<GroceryItem> {
@@ -195,6 +229,10 @@ export function setItemSection(id: string, section: string, by: string): Promise
 
 export function setItemStore(id: string, storeName: string, by: string): Promise<GroceryItem> {
   return request<GroceryItem>('item_set_store', { id, storeName, by })
+}
+
+export function setItemAisle(id: string, aisle: string, by: string): Promise<GroceryItem> {
+  return request<GroceryItem>('item_set_aisle', { id, aisle, by })
 }
 
 export function setItemBrand(id: string, brand: string, by: string): Promise<GroceryItem> {
