@@ -133,18 +133,20 @@ Detalle operativo y gotchas: [AGENTS.md](AGENTS.md).
 
 ```bash
 npm run verify                           # lint + build + E2E headless (chromium del sistema)
-npm run e2e                              # las 6 suites E2E (spec-core, live-refresh, design, spec-gaps, spec-realtime, spec-full)
+npm run e2e                              # las 7 suites E2E (spec-core, live-refresh, design, spec-gaps, spec-realtime, spec-full, spec-hardening)
 npm run build                            # tsc -b + vite build
 npm run lint                             # oxlint
-cargo test                               # en src-tauri/ (125 tests)
+cargo test                               # en src-tauri/ (129 tests)
 cargo check --features server --bin server   # valida el binario HTTP
 npm run tauri:build                      # empaqueta desktop (.deb/.rpm; AppImage no en esta máquina)
 ```
 
-La suite E2E abre la app real en chromium headless: flujos completos del SPEC (~127 checks),
+La suite E2E abre la app real en chromium headless: flujos completos del SPEC (~236 checks),
 refresco "al momento" por **SSE** entre dos miembros y contra el polling de respaldo
-(`spec-realtime`: <5 s en el transporte, <15 s en la UI), y cumplimiento de DESIGN
-(flat, verde protagonista, zonas táctiles ≥44 px, modo oscuro).
+(`spec-realtime`: <5 s en el transporte, <15 s en la UI), cumplimiento de DESIGN
+(flat, verde protagonista, zonas táctiles ≥44 px, modo oscuro) y **endurecimiento**
+(`spec-hardening`: fuzz de inputs, aislamiento por membresía, máquina de estados,
+roles, XSS, concurrencia y formularios de la UI).
 
 ## 🗺️ Hoja de ruta (fase 2)
 

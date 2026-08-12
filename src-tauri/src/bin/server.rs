@@ -2451,19 +2451,32 @@ async fn auth_guard(
         .and_then(|v| v.to_str().ok())
         .and_then(|v| v.strip_prefix("Bearer "))
         .map(|t| t.trim().to_string());
-    let authorized = match token {
+    // `has_home` = la cuenta pertenece al hogar de la familia (o es la cuenta
+    // host del modo quiosco). SPEC §15: los datos de la familia solo se ven a
+    // los miembros; un usuario recién registrado sin hogar no debe leerlos.
+    let (authorized, has_home) = match token {
         Some(tok) => match store::lock(&state.store) {
             Ok(mut s) => match s.auth.user_by_token(&tok) {
                 Ok(user) => {
                     // El actor real de esta request es la cuenta del token.
+                    let is_host = user.name == grocery_planner_lib::store::auth::DEFAULT_ACCOUNT;
+                    let member = if is_host {
+                        true
+                    } else {
+                        s.home
+                            .get()
+                            .ok()
+                            .map(|h| h.member(&user.name).is_some())
+                            .unwrap_or(false)
+                    };
                     req.extensions_mut().insert(AuthActor(user.name));
-                    true
+                    (true, member)
                 }
-                Err(_) => false,
+                Err(_) => (false, false),
             },
-            Err(_) => false,
+            Err(_) => (false, false),
         },
-        None => false,
+        None => (false, false),
     };
     if !authorized {
         return (
@@ -2471,6 +2484,24 @@ async fn auth_guard(
             Json(AppError::Unauthorized(
                 "Se requiere iniciar sesión para usar la API".into(),
             )),
+        )
+            .into_response();
+    }
+    // Las rutas de datos exigen pertenecer al hogar. Rutas "sin hogar" (auth,
+    // crear/ver el propio hogar, presencia, avisos propios, el stream SSE y los
+    // helpers puros) quedan exentas. 404 (no 401) para no cerrar la sesión de
+    // alguien recién registrado que aún no se une a un hogar.
+    let needs_home = !(path.starts_with("/api/auth/")
+        || path.starts_with("/api/home")
+        || path.starts_with("/api/presence")
+        || path.starts_with("/api/notifications")
+        || path.starts_with("/api/events-stream")
+        || path.starts_with("/api/item-flows")
+        || path.starts_with("/api/parse-quick-entry"));
+    if needs_home && !has_home {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(AppError::NotFound("No perteneces a un hogar".into())),
         )
             .into_response();
     }

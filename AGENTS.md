@@ -20,19 +20,22 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
 | Check HTTP server binary | `cargo check --features server --bin server` in `src-tauri/` |
 
 > Los E2E viven en `scripts/e2e/` (`harness.mjs`, `run.mjs`, suites `spec-core`/
-> `live-refresh`/`design`/`spec-gaps`/**`spec-realtime`**/**`spec-full`**). `run.mjs`
-> compila el binario server, arranca `vite preview` y el backend en puertos libres
-> con `GROCERY_PLANNER_DATA` aislada, corre las suites y mata los procesos (grupo
-> detached). Requiere un chromium del sistema (default `/usr/bin/chromium`, override
-> `GP_CHROMIUM`). Nota: `waitForFunction` en el harness usa `polling: 250` (el rAF
-> por defecto no detecta cambios tardíos en pestañas headless). Las fotos que se
-> suben en los tests viven en el repo (`scripts/e2e/fixtures/foto.png`), no en /tmp:
-> el E2E es reproducible en cualquier máquina y en CI.
+> `live-refresh`/`design`/`spec-gaps`/**`spec-realtime`**/**`spec-full`**/
+> **`spec-hardening`**). `run.mjs` compila el binario server, arranca `vite
+> preview` y el backend en puertos libres con `GROCERY_PLANNER_DATA` aislada,
+> corre las suites y mata los procesos (grupo detached). Requiere un chromium
+> del sistema (default `/usr/bin/chromium`, override `GP_CHROMIUM`). Nota:
+> `waitForFunction` en el harness usa `polling: 250` (el rAF por defecto no
+> detecta cambios tardíos en pestañas headless). Las fotos que se suben en los
+> tests viven en el repo (`scripts/e2e/fixtures/foto.png`), no en /tmp: el E2E
+> es reproducible en cualquier máquina y en CI.
 >
 > Conteos por suite (referencia, incluye el check final de respuestas 4xx/5xx):
 > `spec-core` 21, `live-refresh` 7, `design` 7, `spec-gaps` 19, `spec-realtime`
 > 14 (SSE), `spec-full` 59–60 (dos ramas de F1/G3 son mutuamente excluyentes),
-> así que por corrida se ejecutan **~127 checks**.
+> **`spec-hardening`** 109 (fuzz de inputs, aislamiento por membresía, máquina
+> de estados, roles, XSS, concurrencia y formularios de la UI), así que por
+> corrida se ejecutan **~236 checks**.
 >
 > `spec-realtime` (SSE) es la prueba del claim estrella de fase 2: una mutación en
 > un cliente llega AL INSTANTE a los demás por `/api/events-stream` (<5 s en el
@@ -104,6 +107,15 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
   se siguen mostrando directo.
 - **Tokens con expiración**: 30 días con renovación deslizante al usarse (`Session.expires_at`).
   Las sesiones vencidas se rechazan (401) y se podan en el hilo de fondo.
+- **Aislamiento por membresía (SPEC §15)**: `auth_guard` exige pertenecer al hogar
+  para las rutas de datos (`/api/items*`, `trips`, `plans`, `events`, `sections`,
+  `rules`, `chat`, `timeline`, `reports`, `backup`, `photos`); un usuario
+  autenticado sin hogar recibe **404** (no 401, para no cerrar su sesión). Rutas
+  "sin hogar" exentas: `/api/auth/*`, `/api/home*`, `/api/presence/*`,
+  `/api/notifications/*`, `/api/events-stream`, `/api/item-flows`,
+  `/api/parse-quick-entry`. La cuenta host (`admin`) queda exenta. El `home_create`
+  devuelve **409** si el actor ya pertenece a un hogar (un miembro = un hogar,
+  SPEC §3.6; el store guarda un solo hogar por instancia).
 - **Migración de datos**: los campos nuevos de los structs de dominio llevan `#[serde(default)]`
   para que un `data.json` de un binario viejo cargue sin romperse (ej. `GroceryItem.brand`/
   `quantity_max`/`fallbacks`). Si el archivo es ilegible, `persist::restore_into` lo mueve a

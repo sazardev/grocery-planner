@@ -52,7 +52,7 @@ async function main() {
   const suite = process.argv[2]
   const suites = suite
     ? [suite]
-    : ['spec-core', 'live-refresh', 'design', 'spec-gaps', 'spec-realtime', 'spec-full']
+    : ['spec-core', 'live-refresh', 'design', 'spec-gaps', 'spec-realtime', 'spec-full', 'spec-hardening']
 
   // 1) Binario del server.
   console.log('[e2e] Compilando binario server (features=server)…')
@@ -132,6 +132,7 @@ async function main() {
       let finished = false
       const perSuiteTimeout =
         s === 'spec-full' ? 480_000
+        : s === 'spec-hardening' ? 240_000
         : 180_000
       const timer = setTimeout(() => {
         if (!finished) {

@@ -421,6 +421,15 @@ async function main() {
       { timeout: 20000, polling: 250 },
     ).catch(() => {})
   }
+  // Q quedó con la sesión del usuario recién registrado, que NO pertenece a
+  // ningún hogar (SPEC §15: un miembro sin hogar no ve los datos de la
+  // familia). Restauramos la sesión del admin para las secciones R/S/T/U.
+  await page.evaluate((tok) => localStorage.setItem('grocery-planner.auth.token', tok), adminToken)
+  await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {})
+  await page.waitForFunction(
+    () => document.body.innerText.includes('¿Qué falta?') || document.body.innerText.includes('Ajustes'),
+    { timeout: 25000, polling: 250 },
+  ).catch(() => {})
 
   // ── R) Secciones, historial y ajustes de avisos ────────────────────────────
   await goto(page, '/trips/sections', { waitFor: 'Para el domingo E2E', timeout: 45000 })

@@ -1030,3 +1030,50 @@ los códigos son correctos.
 ### Pendiente
 - DB real, keyring, biometría, móvil. Validez de fechas laxas en timeline/
   reports (devuelven 200 vacío con fechas basura, sin crash) — aceptado.
+
+---
+
+## Cierre "full cubierto": suite spec-hardening + fix de privacidad (2026-08-12)
+
+Se cerraron los 4 gaps de la agresión anterior y se encontró un 5º bug real de
+privacidad. `cargo test` **129 passed** · `npm run verify` **✓ (7 suites, ~236
+checks: spec-core 21, live-refresh 7, design 7, spec-gaps 19, spec-realtime 14,
+spec-full 59, spec-hardening 109)**.
+
+### Bug real 5: fuga de datos por membresía (SPEC §15)
+Un usuario autenticado **sin hogar** (recién registrado, sin unirse por
+invitación) podía leer TODOS los datos de la familia: ítems, trips, planes,
+eventos, chat, reglas, timeline, reportes, fotos y respaldo. Fix en
+`auth_guard` (server.rs): las rutas de datos exigen pertenecer al hogar
+(`home.member()`), devolviendo **404** (no 401, para no cerrar la sesión de un
+recién registrado). Rutas "sin hogar" exentas: `/api/auth/*`, `/api/home*`,
+`/api/presence/*`, `/api/notifications/*`, `/api/events-stream`,
+`/api/item-flows`, `/api/parse-quick-entry`. La cuenta host `admin`
+(DEFAULT_ACCOUNT del quiosco) queda exenta. Además `home_create` devuelve **409**
+si el actor ya está en un hogar (un miembro = un hogar, SPEC §3.6; el store
+guarda un solo hogar: crear un segundo reemplaza al primero y dejaría huérfanos
+a sus miembros). La sección Q de spec-full quedó ajustada: tras registrar un
+usuario nuevo (que ya no ve datos), se restaura la sesión del admin para R/S/T/U.
+
+### Suite permanente `spec-hardening` (scripts/e2e/spec-hardening.test.mjs, 109 checks)
+Agresión automatizada y reproducible: aislamiento por membresía, auth (401/409),
+máquina de estados completa, inputs de ítem (negativos, vacíos, enums inválidos),
+roles (miembro/organizador/admin), invitaciones (usos/revocación/códigos),
+trips/plans/eventos (estados y fechas límite), chat/SSE/fotos (traversal),
+**carrera de mutaciones concurrentes** (6 operaciones de 2 sesiones sobre el
+mismo ítem → sin 5xx, estado final válido, server vivo), **fuzz XSS/SQLi/unicode
+por campo** + verificación de que la UI los ESCAPA (nada se ejecuta), y
+**formularios UI** (NewItem detallado, NewPlan con el picker de hora propio,
+NewEvent, PIN, recuperar contraseña, respaldo). Se registró en `run.mjs`
+(budget 240 s) y en AGENTS.md/README.md.
+
+### Hallazgos de la agresión (aclaraciones, no bugs)
+- El **clobber de hogar** al crear un segundo hogar de OTRA cuenta es inherente
+  al modelo de un solo hogar por instancia (la E2E reusa el server por suite).
+  El fix de `home_create` (409 para el mismo miembro) más el aislamiento de
+  `auth_guard` evitan que se pierda acceso: los miembros del hogar previo quedan
+  aislados (404) en vez de ver datos de otro hogar.
+- Los **422** son rechazos de deserialización de axum (enum/struct inválidos),
+  parte del contrato 4xx, no bugs.
+- La carrera de `goto` + "detached Frame" es del harness (navegación rápida),
+  no de la app; la ruta 404 renderiza bien en aislamiento.
