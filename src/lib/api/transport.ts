@@ -17,6 +17,11 @@ export function currentTransport(): Transport {
 
 const API_BASE_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8787'
 
+/** Ruta absoluta al backend web (para flujos que no pasan por `request`, como el SSE). */
+export function webApiUrl(path: string): string {
+  return API_BASE_URL + path
+}
+
 type Route = {
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT'
   path: (args: Record<string, unknown>) => string
@@ -71,6 +76,11 @@ const ROUTES: Record<string, Route> = {
     method: 'POST',
     path: () => '/api/auth/password/reset',
     body: (a) => pick(a, ['name', 'backupKey', 'newPassword']),
+  },
+  auth_admin_reset_password: {
+    method: 'POST',
+    path: () => '/api/auth/password/regenerate',
+    body: (a) => pick(a, ['name', 'newPassword']),
   },
   auth_set_pin: {
     method: 'POST',
@@ -584,6 +594,12 @@ export function getAuthToken(): string | null {
 /** Registra un handler global que se llama ante un 401 (sesión expirada/revocada). */
 export function onUnauthorized(handler: (() => void) | null): void {
   unauthorizedHandler = handler
+}
+
+/** Invoca el handler global de 401 (lo usa también el stream SSE: si el token
+ * expiró/revocó, la sesión se cierra en la UI igual que en cualquier request). */
+export function triggerUnauthorized(): void {
+  unauthorizedHandler?.()
 }
 
 function normalizeTauriError(err: unknown): ApiError {

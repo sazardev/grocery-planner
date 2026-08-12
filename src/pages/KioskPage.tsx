@@ -31,17 +31,18 @@ export default function KioskPage() {
     queryFn: getHostMode,
     enabled: status !== 'authenticated',
     retry: false,
+    refetchInterval: 15_000,
   })
   const { data: items = [] } = useQuery({
     queryKey: ['kiosk', 'items'],
     queryFn: () => queryItems({ sort: 'priority' }),
-    refetchInterval: 10_000,
+    refetchInterval: 20_000,
     enabled: status === 'authenticated',
   })
   const presence = useQuery({
     queryKey: ['kiosk', 'presence'],
     queryFn: () => presenceHeartbeat(ME),
-    refetchInterval: 10_000,
+    refetchInterval: 20_000,
     enabled: status === 'authenticated',
   })
   const online = (presence.data ?? []).filter((p) => p.online)
@@ -61,7 +62,11 @@ export default function KioskPage() {
   const toggleMutation = useMutation({
     mutationFn: ({ id, to }: { id: string; to: GroceryItem['status'] }) =>
       changeItemStatus(id, to, ME),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['kiosk'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kiosk'] })
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+      queryClient.invalidateQueries({ queryKey: ['mine'] })
+    },
   })
 
   if (status === 'loading') {

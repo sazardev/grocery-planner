@@ -47,7 +47,8 @@ duplican en el store: `compute_chat` los genera al vuelo.
 | `userId` | string | |
 | `device` | string | "celular", "tablet", "web"… |
 | `createdAt` / `lastUsedAt` | ISO UTC | |
-| `revoked` | bool | Revocación manual (sin expiración en fase 1) |
+| `revoked` | bool | Revocación manual |
+| `expiresAt` | ISO UTC? | Expirado a los 30 días con **renovación deslizante** al usarse; las sesiones vencidas se rechazan (401) y se podan en el hilo de fondo |
 
 ### `Home` + `Member` + `Invitation` (hogar y roles)
 
@@ -77,7 +78,10 @@ Regla: el último Admin no se puede expulsar ni degradar.
 | `store` | string? | Tienda donde se consigue |
 | `aisle` | string? | Pasillo dentro de la tienda (§4.1) |
 | `deleted` | bool (default false) | Soft delete (§8): oculto de la lista, sigue en historial/reportes |
-| `photos` | string[] | Data URLs (límite en reglas) |
+| `brand` | string? | Marca (ej. "la marca que nos gusta") |
+| `quantityMax` | f64? | Cantidad máxima por compra |
+| `fallbacks` | `ItemFallback[]` | Alternativas ("si no hay X, trae Y") |
+| `photos` | string[] | Nombres de archivo en `<data>/photos/` (o data URLs legacy) |
 | `position` | f64 | Orden manual/secciones |
 | `createdAt` | ISO UTC | |
 | `history` | `ItemEvent[]` | Línea de tiempo del ítem |
@@ -146,17 +150,25 @@ recurrentes vencidos.
 
 ### `PresenceView` (§12) — no persistida
 
-`name`, `online`, `lastSeen`, `screen?`. Se poda a los ~30 s sin heartbeat.
+`name`, `online`, `lastSeen`, `screen?`. El flag `online` se apaga a los ~30 s sin
+heartbeat; las entradas se podan a las 24 h en el hilo de fondo (10 s).
 
 ## Respaldo (`backup_export` / `backup_import`, §15)
 
 Un único JSON con: `home`, `items`, `trips`, `events`, `plans`, `sections`,
-`chat`, `rules`, `notifications`, `projectionChoices`, `exportedAt`. Importarlo
-reemplaza el estado del hogar (los datos de la máquina destino se pierden).
+`chat`, `rules`, `notifications`, `projectionChoices`, `users` (hashes de
+contraseña/PIN y vínculo al hogar de cada cuenta) y `exportedAt`. Las **fotos a
+disco se embeben** (archivo → data URL) al exportar y se **extraen** (data URL →
+archivo) al importar, así el respaldo es autocontenido. Importarlo reemplaza el
+estado del hogar (los datos de la máquina destino se pierden).
 
 ## Notas de fase 2
 
 - DB real (sqlx/diesel) en lugar de memoria + JSON.
-- Fotos pasan de data URLs a disco/almacenamiento.
-- Presencia y chat en tiempo real con SSE/websockets.
-- Tokens con expiración y almacenamiento en keyring.
+- Keyring para el token en desktop.
+- Biometría (nativa/dispositivo) para desbloquear sesión local.
+
+> Ya implementado (fase 2 parcial): tiempo real por SSE (`/api/events-stream`),
+> fotos a disco (`<data>/photos/`), tokens con expiración (30 días deslizante) y
+> Docker self-hosting. El modelo actual es memoria + JSON en disco (persistencia
+> cada ~5 s + al instante en auth).

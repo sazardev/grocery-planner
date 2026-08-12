@@ -15,6 +15,7 @@ import Switch from '../shared/ui/form/Switch.tsx'
 import { Card, Input, Select, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
 import { useGoBack } from '../lib/hooks/useGoBack.ts'
+import { invalidateCalendar } from '../lib/queryKeys.ts'
 import { CalendarDays, ArrowLeft } from 'lucide-react'
 import styles from './EventsPage.module.css'
 
@@ -79,6 +80,7 @@ export default function EventsPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] })
+      invalidateCalendar(queryClient)
       setTitle('')
       setDate('')
       setTime('')

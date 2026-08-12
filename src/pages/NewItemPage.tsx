@@ -18,12 +18,11 @@ import Chip from '../shared/ui/primitives/Chip.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
 import { useGoBack } from '../lib/hooks/useGoBack.ts'
+import { invalidateItems } from '../lib/queryKeys.ts'
 import { PRIORITY_LABEL } from './itemPriority.ts'
 import FallbackEditor from '../components/FallbackEditor.tsx'
 import type { FallbackDraft } from '../components/FallbackEditor.tsx'
 import styles from './NewItemPage.module.css'
-
-const ITEMS_KEY = ['items']
 
 function toFallbackInputs(fallbacks: FallbackDraft[]): FallbackInput[] {
   return fallbacks
@@ -102,7 +101,7 @@ export default function NewItemPage() {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ITEMS_KEY })
+      invalidateItems(queryClient)
       navigate('/home', { replace: true })
     },
     onError: (err) =>

@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: center;
   width: 40px;
-  height: 38px;
+  min-height: 44px;
   border: none;
   border-radius: var(--gp-radius-pill);
   background: transparent;

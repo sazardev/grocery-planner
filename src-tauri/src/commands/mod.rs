@@ -8,6 +8,7 @@ pub mod health;
 pub mod home;
 pub mod items;
 pub mod notify;
+pub mod photo;
 pub mod plans;
 pub mod presence;
 pub mod reports;

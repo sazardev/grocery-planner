@@ -14,11 +14,9 @@
 .hint {
   font-size: var(--gp-text-xs);
   color: var(--gp-text-tertiary);
-  animation: gp-rise 0.3s var(--gp-ease-out);
 }
 
 .error {
   font-size: var(--gp-text-xs);
   color: var(--gp-danger);
-  animation: gp-wiggle 0.35s var(--gp-ease-out);
 }

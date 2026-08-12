@@ -135,6 +135,8 @@ async function reset() {
     timezone: 'America/Mexico_City',
     notifications: {},
   }
+  // El hogar primero (Papá queda Admin), para que el import de respaldo sea legal.
+  await post('/api/home', { name: 'Los Ramírez' }, { as: 'Papá' })
   await post('/api/backup/import', {
     exportedAt: new Date().toISOString(),
     home: null,
@@ -148,7 +150,6 @@ async function reset() {
     notifications: [],
     projectionChoices: {},
   }, { as: 'Papá' })
-  await post('/api/home', { name: 'Los Ramírez' }, { as: 'Papá' })
 }
 
 // ============================================================================

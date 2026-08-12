@@ -6,9 +6,7 @@
   padding: var(--gp-space-3) var(--gp-space-4);
   border-radius: var(--gp-radius-lg);
   background: var(--gp-surface);
-  transition:
-    background-color var(--gp-duration-fast) var(--gp-ease-out),
-    transform var(--gp-duration-normal) var(--gp-ease-spring);
+  transition: background-color var(--gp-duration-fast) var(--gp-ease-out);
 }
 
 .clickable {
@@ -17,16 +15,10 @@
 
 .interactive:hover {
   background: var(--gp-surface-raised);
-  transform: translateX(2px);
-}
-
-.interactive:active {
-  transform: scale(0.98);
 }
 
 .selected {
   background: var(--gp-primary-subtle);
-  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-bounce);
 }
 
 .disabled {

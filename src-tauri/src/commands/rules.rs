@@ -1,8 +1,7 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::commands::require_role;
 use crate::domain::home::Role;
-use crate::domain::item::{GroceryItem, ItemStatus, Priority};
 use crate::domain::notification::AppNotification;
 use crate::domain::rules::{HomeRules, NotificationSettings};
 use crate::error::AppError;
@@ -14,6 +13,24 @@ use crate::store;
 pub fn rules_get(state: AppStateRef) -> Result<HomeRules, AppError> {
     let store = store::lock(&state.store)?;
     Ok(store.rules.rules())
+}
+
+/// Estado del modo host/quiosco (SPEC §2.3). Público: lo consulta `/kiosk`
+/// incluso sin sesión. Paridad con el endpoint HTTP `GET /api/host-mode`.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostModeInfo {
+    pub host_mode: bool,
+    pub host_pause_with_visitors: bool,
+}
+
+#[tauri::command]
+pub fn host_mode(state: AppStateRef) -> Result<HostModeInfo, AppError> {
+    let store = store::lock(&state.store)?;
+    Ok(HostModeInfo {
+        host_mode: store.rules.rules.host_mode,
+        host_pause_with_visitors: store.rules.rules.host_pause_with_visitors,
+    })
 }
 
 /// Campos editables de las reglas (SPEC §14). `None` = no tocar.
@@ -300,31 +317,7 @@ pub fn projection_decide(
     by: String,
 ) -> Result<bool, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.rules.decide_projection(&name, confirmed);
-    if confirmed {
-        let active = store.items.active();
-        let already = active.iter().any(|i| {
-            i.name == name && i.status != ItemStatus::Comprado && i.status != ItemStatus::Cancelado
-        });
-        if !already {
-            if let Some(p) = crate::commands::reports::compute_projection(&store)
-                .into_iter()
-                .find(|p| p.name == name)
-            {
-                let item = GroceryItem::new(
-                    &name,
-                    p.quantity,
-                    &p.unit,
-                    Priority::Media,
-                    &by,
-                    None,
-                    None,
-                )?;
-                store.items.create(item);
-            }
-        }
-    }
-    Ok(confirmed)
+    crate::commands::reports::decide_projection_core(&mut store, &by, &name, confirmed)
 }
 
 #[cfg(test)]

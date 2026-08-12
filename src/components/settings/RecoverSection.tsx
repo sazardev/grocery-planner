@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { resetPassword } from '../../lib/api'
+import { adminResetPassword, resetPassword } from '../../lib/api'
 import { getHome } from '../../lib/api'
-import { useAuth } from '../../lib/auth/useAuth.ts'
+import { ME } from '../../lib/me.ts'
 import { Button, Card, Input, Select, Stack } from '../../shared/ui/index.ts'
 import Text from '../../shared/ui/primitives/Text.tsx'
 import Alert from '../../shared/ui/feedback/Alert.tsx'
 import { KeyRound } from 'lucide-react'
 
-/** Recupera la contraseña de un miembro con la clave de respaldo (SPEC §2.5). */
+/** Recupera la contraseña de un miembro (SPEC §2.5):
+ * con la clave de respaldo (sin sesión) o, si eres Organizador/Admin, sin clave. */
 export default function RecoverSection() {
-  const { token } = useAuth()
   const [member, setMember] = useState('')
   const [backupKey, setBackupKey] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -19,9 +19,14 @@ export default function RecoverSection() {
 
   const homeQuery = useQuery({ queryKey: ['home'], queryFn: getHome, retry: false })
   const members = homeQuery.data?.members ?? []
+  const myRole = members.find((m) => m.name === ME)?.role
+  const canOrganize = myRole === 'admin' || myRole === 'organizador'
 
   const recoverMutation = useMutation({
-    mutationFn: () => resetPassword(token ?? '', member, backupKey.trim(), newPassword),
+    mutationFn: () =>
+      canOrganize && !backupKey.trim()
+        ? adminResetPassword(member, newPassword, ME)
+        : resetPassword(member, backupKey.trim(), newPassword),
     onSuccess: () => {
       setDone(true)
       setError(null)
@@ -33,7 +38,7 @@ export default function RecoverSection() {
     onError: (err) => setError(err instanceof Error ? err.message : 'No se pudo recuperar la cuenta'),
   })
 
-  const canSubmit = member && backupKey.trim() && newPassword.length >= 6
+  const canSubmit = member && newPassword.length >= 6 && (backupKey.trim() || canOrganize)
 
   return (
     <Card padding="lg">
@@ -43,7 +48,7 @@ export default function RecoverSection() {
         </Text>
         <Text as="p" variant="note" tone="secondary">
           Si un miembro olvidó su contraseña, restablécela con la clave de
-          respaldo de la familia.
+          respaldo de la familia{canOrganize ? ' (o, siendo Organizador/Admin, sin la clave)' : ''}.
         </Text>
 
         <Select label="Miembro" value={member} onChange={(e) => setMember(e.target.value)}>
@@ -54,8 +59,13 @@ export default function RecoverSection() {
             </option>
           ))}
         </Select>
+        {canOrganize && !backupKey.trim() ? (
+          <Text as="p" variant="note" tone="secondary">
+            Como {myRole}, puedes regenerar la contraseña sin la clave de respaldo.
+          </Text>
+        ) : null}
         <Input
-          label="Clave de respaldo"
+          label="Clave de respaldo (opcional si eres Organizador/Admin)"
           placeholder="copia la clave que aparece arriba"
           value={backupKey}
           onChange={(e) => setBackupKey(e.target.value)}

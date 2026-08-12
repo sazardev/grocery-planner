@@ -13,6 +13,7 @@ import Alert from '../shared/ui/feedback/Alert.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
 import { useMeta } from '../lib/hooks/useMeta.ts'
 import { useGoBack } from '../lib/hooks/useGoBack.ts'
+import { invalidateCalendar } from '../lib/queryKeys.ts'
 import ShareButton from '../shared/ui/navigation/ShareButton.tsx'
 import styles from './PlanDetailPage.module.css'
 
@@ -52,6 +53,7 @@ export default function PlanDetailPage() {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['plans'] })
     queryClient.invalidateQueries({ queryKey: ['plan', id] })
+    invalidateCalendar(queryClient)
   }
 
   const activateMutation = useMutation({ mutationFn: () => activatePlan(plan!.id), onSuccess: invalidate })

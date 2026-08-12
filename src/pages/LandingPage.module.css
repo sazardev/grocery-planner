@@ -17,7 +17,6 @@
   gap: var(--gp-space-3);
   padding: var(--gp-space-3) var(--gp-space-4);
   background: color-mix(in srgb, var(--gp-background) 88%, transparent);
-  backdrop-filter: blur(8px);
 }
 
 .brand {
@@ -64,7 +63,6 @@
   flex-direction: column;
   gap: var(--gp-space-4);
   align-items: flex-start;
-  animation: gp-rise 0.5s var(--gp-ease-out) both;
 }
 
 .title {
@@ -101,7 +99,6 @@
   max-width: 440px;
   width: 100%;
   margin: 0 auto;
-  animation: gp-pop 0.6s var(--gp-ease-spring) 0.1s both;
 }
 
 .mockCard {
@@ -138,7 +135,6 @@
   border-radius: var(--gp-radius-pill);
   background: var(--gp-primary-strong);
   color: var(--gp-text-inverse);
-  animation: gp-halo 3.2s var(--gp-ease-out) infinite;
 }
 
 /* --- Secciones --- */
@@ -239,7 +235,6 @@
 .demoPanel {
   width: 100%;
   max-width: 720px;
-  animation: gp-rise 0.35s var(--gp-ease-out) both;
 }
 
 /* Mandado: selector de quién lleva */
@@ -321,11 +316,6 @@
   background: var(--gp-touch);
   color: var(--gp-text-secondary);
   cursor: pointer;
-  transition: transform var(--gp-duration-fast) var(--gp-ease-spring);
-}
-
-.reactBtn:hover {
-  transform: scale(1.15);
 }
 
 /* --- CTA final --- */

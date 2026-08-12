@@ -29,6 +29,37 @@ export function check(name, ok, detail = '') {
   return ok
 }
 
+// ── Respuestas 4xx/5xx esperadas ────────────────────────────────────────────
+// Por defecto TODA respuesta 4xx/5xx que llegue a una página cuenta como fallo
+// de la suite (un 500 de una mutación no debe pasar en silencio). Las suites
+// registran aquí los pocos 4xx que son parte del flujo de negocio esperado.
+const expected4xx = []
+
+/** Declara que una respuesta 4xx/5xx en URLs que contienen `pattern` es
+ * esperada y no debe fallar la suite (ej. el 404 de `home_info` para cuentas
+ * sin hogar, que es por diseño). */
+export function expectFailure(_status, pattern) {
+  expected4xx.push({ pattern })
+}
+
+function isExpectedFailure(url) {
+  if (url.includes('/favicon.ico')) return true
+  return expected4xx.some((f) => url.includes(f.pattern))
+}
+
+/** Comprueba que no hubo respuestas 4xx/5xx inesperadas en la página. */
+export function checkNoUnexpected4xx(badResponses) {
+  const unexpected = (badResponses ?? []).filter(
+    (entry) => !expected4xx.some((f) => entry.includes(f.pattern)),
+  )
+  check(
+    'Sin respuestas 4xx/5xx inesperadas',
+    unexpected.length === 0,
+    unexpected.join(' | ').slice(0, 200),
+  )
+  return unexpected.length === 0
+}
+
 /** Cliente HTTP contra el backend (con token opcional). */
 export async function api(path, { method = 'GET', body, token } = {}) {
   const headers = {}
@@ -55,11 +86,18 @@ export async function register(name, password = 'secreto123') {
 }
 
 /** Prepara una pestaña: intercepción del backend, sin SW, token y onboarding off. */
-export async function newPage(browser, { token } = {}) {
+export async function newPage(browser, { token, viewport = { width: 390, height: 844 } } = {}) {
   const page = await browser.newPage()
-  await page.setViewport({ width: 390, height: 844 })
+  await page.setViewport(viewport)
   const jsErrors = []
+  const badResponses = []
   page.on('pageerror', (e) => jsErrors.push(String(e)))
+  page.on('response', (res) => {
+    const status = res.status()
+    if (status >= 400 && !isExpectedFailure(res.url())) {
+      badResponses.push(`${status} ${res.url()}`)
+    }
+  })
   if (BUILT_IN_API !== API) {
     await page.setRequestInterception(true)
     page.on('request', (req) => {
@@ -73,54 +111,101 @@ export async function newPage(browser, { token } = {}) {
       }
     })
   }
-  if (token) {
-    await page.evaluateOnNewDocument(
-      (t) => {
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations?.().then((rs) => rs.forEach((r) => r.unregister()))
-        }
+  await page.evaluateOnNewDocument(
+    (t) => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations?.().then((rs) => rs.forEach((r) => r.unregister()))
+      }
+      // Onboarding siempre desactivado (no importa si hay o no token): si no,
+      // el tour arranca solo tras el login por UI y navega por rutas.
+      localStorage.setItem('gp-onboarding-done', '1')
+      if (t) {
         localStorage.setItem('grocery-planner.auth.token', t)
-        localStorage.setItem('gp-onboarding-done', '1')
-      },
-      token,
-    )
-  }
-  return { page, jsErrors }
+      }
+    },
+    token,
+  )
+  return { page, jsErrors, badResponses }
+}
+/** Contexto aislado (incógnito) para una sesión de usuario distinta:
+ * permite dos miembros con tokens diferentes en el mismo browser. */
+export async function isolatedPage(browser, { token, viewport } = {}) {
+  const context = await browser.createBrowserContext()
+  const { page, jsErrors, badResponses } = await newPage(context, { token, viewport })
+  return { page, jsErrors, badResponses, context }
 }
 
 /** Lanza chromium headless con el token de sesión pre-cargado. */
-export async function launch({ token } = {}) {
+export async function launch({ token, viewport } = {}) {
   const browser = await puppeteer.launch({
     executablePath: CHROMIUM,
     headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    // --use-gl=swiftshader: el canvas 2D del chromium headless del sistema
+    // cuelga el renderer sin software GL (los QR e imágenes del app lo usan).
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--use-gl=swiftshader'],
+    protocolTimeout: 120_000,
   })
-  const { page, jsErrors } = await newPage(browser, { token })
-  return { browser, page, jsErrors }
+  const { page, jsErrors, badResponses } = await newPage(browser, { token, viewport })
+  return { browser, page, jsErrors, badResponses }
 }
 
-/** Navega a una ruta y espera que aparezca un texto (o el fin de red). */
-export async function goto(page, route, { waitFor, timeout = 20000 } = {}) {
-  await page.goto(APP + route, { waitUntil: 'networkidle0', timeout })
+/** Guarda una captura en /tmp/opencode/gp-e2e-shots (para depurar fallos). */
+export async function screenshot(page, label) {
+  try {
+    await page.screenshot({ path: `/tmp/opencode/gp-e2e-shots/${label}.png` })
+  } catch {
+    /* sin fs donde escribir: ignorar */
+  }
+}
+
+/** Navega a una ruta y espera que aparezca un texto (o el fin de red).
+ * Usa `networkidle2` (≤2 conexiones): tolera la conexión SSE abierta en tiempo
+ * real (cuenta como 1) mientras espera a que los queries de datos se asienten.
+ * `networkidle0` nunca llega con SSE; `load` regresa antes de los datos.
+ * El `waitFor` (o la siguiente interacción) es el gate final. */
+export async function goto(page, route, { waitFor, timeout = 45000 } = {}) {
+  try {
+    await page.goto(APP + route, { waitUntil: 'networkidle2', timeout })
+  } catch {
+    /* la navegación puede no quedar "idle"; el waitFor abajo sincroniza */
+  }
   if (waitFor) {
     await page.waitForFunction((t) => document.body.innerText.includes(t), { timeout, polling: 250 }, waitFor)
   }
 }
 
-/** Click en el primer elemento que contiene texto/aria-label (prefiere exacto). */
-export async function clickByText(page, text, { selector = 'button, a, [role="button"]' } = {}) {
-  await page.evaluate(
-    (args) => {
-      const [sel, txt] = args
-      const all = [...document.querySelectorAll(sel)]
-      const hit = (x) => x.textContent?.includes(txt) || x.getAttribute('aria-label')?.includes(txt)
-      const exact = all.find((x) => x.textContent?.trim() === txt || x.getAttribute('aria-label')?.trim() === txt)
-      const el = exact ?? all.find(hit)
-      if (!el) throw new Error(`no se encontró elemento con "${txt}" en ${sel}`)
-      el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-    },
-    [selector, text],
-  )
+/** Espera a que el texto aparezca en el body (patrón repetido de las suites). */
+export async function waitText(page, text, timeout = 15000) {
+  await page.waitForFunction((t) => document.body.innerText.includes(t), { timeout, polling: 250 }, text)
+}
+
+/** Click en el primer elemento que contiene texto/aria-label (prefiere exacto).
+ * Reintenta hasta ~5 s: tras `goto` con `load` React puede tardar en montar. */
+export async function clickByText(page, text, { selector = 'button, a, [role="button"]', retries = 10 } = {}) {
+  let lastErr
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const ok = await page.evaluate(
+        (args) => {
+          const [sel, txt] = args
+          const all = [...document.querySelectorAll(sel)]
+          const hit = (x) => x.textContent?.includes(txt) || x.getAttribute('aria-label')?.includes(txt)
+          const exact = all.find((x) => x.textContent?.trim() === txt || x.getAttribute('aria-label')?.trim() === txt)
+          const el = exact ?? all.find(hit)
+          if (!el) return false
+          el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+          return true
+        },
+        [selector, text],
+      )
+      if (ok) return
+      lastErr = new Error(`no se encontró elemento con "${text}" en ${selector}`)
+    } catch (e) {
+      lastErr = e
+    }
+    await new Promise((r) => setTimeout(r, 500))
+  }
+  throw lastErr ?? new Error(`no se encontró elemento con "${text}"`)
 }
 
 export async function typeIn(page, label, value) {

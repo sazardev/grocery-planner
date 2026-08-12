@@ -30,6 +30,10 @@ pub struct RulesStore {
     /// "X marcó comprado", para no saturar a la familia (SPEC §13, debounce).
     #[serde(default)]
     pub trip_progress_notified: HashMap<String, String>,
+    /// Ids de planes cuyo recordatorio "el mandado es en X min" ya se notificó
+    /// (SPEC §7.1 "citar tiempos").
+    #[serde(default)]
+    pub plan_reminders_fired: Vec<String>,
 }
 
 impl RulesStore {
@@ -42,6 +46,7 @@ impl RulesStore {
             projection_notified_on: None,
             summaries_sent: HashMap::new(),
             trip_progress_notified: HashMap::new(),
+            plan_reminders_fired: Vec::new(),
         }
     }
 
@@ -133,13 +138,6 @@ impl RulesStore {
 
     pub fn projection_decision(&self, name: &str) -> Option<bool> {
         self.projection_choices.get(name.trim()).copied()
-    }
-
-    pub fn clear_old_choices(&mut self, active_names: &[String]) {
-        let active: std::collections::HashSet<String> =
-            active_names.iter().cloned().collect();
-        self.projection_choices
-            .retain(|name, _| active.contains(name));
     }
 
     /// ¿Puedo avisar progreso de este mandado? (debounce de ~10 min para no
@@ -254,7 +252,5 @@ mod tests {
         assert_eq!(store.projection_decision("leche"), None);
         store.decide_projection("leche", true);
         assert_eq!(store.projection_decision("leche"), Some(true));
-        store.clear_old_choices(&["pollo".into()]);
-        assert_eq!(store.projection_decision("leche"), None);
     }
 }

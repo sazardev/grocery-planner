@@ -5,6 +5,9 @@ use tauri::State;
 use crate::persist;
 use crate::store::AppStore;
 
+/// Número de suscriptores del canal de cambios en tiempo real (fase 2: SSE).
+const CHANGE_CHANNEL_CAPACITY: usize = 256;
+
 pub struct AppState {
     /// Base de datos local (self-hosted). Se inicializará con sqlx/diesel en la
     /// siguiente fase. Por ahora queda como placeholder tipado.
@@ -13,6 +16,10 @@ pub struct AppState {
     started_at: Instant,
     /// Repositorios en memoria (ítems, mandados, presencia). Persistencia en fase 2.
     pub store: Mutex<AppStore>,
+    /// Canal de difusión de cambios (fase 2): cada mutación del server HTTP
+    /// publica el dominio afectado y los clientes conectados por SSE invalidan
+    /// sus consultas al instante (tiempo real entre dispositivos).
+    pub changes: tokio::sync::broadcast::Sender<String>,
 }
 
 impl AppState {
@@ -32,10 +39,12 @@ impl Default for AppState {
         }
         // Cuenta fija de desarrollo para entrar sin registrar (ver store::auth).
         store.auth.seed_default_account();
+        let (changes, _) = tokio::sync::broadcast::channel(CHANGE_CHANNEL_CAPACITY);
         Self {
             db_ready: false,
             started_at: Instant::now(),
             store: Mutex::new(store),
+            changes,
         }
     }
 }

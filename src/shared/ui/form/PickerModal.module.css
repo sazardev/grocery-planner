@@ -37,7 +37,6 @@
   .dialog {
     padding: var(--gp-space-6);
     padding-bottom: var(--gp-space-6);
-    animation: gp-pop var(--gp-duration-normal) var(--gp-ease-spring);
   }
 }
 
@@ -73,17 +72,12 @@
   cursor: pointer;
   transition:
     background-color var(--gp-duration-instant) var(--gp-ease-out),
-    color var(--gp-duration-instant) var(--gp-ease-out),
-    transform var(--gp-duration-instant) var(--gp-ease-out);
+    color var(--gp-duration-instant) var(--gp-ease-out);
 }
 
 .close:hover:not(:disabled) {
   background: var(--gp-touch);
   color: var(--gp-text-primary);
-}
-
-.close:active:not(:disabled) {
-  transform: scale(0.92);
 }
 
 .close:focus-visible {

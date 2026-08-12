@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
+import { invalidateItemDetail, invalidateItems } from '../lib/queryKeys.ts'
 import { ArrowDown, ArrowUp, Trash2, ArrowLeft, MessageSquare, History, Camera, Undo2, Plus, X } from 'lucide-react'
 import {
   addItemComment,
@@ -42,6 +43,7 @@ import Input from '../shared/ui/form/Input.tsx'
 import Textarea from '../shared/ui/form/Textarea.tsx'
 import Select from '../shared/ui/form/Select.tsx'
 import Alert from '../shared/ui/feedback/Alert.tsx'
+import ItemPhoto from '../shared/ui/data-display/ItemPhoto.tsx'
 import { Card, Stack } from '../shared/ui/index.ts'
 import { PRIORITY_LABEL, PRIORITY_TONE } from './itemPriority.ts'
 import { useMeta } from '../lib/hooks/useMeta.ts'
@@ -110,12 +112,13 @@ export default function ItemDetailPage() {
   const sectionsQuery = useQuery({ queryKey: ['sections'], queryFn: listSections })
   const rulesQuery = useQuery({ queryKey: ['rules'], queryFn: getRules })
   const historyQuery = useQuery({
-    queryKey: ['item-history', id],
+    queryKey: ['item', id, 'history'],
     queryFn: () => getItemHistory(id ?? ''),
     enabled: Boolean(id),
+    refetchInterval: 15_000,
   })
   const itemChatQuery = useQuery({
-    queryKey: ['item-chat', id],
+    queryKey: ['item', id, 'chat'],
     queryFn: () => getChatForItem(id ?? ''),
     enabled: Boolean(id),
     refetchInterval: 15_000,
@@ -153,8 +156,9 @@ export default function ItemDetailPage() {
   const [fbNote, setFbNote] = useState('')
 
   const invalidateItem = () => {
-    queryClient.invalidateQueries({ queryKey: ['items'] })
-    queryClient.invalidateQueries({ queryKey: ['item', id] })
+    invalidateItems(queryClient)
+    // El prefijo ['item', id] refresca también historial y chat del ítem.
+    invalidateItemDetail(queryClient, id ?? '')
   }
 
   const goBack = useGoBack('/home')
@@ -226,7 +230,7 @@ export default function ItemDetailPage() {
   const deleteMutation = useMutation({
     mutationFn: () => deleteItem(item!.id, ME),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['items'] })
+      invalidateItems(queryClient)
       navigate('/home')
     },
   })
@@ -282,7 +286,7 @@ export default function ItemDetailPage() {
     mutationFn: () => recoverItem(item!.id, ME),
     onSuccess: () => {
       invalidateItem()
-      queryClient.invalidateQueries({ queryKey: ['items'] })
+      invalidateItems(queryClient)
     },
   })
   const storeMutation = useMutation({
@@ -473,12 +477,19 @@ export default function ItemDetailPage() {
           )}
 
           <Field label="Nombre">
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="pollo" autoFocus />
+            <Input
+              aria-label="Nombre"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="pollo"
+              autoFocus
+            />
           </Field>
 
           <div className={styles.rowFields}>
             <Field label="Cantidad">
               <Input
+                aria-label="Cantidad"
                 inputMode="decimal"
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
@@ -486,13 +497,14 @@ export default function ItemDetailPage() {
               />
             </Field>
             <Field label="Unidad">
-              <Input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="kg" />
+              <Input aria-label="Unidad" value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="kg" />
             </Field>
           </div>
 
           <div className={styles.rowFields}>
             <Field label="Categoría">
               <Input
+                aria-label="Categoría"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 placeholder="carnes, lácteos…"
@@ -500,6 +512,7 @@ export default function ItemDetailPage() {
             </Field>
             <Field label="Precio aprox. ($)">
               <Input
+                aria-label="Precio aprox. ($)"
                 inputMode="decimal"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
@@ -510,6 +523,7 @@ export default function ItemDetailPage() {
 
           <Field label="Marca (opcional)">
             <Input
+              aria-label="Marca (opcional)"
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
               placeholder="la marca que nos gusta"
@@ -518,6 +532,7 @@ export default function ItemDetailPage() {
 
           <Field label="Hasta cuánto aceptas (opcional)">
             <Input
+              aria-label="Hasta cuánto aceptas (opcional)"
               inputMode="decimal"
               value={quantityMax}
               onChange={(e) => setQuantityMax(e.target.value)}
@@ -738,14 +753,14 @@ export default function ItemDetailPage() {
             type="file"
             accept="image/*"
             hidden
-            aria-hidden="true"
+            aria-label="Subir foto del ítem"
             onChange={(e) => pickPhoto(e.target.files?.[0])}
           />
           {(item.photos ?? []).length > 0 && (
             <div className={styles.photoRow}>
               {item.photos.map((src, i) => (
                 <div key={`${src.slice(0, 32)}-${i}`} className={styles.photoWrap}>
-                  <img className={styles.photo} src={src} alt={`Foto ${i + 1} de ${item.name}`} />
+                  <ItemPhoto className={styles.photo} src={src} alt={`Foto ${i + 1} de ${item.name}`} />
                   <Button
                     variant="ghost"
                     size="sm"

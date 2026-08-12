@@ -52,7 +52,7 @@ async function main() {
   const suite = process.argv[2]
   const suites = suite
     ? [suite]
-    : ['spec-core', 'live-refresh', 'design', 'spec-gaps']
+    : ['spec-core', 'live-refresh', 'design', 'spec-gaps', 'spec-realtime', 'spec-full']
 
   // 1) Binario del server.
   console.log('[e2e] Compilando binario server (features=server)…')
@@ -130,12 +130,15 @@ async function main() {
     const child = spawn(process.execPath, [file], { env, stdio: 'inherit' })
     const result = await new Promise((resolve) => {
       let finished = false
+      const perSuiteTimeout =
+        s === 'spec-full' ? 480_000
+        : 180_000
       const timer = setTimeout(() => {
         if (!finished) {
-          console.error(`[e2e] suite ${s} excedió el tiempo límite (120s); se aborta`)
+          console.error(`[e2e] suite ${s} excedió el tiempo límite (${perSuiteTimeout / 1000}s); se aborta`)
           try { child.kill('SIGKILL') } catch {}
         }
-      }, 120_000)
+      }, perSuiteTimeout)
       child.on('exit', (code) => {
         finished = true
         clearTimeout(timer)

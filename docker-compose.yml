@@ -1,0 +1,24 @@
+# Grocery Planner self-hosted (fase 2)
+#
+#   docker compose up -d --build
+#   abrir http://localhost:8787
+#
+# Persistencia: volumen `gp-data` (o cambia el bind mount a la ruta que quieras).
+# Cuenta de acceso rápido: admin / admin123 (se siembra al arrancar).
+services:
+  grocery-planner:
+    build: .
+    container_name: grocery-planner
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    volumes:
+      - gp-data:/data
+    environment:
+      - GROCERY_PLANNER_PORT=8787
+      - GROCERY_PLANNER_DATA=/data/data.json
+      # Zona horaria del hogar (SPEC §14); cambia por la tuya.
+      - TZ=America/Mexico_City
+
+volumes:
+  gp-data:

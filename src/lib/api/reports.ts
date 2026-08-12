@@ -4,6 +4,7 @@ import type {
   SpendingReport,
   TopProduct,
 } from '../../domain/report'
+import { ME } from '../me'
 import { request } from './transport'
 
 /** Ventanas de tiempo de los reportes (SPEC §8.2). `''` = todo el historial. */
@@ -36,5 +37,5 @@ export function getProjection(): Promise<Projection[]> {
 
 /** Confirmar o descartar una sugerencia de proyección (SPEC §7.2). */
 export function decideProjection(name: string, confirmed: boolean): Promise<boolean> {
-  return request<boolean>('projection_decide', { name, confirmed })
+  return request<boolean>('projection_decide', { name, confirmed, by: ME })
 }

@@ -2,7 +2,7 @@
   position: fixed;
   bottom: calc(var(--gp-safe-bottom) + var(--gp-space-6));
   left: 50%;
-  transform: translateX(-50%) translateY(16px) scale(0.95);
+  transform: translateX(-50%) translateY(16px);
   z-index: var(--gp-z-toast);
   display: flex;
   align-items: center;
@@ -15,7 +15,7 @@
   visibility: hidden;
   transition:
     opacity var(--gp-duration-normal) var(--gp-ease-out),
-    transform var(--gp-duration-normal) var(--gp-ease-bounce),
+    transform var(--gp-duration-normal) var(--gp-ease-out),
     visibility var(--gp-duration-normal) var(--gp-ease-out);
 }
 
@@ -23,14 +23,13 @@
   opacity: 1;
   pointer-events: auto;
   visibility: visible;
-  transform: translateX(-50%) translateY(0) scale(1);
+  transform: translateX(-50%) translateY(0);
 }
 
 .icon {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  animation: gp-attention 0.6s var(--gp-ease-bounce);
 }
 
 .content {

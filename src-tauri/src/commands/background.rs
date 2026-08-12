@@ -3,6 +3,8 @@
 //! recurrentes automáticos (SPEC §7.1), proyección de faltas y resúmenes
 //! diario/semanal (SPEC §13).
 
+use chrono::Timelike;
+
 use crate::commands::notify;
 use crate::domain::event::EventType;
 use crate::domain::item::ItemStatus;
@@ -10,24 +12,70 @@ use crate::domain::notification::{AppNotification, NotificationKind};
 use crate::domain::plan::{Plan, PlanStatus, Recurrence};
 use crate::store::AppStore;
 
-const DATETIME_FMT: &[time::format_description::FormatItem<'static>] =
-    time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]");
-
 /// Procesa una pasada del reloj (se llama desde un hilo en lib.rs y server.rs).
 /// Devuelve `true` si algo cambió (para saber si conviene persistir ya).
 pub fn tick(store: &mut AppStore) -> bool {
     let reminders = fire_event_reminders(store);
     let plans = advance_recurring_plans(store);
+    let plan_reminders = fire_plan_reminders(store);
     let projection = fire_projection_notifications(store);
     let summaries = fire_summaries(store);
-    reminders || plans || projection || summaries
+    reminders || plans || plan_reminders || projection || summaries
+}
+
+/// Recordatorios de planes (SPEC §7.1 "citar tiempos"): cuando un plan está
+/// dentro de la ventana (≤ 60 min), avisa una vez "el mandado es en X min".
+/// Reusa el kind `EventReminder` (§13 incluye los planes de compra).
+fn fire_plan_reminders(store: &mut AppStore) -> bool {
+    let now = chrono::Utc::now();
+    let members: Vec<String> = store
+        .home
+        .get()
+        .ok()
+        .map(|h| h.members().into_iter().map(|m| m.name).collect())
+        .unwrap_or_default();
+    let plans = store.plans.list();
+    let mut changed = false;
+
+    for p in &plans {
+        if p.status != PlanStatus::Planificado {
+            continue;
+        }
+        let Some(at_utc) = notify::plan_datetime_utc(&store.rules, &p.scheduled_at) else {
+            continue;
+        };
+        if now > at_utc {
+            // Ya pasó: limpiar la marca (si se recrea la instancia, es otra id).
+            store.rules.plan_reminders_fired.retain(|id| id != &p.id);
+            continue;
+        }
+        if store.rules.plan_reminders_fired.contains(&p.id) {
+            continue;
+        }
+        let remaining = (at_utc - now).num_minutes();
+        if remaining <= 60 {
+            for m in &members {
+                notify::push_managed(
+                    &mut store.rules,
+                    m,
+                    NotificationKind::EventReminder,
+                    "El mandado es pronto",
+                    &format!("«{}» es en {remaining} min.", p.title),
+                    Some(&format!("/plans/{}", p.id)),
+                );
+            }
+            store.rules.plan_reminders_fired.push(p.id.clone());
+            changed = true;
+        }
+    }
+    changed
 }
 
 /// Recordatorios de eventos: notifica a los miembros del hogar cuando faltan
 /// `reminder_minutes` para el evento, una sola vez por evento (SPEC §9.2/§13).
 /// Respeta los tipos de evento elegidos por cada miembro (`event_types`).
 fn fire_event_reminders(store: &mut AppStore) -> bool {
-    let now = time::OffsetDateTime::now_utc();
+    let now = chrono::Utc::now();
     let events = store.events.list();
     let members: Vec<String> = store
         .home
@@ -42,10 +90,12 @@ fn fire_event_reminders(store: &mut AppStore) -> bool {
         if minutes <= 0 || store.rules.reminders_fired.contains(&ev.id) {
             continue;
         }
-        // Hora del evento (todo el día = medianoche del día).
-        let event_time = event_datetime(&ev.date, ev.time.as_deref());
-        let Some(event_time) = event_time else { continue };
-        let reminder_at = event_time - time::Duration::minutes(minutes);
+        // Hora del evento en la zona del hogar (todo el día = medianoche local).
+        let Some(event_time) = notify::local_datetime_utc(&store.rules, &ev.date, ev.time.as_deref())
+        else {
+            continue;
+        };
+        let reminder_at = event_time - chrono::Duration::minutes(minutes);
         // Ya pasó la hora del evento: limpiar la marca para poder re-avisar
         // (p. ej. en el próximo año si es recurrente).
         if now > event_time {
@@ -161,10 +211,8 @@ fn fire_summaries(store: &mut AppStore) -> bool {
         if settings.weekly_summary {
             if let Some(hour) = settings.weekly_summary_hour.as_deref() {
                 if matches_hour(hour, store) {
-                    let key = format!(
-                        "{m}|weekly|{}",
-                        notify::today_local(&store.rules)
-                    );
+                    // Clave por semana ISO (una vez por semana, no por día).
+                    let key = format!("{m}|weekly|{}", notify::week_local(&store.rules));
                     if !store.rules.summaries_sent.contains_key(&key) {
                         let pending: Vec<String> = crate::commands::reports::compute_projection(store)
                             .into_iter()
@@ -204,8 +252,7 @@ fn matches_hour(hhmm: &str, store: &AppStore) -> bool {
 
 /// Clave serde de un tipo de evento (igual que `EventType` serializa), para
 /// compararla con `NotificationSettings.event_types`.
-fn event_type_key(kind: EventType) -> String {
-    match kind {
+fn event_type_key(kind: EventType) -> String {    match kind {
         EventType::Cumpleanos => "cumpleanos",
         EventType::Union => "union",
         EventType::Comida => "comida",
@@ -220,7 +267,7 @@ fn event_type_key(kind: EventType) -> String {
 /// "planificado", se genera la siguiente instancia y la anterior se marca como
 /// completada (SPEC §7.1: compra semanal/quincenal/mensual en automático).
 fn advance_recurring_plans(store: &mut AppStore) -> bool {
-    let now = time::OffsetDateTime::now_utc();
+    let now = chrono::Utc::now();
     let plans = store.plans.list();
     let mut changed = false;
 
@@ -228,14 +275,22 @@ fn advance_recurring_plans(store: &mut AppStore) -> bool {
         if p.recurrence == Recurrence::Ninguna || p.status != PlanStatus::Planificado {
             continue;
         }
-        let Ok(scheduled) = time::PrimitiveDateTime::parse(&p.scheduled_at, DATETIME_FMT) else {
+        // La hora programada es local del hogar (SPEC §14).
+        let Some(scheduled_utc) = notify::plan_datetime_utc(&store.rules, &p.scheduled_at) else {
             continue;
         };
-        let scheduled_utc = scheduled.assume_utc();
-        if scheduled_utc >= now - time::Duration::hours(1) {
+        if scheduled_utc >= now - chrono::Duration::hours(1) {
             continue; // aún no toca avanzarlo (margen de 1 h)
         }
-        let Some(next_date) = next_occurrence(&scheduled, p.recurrence) else {
+        let Some(date) = time::Date::parse(
+            &p.scheduled_at[..10.min(p.scheduled_at.len())],
+            &time::macros::format_description!("[year]-[month]-[day]"),
+        )
+        .ok()
+        else {
+            continue;
+        };
+        let Some(next_date) = next_occurrence(date, p.recurrence) else {
             continue;
         };
         let next_at = format!(
@@ -243,8 +298,14 @@ fn advance_recurring_plans(store: &mut AppStore) -> bool {
             next_date.year(),
             next_date.month() as u8,
             next_date.day(),
-            scheduled.hour(),
-            scheduled.minute(),
+            scheduled_utc
+                .with_timezone(&notify::home_tz(&store.rules))
+                .time()
+                .hour(),
+            scheduled_utc
+                .with_timezone(&notify::home_tz(&store.rules))
+                .time()
+                .minute(),
         );
         let Ok(plan) = Plan::new(
             &p.title,
@@ -264,9 +325,9 @@ fn advance_recurring_plans(store: &mut AppStore) -> bool {
     changed
 }
 
-/// Suma un periodo a la fecha de un plan según su recurrencia.
-fn next_occurrence(scheduled: &time::PrimitiveDateTime, rec: Recurrence) -> Option<time::Date> {
-    let date = scheduled.date();
+/// Suma un periodo a la fecha de un plan según su recurrencia. En mensual,
+/// si el día no existe en el mes destino (29/30/31), se cierra al último día.
+fn next_occurrence(date: time::Date, rec: Recurrence) -> Option<time::Date> {
     match rec {
         Recurrence::Semanal => date.checked_add(time::Duration::days(7)),
         Recurrence::Quincenal => date.checked_add(time::Duration::days(14)),
@@ -277,22 +338,13 @@ fn next_occurrence(scheduled: &time::PrimitiveDateTime, rec: Recurrence) -> Opti
             } else {
                 (date.year(), month_num + 1)
             };
-            time::Month::try_from(m)
-                .ok()
-                .and_then(|month| time::Date::from_calendar_date(y, month, date.day()).ok())
+            let month = time::Month::try_from(m).ok()?;
+            let last_day = month.length(y);
+            let day = date.day().min(last_day);
+            time::Date::from_calendar_date(y, month, day).ok()
         }
         Recurrence::Ninguna => None,
     }
-}
-
-/// Hora del evento: `YYYY-MM-DD` + hora `HH:MM` opcional (todo el día = 00:00).
-fn event_datetime(date: &str, time: Option<&str>) -> Option<time::OffsetDateTime> {
-    let d = time::Date::parse(date, &time::macros::format_description!("[year]-[month]-[day]")).ok()?;
-    let t = match time {
-        Some(hhmm) => time::Time::parse(hhmm, &time::macros::format_description!("[hour]:[minute]")).ok()?,
-        None => time::Time::MIDNIGHT,
-    };
-    Some(d.with_time(t).assume_utc())
 }
 
 #[cfg(test)]
@@ -331,6 +383,28 @@ mod tests {
     }
 
     #[test]
+    fn recurrencia_mensual_cierra_al_ultimo_dia_del_mes() {
+        use crate::domain::plan::Recurrence;
+        let jan_31 = time::Date::from_calendar_date(2026, time::Month::January, 31).unwrap();
+        let feb = next_occurrence(jan_31, Recurrence::Mensual).unwrap();
+        assert_eq!((feb.month(), feb.day()), (time::Month::February, 28));
+        let mar_31 = time::Date::from_calendar_date(2026, time::Month::March, 31).unwrap();
+        let apr = next_occurrence(mar_31, Recurrence::Mensual).unwrap();
+        assert_eq!((apr.month(), apr.day()), (time::Month::April, 30));
+    }
+
+    #[test]
+    fn semana_local_tiene_formato_semana_iso() {
+        let store = AppStore::new();
+        let key = crate::commands::notify::week_local(&store.rules);
+        let parts: Vec<&str> = key.split('-').collect();
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0].len(), 4, "año de 4 dígitos");
+        assert!(parts[1].starts_with('W'), "prefijo W");
+        assert_eq!(parts[1].len(), 3, "W + semana de 2 dígitos");
+    }
+
+    #[test]
     fn recordatorio_de_evento_se_dispara_una_vez() {
         use crate::domain::home::Home;
         let mut store = AppStore::new();
@@ -348,7 +422,9 @@ mod tests {
             vec![],
             None,
             true,
-            Some(1440), // recuerda 1 día antes
+            // 40 h antes: la ventana del recordatorio SIEMPRE cubre "ahora" sin
+            // importar la hora del día (medianoche de hoy local ya pasó).
+            Some(2400),
             "Papá",
         )
         .unwrap();
@@ -362,5 +438,46 @@ mod tests {
             !fire_event_reminders(&mut store),
             "no debe repetir el mismo recordatorio"
         );
+    }
+
+    #[test]
+    fn plan_cerca_dispara_aviso_una_vez() {
+        use chrono::Datelike;
+        use crate::domain::home::Home;
+        let mut store = AppStore::new();
+        store
+            .home
+            .create(Home::create("Los Ramírez", "Papá").unwrap());
+        // Plan a ~30 min (hora local del hogar).
+        let tz: chrono_tz::Tz = store
+            .rules
+            .rules
+            .timezone
+            .parse()
+            .unwrap_or(chrono_tz::UTC);
+        let soon = chrono::Utc::now()
+            .with_timezone(&tz)
+            .checked_add_signed(chrono::Duration::minutes(30))
+            .unwrap();
+        let scheduled = format!("{:04}-{:02}-{:02}T{:02}:{:02}",
+            soon.year(), soon.month() as u32, soon.day(), soon.hour(), soon.minute());
+        let plan = Plan::new(
+            "Mandado grande",
+            &scheduled,
+            None,
+            None,
+            None,
+            Recurrence::Ninguna,
+            "Papá",
+        )
+        .unwrap();
+        store.plans.create(plan);
+
+        assert!(fire_plan_reminders(&mut store), "debe avisar el plan cercano");
+        assert!(
+            store.rules.notifications.iter().any(|n| n.body.contains("Mandado grande")),
+            "debe generar el aviso del plan"
+        );
+        assert!(!fire_plan_reminders(&mut store), "no debe repetir");
     }
 }

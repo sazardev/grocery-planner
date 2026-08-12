@@ -23,6 +23,7 @@
   --gp-text-primary: #1c2b22;
   --gp-text-secondary: #56655c;
   --gp-text-tertiary: #8a988f;
+  --gp-text-disabled: #b4bfb8;
   --gp-text-inverse: #ffffff;
 
   /* --- Scrollbars (nativos, consistentes con el tema) --- */
@@ -149,6 +150,7 @@
   --gp-text-primary: #e6f0ea;
   --gp-text-secondary: #9aa8a0;
   --gp-text-tertiary: #5b6a61;
+  --gp-text-disabled: #5b6a61;
   --gp-text-inverse: #0c1510;
 
   --gp-scrollbar-thumb: #33423a;
@@ -208,4 +210,23 @@
   --gp-space-5: 28px;
   --gp-space-6: 32px;
   --gp-space-8: 48px;
+}
+
+/* --- TV: sobrescan (márgenes seguros) y foco por D-pad (DESIGN §10.10) ---
+   Este archivo es CSS plano (no módulo), por eso los selectores van sin
+   `:global()`. `data-mode="tv"` vive en <html> (se aplica en `src/lib/tvMode.ts`). */
+[data-mode='tv'] body {
+  padding: 32px 48px;
+  box-sizing: border-box;
+}
+
+[data-mode='tv'] :focus-visible {
+  background: var(--gp-mint);
+  color: var(--gp-primary-strong);
+  border-radius: var(--gp-radius-pill);
+  outline: none;
+}
+
+[data-mode='tv'] [data-item-row] {
+  min-height: 72px;
 }

@@ -154,16 +154,6 @@ impl ItemStore {
         Ok(item.clone())
     }
 
-    /// Mueve un ítem a una posición absoluta (orden manual, SPEC §3.4).
-    pub fn set_position(&mut self, id: &str, position: f64) -> Result<GroceryItem, AppError> {
-        let item = self
-            .items
-            .get_mut(id)
-            .ok_or_else(|| AppError::not_found(format!("Ítem {id} no encontrado")))?;
-        item.set_position(position);
-        Ok(item.clone())
-    }
-
     /// Mueve un ítem una posición relativa en la lista (arriba/abajo).
     pub fn move_item(
         &mut self,

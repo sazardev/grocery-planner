@@ -74,10 +74,6 @@
   font: inherit;
 }
 
-.searchInput:focus {
-  outline: none;
-}
-
 .searchClear {
   display: inline-flex;
   align-items: center;
@@ -261,7 +257,6 @@
   border-radius: var(--gp-radius-pill);
   background: var(--gp-surface);
   z-index: var(--gp-z-raised);
-  animation: gp-pop 0.16s var(--gp-ease-out);
 }
 
 .quickMine {
@@ -281,18 +276,11 @@
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  transition:
-    transform var(--gp-duration-fast) var(--gp-ease-spring),
-    background-color var(--gp-duration-instant) var(--gp-ease-out);
+  transition: background-color var(--gp-duration-instant) var(--gp-ease-out);
 }
 
 .quickBtn:hover {
   background: var(--gp-touch);
-  transform: scale(1.15);
-}
-
-.quickBtn:active {
-  transform: scale(0.9);
 }
 
 .composer {
@@ -329,17 +317,11 @@
   font-weight: var(--gp-weight-medium);
   min-height: 44px;
   cursor: pointer;
-  transition:
-    background-color var(--gp-duration-instant) var(--gp-ease-out),
-    transform var(--gp-duration-fast) var(--gp-ease-out);
+  transition: background-color var(--gp-duration-instant) var(--gp-ease-out);
 }
 
 .refChip:hover {
   background: var(--gp-mint);
-}
-
-.refChip:active {
-  transform: scale(0.95);
 }
 
 .refChipName {
@@ -378,7 +360,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--gp-space-1);
-  min-height: 40px;
+  min-height: 44px;
   padding: var(--gp-space-1) var(--gp-space-3);
   border: none;
   border-radius: var(--gp-radius-pill);
@@ -396,10 +378,6 @@
 .toolBtn:hover {
   background: var(--gp-mint);
   color: var(--gp-primary-strong);
-}
-
-.toolBtn:active {
-  transform: scale(0.95);
 }
 
 .mention {

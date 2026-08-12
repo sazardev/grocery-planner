@@ -6,7 +6,6 @@
   border-radius: var(--gp-radius-lg);
   background: var(--gp-surface);
   max-height: 42vh;
-  animation: gp-rise 0.2s var(--gp-ease-out);
 }
 
 .search {
@@ -28,10 +27,6 @@
   color: var(--gp-text-primary);
   font: inherit;
   min-height: 40px;
-}
-
-.searchInput:focus {
-  outline: none;
 }
 
 .closeBtn {

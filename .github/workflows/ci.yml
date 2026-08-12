@@ -39,4 +39,82 @@ jobs:
         with:
           workspaces: src-tauri
       - run: cargo test
+      - run: cargo test --features server --bin server
       - run: cargo check --features server --bin server
+
+  e2e:
+    name: E2E headless (chromium del sistema)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install Tauri Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev librsvg2-dev patchelf libgtk-3-dev
+      - name: Install chromium headless
+        run: |
+          sudo apt-get install -y chromium
+          echo "GP_CHROMIUM=/usr/bin/chromium" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm run build
+      - name: Run E2E suites
+        run: npm run e2e
+
+  desktop:
+    name: Desktop (${{ matrix.target }})
+    needs: [frontend, backend]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-deb
+            args: --bundles deb
+          - os: ubuntu-latest
+            target: linux-rpm
+            args: --bundles rpm
+          - os: macos-latest
+            target: macos-app
+            args: --bundles app
+          - os: windows-latest
+            target: windows-msi
+            args: --bundles msi
+    runs-on: ${{ matrix.os }}
+    # Los empaquetados son best-effort (AppImage ya falla localmente): que un
+    # bundle de un SO no bloquee el resto del pipeline.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install Tauri Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev librsvg2-dev patchelf libgtk-3-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Install frontend deps
+        run: npm ci
+      - name: Build desktop bundle
+        run: npx tauri build ${{ matrix.args }}
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: grocery-planner-${{ matrix.target }}
+          path: |
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.rpm
+            src-tauri/target/release/bundle/**/*.app
+            src-tauri/target/release/bundle/**/*.msi
+          if-no-files-found: warn

@@ -110,11 +110,52 @@ impl AuthStore {
         if session.revoked {
             return Err(AppError::unauthorized("La sesión fue cerrada"));
         }
-        session.last_used_at = crate::domain::now_iso();
+        let now = crate::domain::now_iso();
+        // Expiración: si venció, la sesión muere. Con renovación deslizante:
+        // cada uso la extiende 30 días (SPEC §2.4).
+        if let Some(exp) = &session.expires_at {
+            let expired = match (
+                time::OffsetDateTime::parse(exp, &time::format_description::well_known::Rfc3339),
+                time::OffsetDateTime::parse(&now, &time::format_description::well_known::Rfc3339),
+            ) {
+                (Ok(e), Ok(n)) => n > e,
+                _ => false,
+            };
+            if expired {
+                self.sessions.remove(token);
+                return Err(AppError::unauthorized("La sesión expiró; vuelve a iniciar sesión"));
+            }
+            let renewed = crate::domain::auth::expires_iso(&now);
+            session.expires_at = Some(renewed);
+        } else {
+            // Sesión de un binario anterior: migra al primer uso.
+            session.expires_at = Some(crate::domain::auth::expires_iso(&now));
+        }
+        session.last_used_at = now;
         self.users
             .get(&session.user_id)
             .cloned()
             .ok_or_else(|| AppError::unauthorized("La cuenta de esta sesión ya no existe"))
+    }
+
+    /// Elimina las sesiones vencidas (poda; se llama en el hilo de fondo).
+    pub fn prune_expired_sessions(&mut self) {
+        let now = crate::domain::now_iso();
+        self.sessions.retain(|_, s| {
+            if s.revoked {
+                return false;
+            }
+            match &s.expires_at {
+                Some(exp) => match (
+                    time::OffsetDateTime::parse(exp, &time::format_description::well_known::Rfc3339),
+                    time::OffsetDateTime::parse(&now, &time::format_description::well_known::Rfc3339),
+                ) {
+                    (Ok(e), Ok(n)) => n <= e,
+                    _ => true,
+                },
+                None => true, // legacy sin expiración: se migra al usarse
+            }
+        });
     }
 
     /// Cierra una sesión (revocación, SPEC §2.4).
@@ -257,6 +298,22 @@ impl AuthStore {
         self.user_by_name(name).is_some()
     }
 
+    /// Todas las cuentas (para el respaldo completo, SPEC §15).
+    pub fn users_list(&self) -> Vec<User> {
+        self.users.values().cloned().collect()
+    }
+
+    /// Reemplaza las cuentas al importar un respaldo (SPEC §15): se restauran
+    /// los hashes de contraseña/PIN y el vínculo a su hogar.
+    pub fn replace_users(&mut self, users: Vec<User>) {
+        self.users.clear();
+        self.name_index.clear();
+        for user in users {
+            self.name_index.insert(user.name.clone(), user.id.clone());
+            self.users.insert(user.id.clone(), user);
+        }
+    }
+
     /// Inicia sesión con el PIN rápido de 4 dígitos (SPEC §2.3).
     pub fn login_pin(
         &mut self,
@@ -380,5 +437,42 @@ mod tests {
         store.remove_pin(&user.name).unwrap();
         assert!(!store.has_pin(&user.name));
         assert!(store.login_pin(&user.name, "4321", "Tablet").is_err());
+    }
+
+    #[test]
+    fn sesion_expirada_deja_de_servir() {
+        let mut store = AuthStore::new();
+        let (_user, token) = store.register("Luis", "secreto123", "web").unwrap();
+        // Sesión válida al principio.
+        assert!(store.user_by_token(&token).is_ok());
+        // Fuerza la expiración en el pasado.
+        let past = (time::OffsetDateTime::now_utc() - time::Duration::days(1))
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
+        if let Some(s) = store.sessions.get_mut(&token) {
+            s.expires_at = Some(past);
+        }
+        assert!(
+            store.user_by_token(&token).is_err(),
+            "una sesión vencida debe rechazarse"
+        );
+        assert!(
+            store.session(&token).is_err(),
+            "la sesión vencida se elimina"
+        );
+    }
+
+    #[test]
+    fn poda_elimina_sesiones_vencidas() {
+        let mut store = AuthStore::new();
+        let (_user, token) = store.register("Ana", "secreto123", "web").unwrap();
+        let past = (time::OffsetDateTime::now_utc() - time::Duration::days(1))
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap();
+        if let Some(s) = store.sessions.get_mut(&token) {
+            s.expires_at = Some(past);
+        }
+        store.prune_expired_sessions();
+        assert!(store.session(&token).is_err());
     }
 }

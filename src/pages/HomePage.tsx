@@ -16,7 +16,8 @@ import { ME } from '../lib/me'
 import type { GroceryItem, ItemStatus, Priority } from '../domain/item'
 import type { ItemSort } from '../lib/api/items.ts'
 import { ITEM_SORT_LABEL } from '../lib/api/items.ts'
-import { addDays, localWindowRangeISO, todayISO } from '../lib/dates.ts'
+import { addDays, localWindowRangeISO, startOfMonth, startOfWeek, todayISO } from '../lib/dates.ts'
+import { invalidateItems, invalidateReports, invalidateTimeline } from '../lib/queryKeys.ts'
 import PresenceStrip from '../components/PresenceStrip.tsx'
 import FilterMenu from '../components/FilterMenu.tsx'
 import ViewToggle from '../components/ViewToggle.tsx'
@@ -99,20 +100,20 @@ export default function HomePage() {
   const dateRange = (() => {
     if (!dateWindow) return { from: undefined, to: undefined }
     const today = todayISO()
-    const end =
-      dateWindow === 'anio' ? `${today.slice(0, 4)}-12-31` : today
     const start =
       dateWindow === 'hoy'
         ? today
         : dateWindow === 'semana'
-          ? today
+          ? startOfWeek(today)
           : dateWindow === 'mes'
-            ? today
+            ? startOfMonth(today)
             : dateWindow === 'anio'
               ? `${today.slice(0, 4)}-01-01`
               : dateWindow === '7d'
                 ? addDays(today, -6)
                 : addDays(today, -29)
+    const end =
+      dateWindow === 'anio' ? `${today.slice(0, 4)}-12-31` : today
     const r = localWindowRangeISO(start, end)
     return { from: r.start, to: r.end }
   })()
@@ -178,7 +179,7 @@ export default function HomePage() {
           return true
         }),
       ),
-    refetchInterval: 10_000,
+    refetchInterval: 20_000,
   })
 
   const presence = useQuery({
@@ -208,7 +209,12 @@ export default function HomePage() {
   const decideMutation = useMutation({
     mutationFn: ({ name, confirmed }: { name: string; confirmed: boolean }) =>
       decideProjection(name, confirmed),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projection'] }),
+    onSuccess: () => {
+      // "Sí, falta" crea el ítem: refresca la lista, los reportes y la
+      // proyección para que todo se vea al momento.
+      invalidateItems(queryClient)
+      invalidateReports(queryClient)
+    },
   })
 
   const pendingCount = items.filter(
@@ -235,7 +241,11 @@ export default function HomePage() {
     onError: (_e, _v, ctx) => {
       for (const [k, d] of ctx?.prev ?? []) queryClient.setQueryData(k, d)
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['items'] }),
+    onSettled: () => {
+      // "Lo mío", el quiosco y el historial ven el cambio sin esperar su poll.
+      invalidateItems(queryClient)
+      invalidateTimeline(queryClient)
+    },
   })
 
   const toggle = (item: GroceryItem) => {

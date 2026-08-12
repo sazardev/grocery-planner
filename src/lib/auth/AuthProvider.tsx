@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { hostLogin as apiHostLogin, login as apiLogin, loginPin as apiLoginPin, logout as apiLogout, me, registerAccount } from '../api'
 import { onUnauthorized } from '../api/transport'
+import { realtimeReconnect } from '../realtime'
 import { setMe } from '../me'
 import { loadToken, clearToken, saveToken } from './storage'
 import { AuthContext, type AuthContextValue, type AuthStatus } from './useAuth'
@@ -69,6 +70,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null)
       setStatus('anonymous')
       setMe(null)
+      // Aborta el stream SSE viejo (quedaba ligado al token caducado).
+      realtimeReconnect()
     })
     return () => onUnauthorized(null)
   }, [queryClient])
@@ -81,6 +84,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setUser(view.user)
       setToken(view.token)
       setStatus('authenticated')
+      realtimeReconnect()
     }
 
     async function signInWithPin(name: string, pin: string): Promise<void> {
@@ -90,6 +94,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setUser(view.user)
       setToken(view.token)
       setStatus('authenticated')
+      realtimeReconnect()
     }
 
     async function signUp(name: string, password: string): Promise<void> {
@@ -99,6 +104,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setUser(view.user)
       setToken(view.token)
       setStatus('authenticated')
+      realtimeReconnect()
     }
 
     async function hostSignIn(hostKey: string): Promise<void> {
@@ -108,6 +114,20 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setUser(view.user)
       setToken(view.token)
       setStatus('authenticated')
+      realtimeReconnect()
+    }
+
+    // Tras editar alias/avatar (AccountSection) el perfil debe reflejarse de
+    // inmediato en toda la app, no esperar un recarga (DESIGN: responde al toque).
+    async function refreshUser(): Promise<void> {
+      if (!token) return
+      try {
+        const u = await me(token)
+        setUser(u)
+        setMe(u.name)
+      } catch {
+        /* la sesión se valida sola con onUnauthorized; aquí solo refrescamos */
+      }
     }
 
     async function signOut(): Promise<void> {
@@ -122,9 +142,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setToken(null)
       setStatus('anonymous')
       setMe(null)
+      // Aborta el stream SSE de la sesión que se cierra.
+      realtimeReconnect()
     }
 
-    return { status, user, token, signIn, signInWithPin, signUp, signOut, hostSignIn }
+    return { status, user, token, signIn, signInWithPin, signUp, signOut, hostSignIn, refreshUser }
   }, [status, user, token, queryClient])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

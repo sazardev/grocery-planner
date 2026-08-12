@@ -8,16 +8,7 @@
   flex-shrink: 0;
   transition:
     background-color var(--gp-duration-instant) var(--gp-ease-out),
-    color var(--gp-duration-instant) var(--gp-ease-out),
-    transform var(--gp-duration-fast) var(--gp-ease-spring);
-}
-
-.button:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.button:active:not(:disabled) {
-  transform: scale(0.85) rotate(-8deg);
+    color var(--gp-duration-instant) var(--gp-ease-out);
 }
 
 .button:disabled {
@@ -31,7 +22,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--gp-touch);
   opacity: 0;
   pointer-events: none;
 }
@@ -40,17 +31,9 @@
   animation: gp-ripple 0.4s var(--gp-ease-out);
 }
 
-.button svg {
-  transition: transform var(--gp-duration-normal) var(--gp-ease-spring);
-}
-
-.button:hover:not(:disabled) svg {
-  transform: rotate(6deg) scale(1.1);
-}
-
 .sm {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
 }
 
 .md {

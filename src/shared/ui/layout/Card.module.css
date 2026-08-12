@@ -2,10 +2,7 @@
   background: var(--gp-surface);
   border-radius: var(--gp-radius-lg);
   transform-origin: center;
-  animation: gp-rise 0.4s var(--gp-ease-out);
-  transition:
-    background-color var(--gp-duration-fast) var(--gp-ease-out),
-    transform var(--gp-duration-normal) var(--gp-ease-spring);
+  transition: background-color var(--gp-duration-fast) var(--gp-ease-out);
 }
 
 .padding-none {
@@ -30,14 +27,8 @@
 
 .interactive:hover {
   background: var(--gp-surface-raised);
-  transform: translateY(-2px);
-}
-
-.interactive:active {
-  transform: scale(0.97);
 }
 
 .selected {
   background: var(--gp-primary-subtle);
-  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-bounce);
 }

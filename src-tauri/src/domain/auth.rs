@@ -110,6 +110,11 @@ pub struct Session {
     pub created_at: String,
     pub last_used_at: String,
     pub revoked: bool,
+    /// Cuándo expira (ISO UTC). La sesión se renueva al usarse (sliding); una
+    /// sesión sin uso prolongada deja de servir. `None` = sin expiración
+    /// (sesiones de un binario anterior, se migran al primer uso).
+    #[serde(default)]
+    pub expires_at: Option<String>,
 }
 
 impl Session {
@@ -120,8 +125,9 @@ impl Session {
             user_id: user_id.to_string(),
             device: device.trim().to_string(),
             created_at: now.clone(),
-            last_used_at: now,
+            last_used_at: now.clone(),
             revoked: false,
+            expires_at: Some(expires_iso(&now)),
         }
     }
 }
@@ -129,6 +135,21 @@ impl Session {
 /// Genera un token de sesión aleatorio (122 bits de entropía vía UUID v4).
 fn new_session_token() -> String {
     Uuid::new_v4().to_string()
+}
+
+/// Vida útil de una sesión sin uso (SPEC §2.4): 30 días con renovación
+/// deslizante al usarse.
+pub const SESSION_LIFETIME_DAYS: i64 = 30;
+
+/// `now` + la vida de la sesión, en ISO UTC.
+pub fn expires_iso(now: &str) -> String {
+    let Ok(at) = time::OffsetDateTime::parse(now, &time::format_description::well_known::Rfc3339)
+    else {
+        return now.to_string();
+    };
+    let exp = at + time::Duration::days(SESSION_LIFETIME_DAYS);
+    exp.format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_else(|_| now.to_string())
 }
 
 /// Hash argon2id con salt aleatorio. El salt se guarda dentro del propio hash

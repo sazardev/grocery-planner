@@ -35,6 +35,8 @@ pub struct SessionView {
     pub revoked: bool,
     /// `true` para la sesión actual (la del token usado para consultar).
     pub current: bool,
+    /// ISO UTC; `None` = sin expiración (sesión legacy).
+    pub expires_at: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -122,6 +124,7 @@ pub fn auth_sessions(state: AppStateRef, token: String) -> Result<Vec<SessionVie
             created_at: s.created_at,
             last_used_at: s.last_used_at,
             revoked: s.revoked,
+            expires_at: s.expires_at,
         })
         .collect();
     Ok(sessions)
@@ -195,22 +198,36 @@ pub fn auth_update_profile(
 }
 
 /// Restablece la contraseña de un miembro con la clave de respaldo del hogar
-/// (SPEC §2.5). La clave la genera el Admin; cualquiera que la conozca puede
-/// recuperar la cuenta de un miembro.
+/// (SPEC §2.5). La clave la genera el Admin; quien la conozca puede recuperar
+/// la cuenta de un miembro SIN necesidad de una sesión activa (perdió la suya).
 #[tauri::command]
 pub fn auth_reset_password(
     state: AppStateRef,
-    token: String,
     name: String,
     backup_key: String,
     new_password: String,
 ) -> Result<(), AppError> {
     let mut store = store::lock(&state.store)?;
-    store.auth.user_by_token(&token)?;
     let home = store.home.get()?;
     if home.backup_key != backup_key.trim() {
         return Err(AppError::unauthorized("La clave de respaldo no es válida"));
     }
+    store.auth.reset_password(&name, &new_password)?;
+    persist_now(&store);
+    Ok(())
+}
+
+/// Regenera la contraseña de un miembro cuando no hay clave de respaldo
+/// (SPEC §2.5): lo hace un Organizador/Admin desde Ajustes.
+#[tauri::command]
+pub fn auth_admin_reset_password(
+    state: AppStateRef,
+    by: String,
+    name: String,
+    new_password: String,
+) -> Result<(), AppError> {
+    let mut store = store::lock(&state.store)?;
+    crate::commands::require_role(&store, &by, Role::Organizador)?;
     store.auth.reset_password(&name, &new_password)?;
     persist_now(&store);
     Ok(())
@@ -244,7 +261,7 @@ pub fn auth_remove_pin(state: AppStateRef, by: String, name: String) -> Result<(
 }
 
 /// ¿`by` es la misma cuenta que `name`, o es Admin del hogar? (SPEC §2.3/§3.2).
-fn require_self_or_admin(store: &store::AppStore, by: &str, name: &str) -> Result<(), AppError> {
+pub fn require_self_or_admin(store: &store::AppStore, by: &str, name: &str) -> Result<(), AppError> {
     if by.trim() == name.trim() {
         return Ok(());
     }

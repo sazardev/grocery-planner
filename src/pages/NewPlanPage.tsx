@@ -12,6 +12,7 @@ import Alert from '../shared/ui/feedback/Alert.tsx'
 import { Card, DatePicker, Grid, Input, Select, Stack, Textarea, TimePicker } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
 import { useGoBack } from '../lib/hooks/useGoBack.ts'
+import { invalidateCalendar } from '../lib/queryKeys.ts'
 import styles from './NewPlanPage.module.css'
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -54,6 +55,7 @@ export default function NewPlanPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] })
+      invalidateCalendar(queryClient)
       navigate('/plans', { replace: true })
     },
     onError: (err) => setError(errorMessage(err, 'No se pudo crear el plan')),

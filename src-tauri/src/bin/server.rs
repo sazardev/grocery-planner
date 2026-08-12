@@ -9,13 +9,16 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::extract::{Path, Query, State};
-use axum::http::{header::AUTHORIZATION, HeaderMap, StatusCode};
+use axum::http::{header::AUTHORIZATION, HeaderMap, Method, StatusCode};
 use axum::middleware::{self, Next};
+use axum::response::sse::{Event as SseEvent, KeepAlive, Sse};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, patch, post};
 use axum::{Json, Router};
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::{ServeDir, ServeFile};
 
 use grocery_planner_lib::commands::auth as auth_cmd;
 use grocery_planner_lib::commands::backup::BackupData;
@@ -63,6 +66,7 @@ const PUBLIC_PATHS: &[&str] = &[
     "/api/auth/login",
     "/api/auth/login-pin",
     "/api/auth/has-pin",
+    "/api/auth/password/reset",
     "/api/auth/host-login",
     "/api/host-mode",
 ];
@@ -511,14 +515,7 @@ async fn healthy(State(state): State<Shared>) -> Result<Json<HealthInfo>, AppErr
 /// Aplica la privacidad del hogar (SPEC §14): si no se muestran fotos/precios,
 /// se redactan en las respuestas (solo lectura; el dato se conserva).
 fn redact_item(item: GroceryItem, store: &grocery_planner_lib::store::AppStore) -> GroceryItem {
-    let mut it = item;
-    if !store.rules.rules.privacy_show_photos {
-        it.photos.clear();
-    }
-    if !store.rules.rules.privacy_show_prices {
-        it.price = None;
-    }
-    it
+    store.rules.rules().redact_item(item)
 }
 
 async fn items_list(State(state): State<Shared>) -> Result<Json<Vec<GroceryItem>>, AppError> {
@@ -592,7 +589,7 @@ async fn item_create(
             }
         }
     }
-    Ok(Json(created))
+    Ok(Json(redact_item(created, &store)))
 }
 
 async fn items_complete_batch(
@@ -600,7 +597,14 @@ async fn items_complete_batch(
     actor: AuthActor,
 ) -> Result<Json<Vec<GroceryItem>>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.complete_carried(&actor.0)?))
+    Ok(Json(
+        store
+            .items
+            .complete_carried(&actor.0)?
+            .into_iter()
+            .map(|it| redact_item(it, &store))
+            .collect(),
+    ))
 }
 
 async fn item_get(
@@ -630,7 +634,7 @@ async fn item_change_status(
             }
         }
     }
-    Ok(Json(changed))
+    Ok(Json(redact_item(changed, &store)))
 }
 
 async fn item_assign(
@@ -652,7 +656,7 @@ async fn item_assign(
             Some(&format!("/items/{id}")),
         );
     }
-    Ok(Json(assigned))
+    Ok(Json(redact_item(assigned, &store)))
 }
 
 async fn item_unassign(
@@ -661,7 +665,10 @@ async fn item_unassign(
     actor: AuthActor,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.unassign(&id, &actor.0)?))
+    Ok(Json(redact_item(
+        store.items.unassign(&id, &actor.0)?,
+        &store,
+    )))
 }
 
 async fn item_cancel(
@@ -671,11 +678,10 @@ async fn item_cancel(
     Json(body): Json<CancelBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.cancel(
-        &id,
-        &actor.0,
-        body.reason.as_deref(),
-    )?))
+    Ok(Json(redact_item(
+        store.items.cancel(&id, &actor.0, body.reason.as_deref())?,
+        &store,
+    )))
 }
 
 async fn item_history(
@@ -768,7 +774,10 @@ async fn item_set_price(
     Json(body): Json<PriceBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.set_price(&id, body.price, &actor.0)?))
+    Ok(Json(redact_item(
+        store.items.set_price(&id, body.price, &actor.0)?,
+        &store,
+    )))
 }
 
 async fn item_set_section(
@@ -779,7 +788,10 @@ async fn item_set_section(
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
     store.sections.get(&body.section)?;
-    Ok(Json(store.items.set_section(&id, &body.section, &actor.0)?))
+    Ok(Json(redact_item(
+        store.items.set_section(&id, &body.section, &actor.0)?,
+        &store,
+    )))
 }
 
 async fn item_update(
@@ -789,16 +801,19 @@ async fn item_update(
     Json(body): Json<UpdateItemBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.update(
-        &id,
-        &actor.0,
-        body.name.as_deref(),
-        body.quantity,
-        body.unit.as_deref(),
-        body.priority,
-        body.note.as_deref(),
-        body.category.as_deref(),
-    )?))
+    Ok(Json(redact_item(
+        store.items.update(
+            &id,
+            &actor.0,
+            body.name.as_deref(),
+            body.quantity,
+            body.unit.as_deref(),
+            body.priority,
+            body.note.as_deref(),
+            body.category.as_deref(),
+        )?,
+        &store,
+    )))
 }
 
 async fn item_set_priority(
@@ -808,7 +823,10 @@ async fn item_set_priority(
     Json(body): Json<SetPriorityBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.set_priority(&id, body.priority, &actor.0)?))
+    Ok(Json(redact_item(
+        store.items.set_priority(&id, body.priority, &actor.0)?,
+        &store,
+    )))
 }
 
 async fn item_move(
@@ -823,7 +841,10 @@ async fn item_move(
     if item.requested_by != actor.0 {
         grocery_planner_lib::commands::require_role(&store, &actor.0, Role::Organizador)?;
     }
-    Ok(Json(store.items.move_item(&id, body.direction)?))
+    Ok(Json(redact_item(
+        store.items.move_item(&id, body.direction)?,
+        &store,
+    )))
 }
 
 async fn item_delete(
@@ -839,7 +860,7 @@ async fn item_delete(
 async fn item_delete_permanent(
     State(state): State<Shared>,
     Path(id): Path<String>,
-    _actor: AuthActor,
+    actor: AuthActor,
 ) -> Result<StatusCode, AppError> {
     let mut store = store::lock(&state.store)?;
     let item = store.items.get(&id)?;
@@ -847,6 +868,15 @@ async fn item_delete_permanent(
         return Err(AppError::conflict(
             "Solo se borra definitivamente un ítem que ya está en la papelera",
         ));
+    }
+    // Solo el dueño del ítem o un Organizador/Admin (SPEC §3.2/§4.4).
+    if item.requested_by != actor.0 {
+        grocery_planner_lib::commands::require_role(&store, &actor.0, Role::Organizador)?;
+    }
+    for name in &item.photos {
+        if !name.starts_with("data:") {
+            grocery_planner_lib::commands::photo::delete_photo_file(name);
+        }
     }
     store.items.delete_permanent(&id)?;
     Ok(StatusCode::NO_CONTENT)
@@ -1045,9 +1075,12 @@ async fn home_info(
 ) -> Result<Json<home_cmd::HomeView>, AppError> {
     let store = store::lock(&state.store)?;
     let home = store.home.get()?;
+    // 404 (no "401") cuando no perteneces al hogar: el 401 global del front
+    // cierra la sesión y un miembro que aún no creó/un hogar se quedaría fuera
+    // injustamente. 404 además no revela si el hogar existe.
     let member = home
         .member(&actor.0)
-        .ok_or_else(|| AppError::unauthorized("No perteneces a ningún hogar"))?;
+        .ok_or_else(|| AppError::not_found("Todavía no se crea el hogar"))?;
     let view = home_cmd::HomeView {
         id: home.id.clone(),
         name: home.name.clone(),
@@ -1435,11 +1468,18 @@ async fn reports_projection(
 
 async fn projection_decide(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(body): Json<ProjectionDecideBody>,
 ) -> Result<Json<bool>, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.rules.decide_projection(&body.name, body.confirmed);
-    Ok(Json(body.confirmed))
+    let ok = grocery_planner_lib::commands::reports::decide_projection_core(
+        &mut store,
+        &actor.0,
+        &body.name,
+        body.confirmed,
+    )?;
+    persist_store(&store);
+    Ok(Json(ok))
 }
 
 // ----- Chat (SPEC §11) ----------------------------------------------------
@@ -1788,7 +1828,12 @@ async fn item_add_photo(
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
     let limit = store.rules.rules.photo_limit;
-    Ok(Json(store.items.add_photo(&id, &body.photo, limit, &actor.0)?))
+    // Fase 2: la foto pasa a disco y el ítem guarda el nombre del archivo.
+    let name = grocery_planner_lib::commands::photo::store_photo(&body.photo)?;
+    Ok(Json(redact_item(
+        store.items.add_photo(&id, &name, limit, &actor.0)?,
+        &store,
+    )))
 }
 
 async fn item_remove_photo(
@@ -1797,7 +1842,14 @@ async fn item_remove_photo(
     actor: AuthActor,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.remove_photo(&id, index, &actor.0)?))
+    let removed_name = store.items.get(&id)?.photos.get(index).cloned();
+    let removed = store.items.remove_photo(&id, index, &actor.0)?;
+    if let Some(name) = removed_name {
+        if !name.starts_with("data:") {
+            grocery_planner_lib::commands::photo::delete_photo_file(&name);
+        }
+    }
+    Ok(Json(redact_item(removed, &store)))
 }
 
 async fn item_set_store(
@@ -1807,7 +1859,10 @@ async fn item_set_store(
     Json(body): Json<StoreNameBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.set_store(&id, &body.store_name, &actor.0)?))
+    Ok(Json(redact_item(
+        store.items.set_store(&id, &body.store_name, &actor.0)?,
+        &store,
+    )))
 }
 
 async fn item_set_aisle(
@@ -1817,7 +1872,10 @@ async fn item_set_aisle(
     Json(body): Json<AisleBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.set_aisle(&id, &body.aisle, &actor.0)?))
+    Ok(Json(redact_item(
+        store.items.set_aisle(&id, &body.aisle, &actor.0)?,
+        &store,
+    )))
 }
 
 #[derive(Deserialize)]
@@ -1833,7 +1891,10 @@ async fn item_set_brand(
     Json(body): Json<BrandBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.set_brand(&id, &body.brand, &actor.0)?))
+    Ok(Json(redact_item(
+        store.items.set_brand(&id, &body.brand, &actor.0)?,
+        &store,
+    )))
 }
 
 #[derive(Deserialize)]
@@ -1849,7 +1910,10 @@ async fn item_set_quantity_max(
     Json(body): Json<QuantityMaxBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.set_quantity_max(&id, body.max, &actor.0)?))
+    Ok(Json(redact_item(
+        store.items.set_quantity_max(&id, body.max, &actor.0)?,
+        &store,
+    )))
 }
 
 #[derive(Deserialize)]
@@ -1884,7 +1948,10 @@ async fn item_remove_fallback(
     actor: AuthActor,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.remove_fallback(&id, index, &actor.0)?))
+    Ok(Json(redact_item(
+        store.items.remove_fallback(&id, index, &actor.0)?,
+        &store,
+    )))
 }
 
 async fn item_use_fallback(
@@ -1893,7 +1960,10 @@ async fn item_use_fallback(
     actor: AuthActor,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.use_fallback(&id, index, &actor.0)?))
+    Ok(Json(redact_item(
+        store.items.use_fallback(&id, index, &actor.0)?,
+        &store,
+    )))
 }
 
 async fn item_recover(
@@ -1902,7 +1972,10 @@ async fn item_recover(
     actor: AuthActor,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
-    Ok(Json(store.items.recover(&id, &actor.0)?))
+    Ok(Json(redact_item(
+        store.items.recover(&id, &actor.0)?,
+        &store,
+    )))
 }
 
 async fn items_purchased_between(
@@ -1926,7 +1999,12 @@ async fn items_purchased_between(
             })
         })
         .collect();
-    Ok(Json(items))
+    Ok(Json(
+        items
+            .into_iter()
+            .map(|it| redact_item(it, &store))
+            .collect(),
+    ))
 }
 
 // ----- Línea de tiempo (SPEC §8.3) -----------------------------------------
@@ -1982,40 +2060,27 @@ async fn section_move(
 
 // ----- Respaldo exportar/importar (SPEC §15) --------------------------------
 
-async fn backup_export(State(state): State<Shared>) -> Result<Json<BackupData>, AppError> {
+async fn backup_export(
+    State(state): State<Shared>,
+    actor: AuthActor,
+) -> Result<Json<BackupData>, AppError> {
     let store = store::lock(&state.store)?;
-    Ok(Json(BackupData {
-        exported_at: grocery_planner_lib::domain::now_iso(),
-        home: store.home.get().ok().cloned(),
-        items: store.items.list(),
-        trips: store.trips.list(),
-        events: store.events.list(),
-        plans: store.plans.list(),
-        sections: store.sections.list(),
-        chat: store.chat.list(),
-        rules: store.rules.rules(),
-        notifications: store.rules.notifications.clone(),
-        projection_choices: store.rules.projection_choices.clone(),
-    }))
+    // Solo el Admin del hogar exporta todo (SPEC §15); además se respeta la
+    // privacidad (§14): si no se muestran fotos/precios, salen redactados.
+    Ok(Json(grocery_planner_lib::commands::backup::backup_export_core(
+        &store,
+        &actor.0,
+    )?))
 }
 
 async fn backup_import(
     State(state): State<Shared>,
+    actor: AuthActor,
     Json(data): Json<BackupData>,
 ) -> Result<StatusCode, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.items.replace_all(data.items);
-    store.trips.replace_all(data.trips);
-    store.events.replace_all(data.events);
-    store.plans.replace_all(data.plans);
-    store.sections.replace_all(data.sections);
-    store.chat.replace_all(data.chat);
-    store.rules.set_rules(data.rules);
-    store.rules.notifications = data.notifications;
-    store.rules.projection_choices = data.projection_choices;
-    if let Some(home) = data.home {
-        store.home.replace(home);
-    }
+    // Importar reemplaza los datos del hogar: solo el Admin puede hacerlo.
+    grocery_planner_lib::commands::backup::backup_import_core(&mut store, &actor.0, data)?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -2027,11 +2092,7 @@ async fn auth_set_pin(
     Json(body): Json<PinBody>,
 ) -> Result<StatusCode, AppError> {
     let mut store = store::lock(&state.store)?;
-    if body.name != actor.0 {
-        return Err(AppError::unauthorized(
-            "Solo puedes configurar tu propio PIN (o el de un miembro como Admin)",
-        ));
-    }
+    auth_cmd::require_self_or_admin(&store, &actor.0, &body.name)?;
     store.auth.set_pin(&body.name, &body.pin)?;
     persist_store(&store);
     Ok(StatusCode::NO_CONTENT)
@@ -2043,11 +2104,7 @@ async fn auth_remove_pin(
     Json(body): Json<PinBody>,
 ) -> Result<StatusCode, AppError> {
     let mut store = store::lock(&state.store)?;
-    if body.name != actor.0 {
-        return Err(AppError::unauthorized(
-            "Solo puedes configurar tu propio PIN (o el de un miembro como Admin)",
-        ));
-    }
+    auth_cmd::require_self_or_admin(&store, &actor.0, &body.name)?;
     store.auth.remove_pin(&body.name)?;
     persist_store(&store);
     Ok(StatusCode::NO_CONTENT)
@@ -2171,6 +2228,7 @@ fn session_view(session: &grocery_planner_lib::domain::auth::Session, current: b
         last_used_at: session.last_used_at.clone(),
         revoked: session.revoked,
         current,
+        expires_at: session.expires_at.clone(),
     }
 }
 
@@ -2311,18 +2369,39 @@ async fn auth_update_profile(
     }))
 }
 
+/// Restablece la contraseña de un miembro con la clave de respaldo del hogar
+/// (SPEC §2.5). Es público porque quien la usa pudo perder su sesión; la clave
+/// es la credencial.
 async fn auth_reset_password(
     State(state): State<Shared>,
-    headers: HeaderMap,
     Json(body): Json<ResetPasswordBody>,
 ) -> Result<StatusCode, AppError> {
-    let token = bearer_token(&headers)?;
     let mut store = store::lock(&state.store)?;
-    store.auth.user_by_token(&token)?;
     let home = store.home.get()?;
     if home.backup_key != body.backup_key.trim() {
         return Err(AppError::unauthorized("La clave de respaldo no es válida"));
     }
+    store.auth.reset_password(&body.name, &body.new_password)?;
+    persist_store(&store);
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AdminResetBody {
+    name: String,
+    new_password: String,
+}
+
+/// Regenera la contraseña de un miembro cuando no hay clave de respaldo
+/// (SPEC §2.5): requiere rol Organizador/Admin.
+async fn auth_admin_reset_password(
+    State(state): State<Shared>,
+    actor: AuthActor,
+    Json(body): Json<AdminResetBody>,
+) -> Result<StatusCode, AppError> {
+    let mut store = store::lock(&state.store)?;
+    grocery_planner_lib::commands::require_role(&store, &actor.0, Role::Organizador)?;
     store.auth.reset_password(&body.name, &body.new_password)?;
     persist_store(&store);
     Ok(StatusCode::NO_CONTENT)
@@ -2336,6 +2415,11 @@ async fn auth_guard(
     next: Next,
 ) -> Response {
     let path = req.uri().path().to_string();
+    // Solo el API exige sesión; los estáticos y la SPA pasan libre (fase 2:
+    // el mismo binario sirve el frontend).
+    if !path.starts_with("/api/") {
+        return next.run(req).await;
+    }
     // Público solo si es la ruta exacta o un sub-prefijo real (con `/`), para que
     // `/api/auth/login-pin` no deje públicas variantes como `/api/auth/login-pin-xyz`.
     let public = PUBLIC_PATHS
@@ -2376,6 +2460,138 @@ async fn auth_guard(
     next.run(req).await
 }
 
+// ----- Tiempo real (fase 2): SSE de cambios --------------------------------
+
+/// Sirve una foto guardada en disco (fase 2). Bajo `/api/` → requiere sesión.
+async fn photo_get(Path(file): Path<String>) -> Result<Response, AppError> {
+    let (mime, bytes) = grocery_planner_lib::commands::photo::serve_photo(&file)?;
+    Ok((
+        [(axum::http::header::CONTENT_TYPE, mime)],
+        bytes,
+    )
+        .into_response())
+}
+
+/// ¿Qué dominio(s) cambió con una mutación del API? Solo POST/PATCH/DELETE/PUT
+/// con respuesta 2xx publican. Las rutas de solo lectura que usan POST se
+/// excluyen para no provocar un bucle de refetch (query/suggest/transition/
+/// validate). Una mutación puede afectar varios dominios: las que además crean
+/// avisos (push_managed) publican también `notifications` para que el badge de
+/// cualquier dispositivo se refresque al instante (SPEC §13).
+fn change_kinds_for(path: &str) -> &'static [&'static str] {
+    if path == "/api/backup" || path == "/api/backup/import" {
+        return &["all"];
+    }
+    if path == "/api/events-stream" {
+        return &[];
+    }
+    if path.starts_with("/api/items/query")
+        || path.starts_with("/api/items/suggest")
+        || path.starts_with("/api/items/transition")
+        || path.starts_with("/api/items/validate")
+        || path == "/api/parse-quick-entry"
+    {
+        return &[];
+    }
+    // Descartar la lista de un evento BORRA ítems → hay que refrescar la lista
+    // además del calendario (antes solo se emitía `events` y la lista quedaba
+    // vieja hasta el siguiente poll).
+    if path.ends_with("/discard") && path.starts_with("/api/events/") {
+        return &["events", "items"];
+    }
+    if path.starts_with("/api/items") {
+        // Crear un ítem urgente, cambiarlo a comprado dentro de un mandado y
+        // asignarlo generan avisos (SPEC §13) además de tocar la lista.
+        if path == "/api/items"
+            || path == "/api/items/complete-batch"
+            || path.ends_with("/status")
+            || path.ends_with("/assign")
+        {
+            return &["items", "notifications"];
+        }
+        return &["items"];
+    }
+    if path.starts_with("/api/chat") {
+        // Enviar un mensaje puede mencionar a alguien (@Nombre) → aviso.
+        if path == "/api/chat" {
+            return &["chat", "notifications"];
+        }
+        return &["chat"];
+    }
+    if path.starts_with("/api/plans") {
+        return &["plans"];
+    }
+    if path.starts_with("/api/events") {
+        return &["events"];
+    }
+    if path.starts_with("/api/trips") {
+        // Asignar un mandado, empezarlo y confirmar la llegada generan avisos.
+        if path.ends_with("/assign") || path.ends_with("/activate") || path.ends_with("/received") {
+            return &["trips", "notifications"];
+        }
+        return &["trips"];
+    }
+    if path.starts_with("/api/home") {
+        return &["home"];
+    }
+    if path.starts_with("/api/sections") {
+        return &["sections"];
+    }
+    if path.starts_with("/api/rules") || path.starts_with("/api/host-mode") {
+        return &["rules"];
+    }
+    if path.starts_with("/api/notifications") {
+        return &["notifications"];
+    }
+    // La presencia NO se emite por SSE: el heartbeat es un query que refetchea
+    // y emitirlo provocaría un bucle heartbeat→invalidate→heartbeat. El poll de
+    // 15 s de cada pantalla es suficiente para "quién está conectado".
+    if path.starts_with("/api/reports") {
+        return &["reports"];
+    }
+    if path.starts_with("/api/timeline") {
+        return &["timeline"];
+    }
+    &[]
+}
+
+/// Publica un evento de cambio por cada mutación exitosa del API. Corre por
+/// fuera de `auth_guard`; al emitir solo en 2xx, una request sin sesión (401)
+/// nunca llega a publicar.
+async fn realtime_emit(
+    State(state): State<Shared>,
+    req: axum::extract::Request,
+    next: Next,
+) -> Response {
+    let path = req.uri().path().to_string();
+    let method = req.method().clone();
+    let resp = next.run(req).await;
+    if method != Method::GET && resp.status().is_success() {
+        for kind in change_kinds_for(&path) {
+            let _ = state
+                .changes
+                .send(serde_json::json!({ "kind": kind }).to_string());
+        }
+    }
+    resp
+}
+
+/// Flujo SSE de cambios en tiempo real (fase 2): el cliente se suscribe y cada
+/// mutación le llega al instante, sin polling. Autenticado por el header Bearer
+/// (fetch con headers; los eventos se parsean como `data: {...}`).
+async fn events_stream(
+    State(state): State<Shared>,
+) -> Sse<impl futures_util::Stream<Item = Result<SseEvent, std::convert::Infallible>>> {
+    let rx = state.changes.subscribe();
+    let stream = tokio_stream::wrappers::BroadcastStream::new(rx).filter_map(|item| async {
+        match item {
+            Ok(payload) => Some(Ok(SseEvent::default().data(payload))),
+            Err(_) => None, // lagged/closed: se silencia y se sigue
+        }
+    });
+    Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
 #[tokio::main]
 async fn main() {
     let port: u16 = std::env::var("GROCERY_PLANNER_PORT")
@@ -2384,6 +2600,9 @@ async fn main() {
         .unwrap_or(8787);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let state: Shared = Arc::new(AppState::default());
+    // Carpeta del frontend compilado (fase 2: el mismo binario sirve la SPA).
+    let dist_dir = std::env::var("GROCERY_PLANNER_DIST").unwrap_or_else(|_| "dist".to_string());
+    let dist_index = std::path::Path::new(&dist_dir).join("index.html");
 
     {
         let state = state.clone();
@@ -2393,6 +2612,7 @@ async fn main() {
                 interval.tick().await;
                 if let Ok(mut store) = state.store.lock() {
                     store.presence.prune();
+                    store.auth.prune_expired_sessions();
                 }
             }
         });
@@ -2409,9 +2629,24 @@ async fn main() {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
             loop {
                 interval.tick().await;
-                if let Ok(mut store) = state.store.lock() {
-                    if grocery_planner_lib::commands::background::tick(&mut store) {
+                let changed = if let Ok(mut store) = state.store.lock() {
+                    let changed = grocery_planner_lib::commands::background::tick(&mut store);
+                    if changed {
                         let _ = persist::save(&store, &persist::default_data_path());
+                    }
+                    changed
+                } else {
+                    false
+                };
+                // El tick crea avisos (recordatorios, proyección, resúmenes) y
+                // avanza planes recurrentes SIN pasar por una request HTTP, así
+                // que el SSE debe emitirlo aquí para que el badge y el
+                // calendario de todos los dispositivos se refresquen al instante.
+                if changed {
+                    for kind in ["notifications", "plans"] {
+                        let _ = state
+                            .changes
+                            .send(serde_json::json!({ "kind": kind }).to_string());
                     }
                 }
             }
@@ -2438,6 +2673,10 @@ async fn main() {
         .route("/api/auth/password", post(auth_change_password))
         .route("/api/auth/profile", post(auth_update_profile))
         .route("/api/auth/password/reset", post(auth_reset_password))
+        .route(
+            "/api/auth/password/regenerate",
+            post(auth_admin_reset_password),
+        )
         .route("/api/auth/pin", post(auth_set_pin).delete(auth_remove_pin))
         .route("/api/auth/has-pin", get(auth_has_pin))
         .route("/api/auth/login-pin", post(auth_login_pin))
@@ -2546,8 +2785,14 @@ async fn main() {
         .route("/api/timeline", get(timeline_get))
         .route("/api/backup", get(backup_export))
         .route("/api/backup/import", post(backup_import))
+        // Tiempo real (fase 2): SSE de cambios por dominio.
+        .route("/api/events-stream", get(events_stream))
+        // Fotos a disco (fase 2): el frontend las sirve desde aquí.
+        .route("/api/photos/{file}", get(photo_get))
         .layer(middleware::from_fn_with_state(state.clone(), auth_guard))
+        .layer(middleware::from_fn_with_state(state.clone(), realtime_emit))
         .layer(cors)
+        .fallback_service(ServeDir::new(dist_dir.clone()).not_found_service(ServeFile::new(dist_index)))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(addr)
@@ -2557,4 +2802,72 @@ async fn main() {
     axum::serve(listener, app)
         .await
         .expect("error del servidor");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::change_kinds_for;
+
+    #[test]
+    fn mapea_dominios_de_cambio() {
+        assert_eq!(change_kinds_for("/api/items/abc/status"), &["items", "notifications"]);
+        assert_eq!(change_kinds_for("/api/chat"), &["chat", "notifications"]);
+        assert_eq!(change_kinds_for("/api/plans"), &["plans"]);
+        assert_eq!(change_kinds_for("/api/events/abc/merge"), &["events"]);
+        assert_eq!(
+            change_kinds_for("/api/events/abc/discard"),
+            &["events", "items"],
+            "descartar la lista de un evento también borra ítems"
+        );
+        assert_eq!(
+            change_kinds_for("/api/trips/abc/activate"),
+            &["trips", "notifications"]
+        );
+        assert_eq!(change_kinds_for("/api/home/members"), &["home"]);
+        assert_eq!(change_kinds_for("/api/sections"), &["sections"]);
+        assert_eq!(change_kinds_for("/api/rules/stores"), &["rules"]);
+        assert_eq!(
+            change_kinds_for("/api/notifications/read-all"),
+            &["notifications"]
+        );
+        assert_eq!(change_kinds_for("/api/backup/import"), &["all"]);
+        // La presencia no se emite (evitaría un bucle de heartbeat).
+        assert!(change_kinds_for("/api/presence/heartbeat").is_empty());
+    }
+
+    #[test]
+    fn no_emite_en_lecturas_ni_stream() {
+        // POSTs de solo lectura: no provocan refetch.
+        assert!(change_kinds_for("/api/items/query").is_empty());
+        assert!(change_kinds_for("/api/items/suggest").is_empty());
+        assert!(change_kinds_for("/api/items/transition").is_empty());
+        assert!(change_kinds_for("/api/items/validate").is_empty());
+        assert!(change_kinds_for("/api/parse-quick-entry").is_empty());
+        // El stream SSE no se publica a sí mismo.
+        assert!(change_kinds_for("/api/events-stream").is_empty());
+        // Rutas sin dominio conocido.
+        assert!(change_kinds_for("/api/auth/login").is_empty());
+        assert!(change_kinds_for("/health/live").is_empty());
+    }
+
+    #[test]
+    fn solo_mutaciones_que_avisan_generan_notificaciones() {
+        assert_eq!(change_kinds_for("/api/items"), &["items", "notifications"]);
+        assert_eq!(
+            change_kinds_for("/api/items/complete-batch"),
+            &["items", "notifications"]
+        );
+        assert_eq!(
+            change_kinds_for("/api/items/abc/assign"),
+            &["items", "notifications"]
+        );
+        // Un comentario no crea avisos → solo la lista.
+        assert_eq!(change_kinds_for("/api/items/abc/comment"), &["items"]);
+        assert_eq!(
+            change_kinds_for("/api/trips/abc/received"),
+            &["trips", "notifications"]
+        );
+        // Completar un mandado no avisa → solo mandados.
+        assert_eq!(change_kinds_for("/api/trips/abc/complete"), &["trips"]);
+    }
 }

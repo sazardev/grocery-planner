@@ -2,7 +2,7 @@
  * Suite E2E — "la UI refresca al momento": dos pestañas con la misma sesión,
  * un cambio en una debe aparecer en la otra sin recargar (vía polling).
  */
-import { api, register, launch, newPage, goto, typeIn, clickByText, check, done } from './harness.mjs'
+import { api, register, launch, newPage, goto, typeIn, clickByText, check, checkNoUnexpected4xx, done } from './harness.mjs'
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const suffix = Date.now().toString().slice(-6)
@@ -13,7 +13,7 @@ async function main() {
   await api('/api/home', { method: 'POST', token, body: { name: 'Familia Live ' + suffix } })
 
   // Dos páginas con la misma sesión.
-  const { browser, page: pageA, jsErrors } = await launch({ token })
+  const { browser, page: pageA, jsErrors, badResponses } = await launch({ token })
   const { page: pageB } = await newPage(browser, { token })
 
   await goto(pageA, '/home', { waitFor: '¿Qué falta?' })
@@ -66,6 +66,7 @@ async function main() {
   check('Página B ve el estado "ya lo llevo" sin recargar', true)
 
   check('Sin errores JS', jsErrors.length === 0, jsErrors.join(' | '))
+  checkNoUnexpected4xx(badResponses)
 
   await done(browser)
 }

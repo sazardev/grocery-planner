@@ -6,6 +6,7 @@ import './index.css'
 import App from './App.tsx'
 import { applyTheme, loadThemeMode } from './lib/theme.ts'
 import { applyTVMode } from './lib/tvMode.ts'
+import { startRealtimeSync } from './lib/realtime.ts'
 
 // Aplica el tema guardado al arrancar (el inline de index.html lo hace aún antes).
 applyTheme(loadThemeMode())
@@ -21,6 +22,10 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+// Tiempo real (fase 2): SSE para que cualquier cambio de otro dispositivo
+// (o del propio server) se refleje al instante en la UI.
+startRealtimeSync(queryClient)
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

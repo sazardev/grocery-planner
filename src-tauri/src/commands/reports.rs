@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::domain::item::{GroceryItem, ItemEventKind, ItemStatus};
+use crate::domain::item::{GroceryItem, ItemEventKind, ItemStatus, Priority};
 use crate::error::AppError;
 use crate::state::AppStateRef;
 use crate::store;
@@ -79,6 +79,43 @@ pub fn reports_trips_by_member(state: AppStateRef) -> Result<Vec<MemberTripCount
 pub fn reports_projection(state: AppStateRef) -> Result<Vec<Projection>, AppError> {
     let store = store::lock(&state.store)?;
     Ok(compute_projection(&store))
+}
+
+/// Núcleo de la decisión de proyección (SPEC §7.2): registrar la decisión y,
+/// si se confirmó, crear el ítem en la lista sin duplicar activos.
+/// El command Tauri vive en `commands::rules::projection_decide`; este núcleo
+/// lo comparten IPC y servidor HTTP.
+pub fn decide_projection_core(
+    store: &mut AppStore,
+    by: &str,
+    name: &str,
+    confirmed: bool,
+) -> Result<bool, AppError> {
+    store.rules.decide_projection(name, confirmed);
+    if confirmed {
+        // No duplica lo que ya está en la lista por comprar (falta/pedido/llevo);
+        // un comprado o cancelado sí se re-agrega (volvió a faltar).
+        let exists = store
+            .items
+            .active()
+            .iter()
+            .any(|i| {
+                matches!(
+                    i.status,
+                    ItemStatus::Falta | ItemStatus::Pedido | ItemStatus::Llevo
+                ) && i.name.trim().eq_ignore_ascii_case(name.trim())
+            });
+        if !exists {
+            if let Some(p) = compute_projection(store)
+                .into_iter()
+                .find(|p| p.name.eq_ignore_ascii_case(name.trim()))
+            {
+                let item = GroceryItem::new(name, p.quantity, &p.unit, Priority::Media, by, None, None)?;
+                store.items.create(item);
+            }
+        }
+    }
+    Ok(confirmed)
 }
 
 /// Ventana de tiempo para los reportes (SPEC §7.3/§8.2). `None` = todo.
@@ -177,9 +214,10 @@ pub fn compute_trips_by_member(store: &AppStore) -> Vec<MemberTripCount> {
 
 pub fn compute_projection(store: &AppStore) -> Vec<Projection> {
     let now = time::OffsetDateTime::now_utc();
+    // Solo ítems activos: lo que se borró (soft-delete) no se sugiere comprar.
     let mut projections: Vec<Projection> = store
         .items
-        .list()
+        .active()
         .iter()
         .filter_map(|item| project(item, now, store))
         .collect();
@@ -261,4 +299,62 @@ fn buy_times(
 
 fn bought_count(item: &GroceryItem, range: Option<(time::OffsetDateTime, time::OffsetDateTime)>) -> u32 {
     buy_times(item, range).len() as u32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::home::Home;
+
+    fn store_with_home() -> AppStore {
+        let mut store = AppStore::new();
+        store.home.replace(Home::create("Los Ramírez", "Papá").unwrap());
+        store
+    }
+
+    #[test]
+    fn confirmar_proyeccion_crea_el_item_en_la_lista() {
+        let mut store = store_with_home();
+        // Un ítem comprado una vez genera una proyección sugerida.
+        let mut item =
+            GroceryItem::new("leche", 1.0, "l", Priority::Media, "Ana", None, None).unwrap();
+        item.change_status(ItemStatus::Comprado, "Juan").unwrap();
+        let item_id = item.id.clone();
+        store.items.create(item);
+
+        let proj = compute_projection(&store);
+        assert!(proj.iter().any(|p| p.name == "leche"));
+
+        // Confirmar crea el ítem de nuevo en la lista (comprado no bloquea).
+        decide_projection_core(&mut store, "Papá", "leche", true).unwrap();
+        let re_added = store
+            .items
+            .active()
+            .iter()
+            .filter(|i| i.id != item_id && i.name == "leche")
+            .count();
+        assert_eq!(re_added, 1, "la confirmación debe re-agregar leche");
+
+        // Confirmar de nuevo NO duplica (ya está en falta/pedido/llevo).
+        decide_projection_core(&mut store, "Papá", "leche", true).unwrap();
+        let dup = store
+            .items
+            .active()
+            .iter()
+            .filter(|i| i.id != item_id && i.name == "leche")
+            .count();
+        assert_eq!(dup, 1, "no debe duplicar un ítem ya por comprar");
+    }
+
+    #[test]
+    fn descartar_proyeccion_no_crea_nada() {
+        let mut store = store_with_home();
+        let mut item =
+            GroceryItem::new("pan", 1.0, "bolsa", Priority::Media, "Ana", None, None).unwrap();
+        item.change_status(ItemStatus::Comprado, "Juan").unwrap();
+        store.items.create(item);
+
+        decide_projection_core(&mut store, "Papá", "pan", false).unwrap();
+        assert_eq!(store.items.active().len(), 1, "descartar no agrega ítems");
+    }
 }

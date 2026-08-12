@@ -34,7 +34,7 @@ export default function Layout() {
   const mentions = useQuery({
     queryKey: ['notif-mentions'],
     queryFn: () => getUnreadMentions(ME),
-    refetchInterval: 10_000,
+    refetchInterval: 20_000,
     retry: false,
   })
 

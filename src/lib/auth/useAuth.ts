@@ -13,6 +13,8 @@ export interface AuthContextValue {
   signOut: () => Promise<void>
   /** Entrada del quiosco con la llave del modo host (SPEC §2.3). */
   hostSignIn: (hostKey: string) => Promise<void>
+  /** Recarga el perfil del usuario (alias/avatar) tras guardarlo. */
+  refreshUser: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

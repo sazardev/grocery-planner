@@ -5,7 +5,6 @@
   padding: var(--gp-space-3) var(--gp-space-4);
   border-radius: var(--gp-radius-md);
   transform-origin: top left;
-  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-spring);
 }
 
 .icon {
@@ -13,7 +12,6 @@
   align-items: center;
   flex-shrink: 0;
   margin-top: 2px;
-  animation: gp-bounce 2s var(--gp-ease-out) infinite;
 }
 
 .content {

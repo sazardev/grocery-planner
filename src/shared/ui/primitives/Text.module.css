@@ -10,7 +10,6 @@
   font-weight: var(--gp-weight-semibold);
   letter-spacing: var(--gp-tracking-heading);
   line-height: var(--gp-line-xl);
-  animation: gp-rise 0.4s var(--gp-ease-out);
 }
 
 .h1 {

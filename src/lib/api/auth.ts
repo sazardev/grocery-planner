@@ -42,14 +42,24 @@ export function updateProfile(
   return request<User>('auth_update_profile', { token, alias: alias ?? null, avatar: avatar ?? null })
 }
 
-/** Restablece la contraseña de un miembro con la clave de respaldo (SPEC §2.5). */
+/** Restablece la contraseña de un miembro con la clave de respaldo (SPEC §2.5).
+ * No requiere sesión: funciona aunque hayas perdido la contraseña. */
 export function resetPassword(
-  token: string,
   name: string,
   backupKey: string,
   newPassword: string,
 ): Promise<void> {
-  return request<void>('auth_reset_password', { token, name, backupKey, newPassword })
+  return request<void>('auth_reset_password', { name, backupKey, newPassword })
+}
+
+/** Regenera la contraseña de un miembro sin clave de respaldo (SPEC §2.5):
+ * la hace un Organizador/Admin. */
+export function adminResetPassword(
+  name: string,
+  newPassword: string,
+  by: string,
+): Promise<void> {
+  return request<void>('auth_admin_reset_password', { name, newPassword, by })
 }
 
 export function setPin(name: string, pin: string, by: string): Promise<void> {

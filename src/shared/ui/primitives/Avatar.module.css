@@ -3,13 +3,6 @@
   object-fit: cover;
   flex-shrink: 0;
   transform-origin: center;
-  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-spring);
-  transition: transform var(--gp-duration-normal) var(--gp-ease-spring);
-}
-
-.avatar:hover {
-  transform: translateY(-2px) scale(1.08);
-  animation: none;
 }
 
 .initial {
@@ -50,4 +43,9 @@
   width: 80px;
   height: 80px;
   font-size: var(--gp-text-xl);
+}
+
+/* --- TV (10-foot): iniciales legibles --- */
+:global([data-mode='tv']) .initial {
+  font-size: 16px;
 }

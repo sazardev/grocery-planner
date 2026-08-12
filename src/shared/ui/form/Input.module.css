@@ -9,8 +9,7 @@
   padding: 0 var(--gp-space-4);
   transition:
     background-color var(--gp-duration-fast) var(--gp-ease-out),
-    box-shadow var(--gp-duration-fast) var(--gp-ease-out),
-    transform var(--gp-duration-fast) var(--gp-ease-spring);
+    box-shadow var(--gp-duration-fast) var(--gp-ease-out);
 }
 
 .input::placeholder {
@@ -25,13 +24,10 @@
 .input:focus {
   outline: 2px solid var(--gp-primary);
   background: var(--gp-surface);
-  transform: translateY(-1px);
-  animation: gp-attention 0.5s var(--gp-ease-out);
 }
 
 .input.error {
   outline: 1.5px solid var(--gp-danger);
-  animation: gp-wiggle 0.3s var(--gp-ease-out);
 }
 
 .input:disabled {

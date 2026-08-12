@@ -10,20 +10,9 @@
   text-transform: uppercase;
   white-space: nowrap;
   transform-origin: center;
-  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-spring);
   transition:
     background-color var(--gp-duration-instant) var(--gp-ease-out),
-    color var(--gp-duration-instant) var(--gp-ease-out),
-    transform var(--gp-duration-fast) var(--gp-ease-spring);
-}
-
-button.chip:hover:not(:disabled) {
-  animation: none;
-  transform: translateY(-1px) rotate(-2deg);
-}
-
-button.chip:active:not(:disabled) {
-  transform: scale(0.9);
+    color var(--gp-duration-instant) var(--gp-ease-out);
 }
 
 button.chip:disabled {
@@ -38,7 +27,7 @@ button.chip:disabled {
 }
 
 .md {
-  min-height: 32px;
+  min-height: 44px;
   padding: var(--gp-space-1) var(--gp-space-3);
   font-size: var(--gp-text-sm);
   line-height: 1.4;
@@ -48,7 +37,6 @@ button.chip:disabled {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  animation: gp-bounce 1.8s var(--gp-ease-out) infinite;
 }
 
 .default {

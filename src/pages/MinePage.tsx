@@ -31,7 +31,7 @@ export default function MinePage() {
   const itemsQuery = useQuery({
     queryKey: MINE_KEY,
     queryFn: () => queryItems({ assignedTo: ME, sort: 'priority' }),
-    refetchInterval: 10_000,
+    refetchInterval: 20_000,
   })
   const tripsQuery = useQuery({ queryKey: ['trips'], queryFn: listTrips, refetchInterval: 15_000 })
 

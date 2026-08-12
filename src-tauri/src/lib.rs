@@ -21,6 +21,7 @@ pub fn run() {
                 let app_state = handle.state::<state::AppState>().inner();
                 if let Ok(mut store) = app_state.store.lock() {
                     store.presence.prune();
+                    store.auth.prune_expired_sessions();
                 }
             });
 
@@ -72,6 +73,7 @@ pub fn run() {
             commands::auth::auth_change_password,
             commands::auth::auth_update_profile,
             commands::auth::auth_reset_password,
+            commands::auth::auth_admin_reset_password,
             commands::auth::auth_set_pin,
             commands::auth::auth_remove_pin,
             commands::auth::auth_has_pin,
@@ -86,6 +88,7 @@ pub fn run() {
             commands::chat::chat_page,
             commands::chat::chat_search,
             commands::rules::rules_get,
+            commands::rules::host_mode,
             commands::rules::rules_update,
             commands::rules::rules_store_add,
             commands::rules::rules_store_rename,
@@ -135,6 +138,7 @@ pub fn run() {
             commands::items::item_use_fallback,
             commands::items::item_add_photo,
             commands::items::item_remove_photo,
+            commands::photo::read_photo,
             commands::items::item_recover,
             commands::items::items_purchased_between,
             commands::timeline::timeline_get,

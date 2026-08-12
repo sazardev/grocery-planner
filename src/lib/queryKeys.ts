@@ -1,66 +1,46 @@
 /**
- * Claves de TanStack Query centralizadas.
+ * Invalidación centralizada de TanStack Query.
  *
- * Una sola fuente de verdad para los queryKey de toda la app: así una mutación
- * en una página puede invalidar con exactitud lo que se ve en otras (lista,
- * calendario, reportes, avisos…) sin depender de cadenas duplicadas.
+ * Una sola fuente de verdad para refrescar lo que se ve en varias pantallas a
+ * la vez (lista, calendario, reportes, avisos…) sin depender de cadenas de
+ * queryKey duplicadas entre páginas.
  *
- * Convención: un prefijo por "pantalla/dominio" y la misma query de datos
- * comparte clave donde conviene que invaliden juntas.
+ * TanStack Query invalida por PREFIJO: `invalidateQueries({ queryKey: ['item', id] })`
+ * refresca también `['item', id, 'history']` y `['item', id, 'chat']`.
  */
 
-// La lista de compras (HomePage) y "Lo mío" (MinePage) comparten el mismo
-// dominio: cualquier cambio de estado/ítem refresca ambas.
-export const items = (filters: readonly unknown[] = []) => ['items', ...filters]
-export const item = (id: string) => ['item', id]
-export const itemHistory = (id: string) => ['item', id, 'history']
+/** Invalida todo lo que muestra ítems de la lista (Home, Mío, Kiosk, pickers). */
+export function invalidateItems(qc: QueryClientLike): void {
+  qc.invalidateQueries({ queryKey: ['items'] })
+  qc.invalidateQueries({ queryKey: ['mine'] })
+  qc.invalidateQueries({ queryKey: ['kiosk', 'items'] })
+  qc.invalidateQueries({ queryKey: ['chat-pick'] })
+}
 
-export const trips = () => ['trips']
-export const trip = (id: string) => ['trip', id]
+/** Invalida el detalle de un ítem y todo lo derivado (historial y chat). */
+export function invalidateItemDetail(qc: QueryClientLike, id: string): void {
+  qc.invalidateQueries({ queryKey: ['item', id] })
+}
 
-export const plans = () => ['plans']
-export const plan = (id: string) => ['plan', id]
+/** Invalida calendario + planes + eventos + mandados a la vez. */
+export function invalidateCalendar(qc: QueryClientLike): void {
+  qc.invalidateQueries({ queryKey: ['calendar'] })
+  qc.invalidateQueries({ queryKey: ['family', 'events'] })
+  qc.invalidateQueries({ queryKey: ['family', 'plans'] })
+}
 
-export const events = () => ['events']
-export const event = (id: string) => ['event', id]
+/** Invalida los reportes de la familia (top/gasto/mandados/proyección). */
+export function invalidateReports(qc: QueryClientLike): void {
+  qc.invalidateQueries({ queryKey: ['reports'] })
+  qc.invalidateQueries({ queryKey: ['projection'] })
+}
 
-export const calendarEvents = (start: string, end: string) => ['calendar', 'events', start, end]
-export const calendarPlans = () => ['calendar', 'plans']
-export const calendarTrips = () => ['calendar', 'trips']
+/** Invalida el historial total (HistoryPage y el timeline de FamilyPage). */
+export function invalidateTimeline(qc: QueryClientLike): void {
+  qc.invalidateQueries({ queryKey: ['timeline'] })
+  qc.invalidateQueries({ queryKey: ['family', 'timeline'] })
+}
 
-export const timeline = (start: string, end: string) => ['timeline', start, end]
-
-export const sections = () => ['sections']
-export const rules = () => ['rules']
-export const home = () => ['home']
-export const sessions = () => ['sessions']
-
-// Presencia: misma clave en cualquier pantalla (Home, Chat, Kiosk, Familia).
-export const presence = () => ['presence']
-
-// Proyección: la decisión en Home invalida el reporte y viceversa.
-export const projection = () => ['projection']
-
-export const notifications = () => ['notifications']
-export const notificationUnread = () => ['notif-unread']
-export const notificationMentions = () => ['notif-mentions']
-export const familyNotifications = () => ['family', 'notifs']
-export const notificationSettings = (member: string) => ['notif-settings', member]
-export const hasPin = (member: string) => ['has-pin', member]
-
-export const reportsTop = () => ['reports', 'top']
-export const reportsSpending = () => ['reports', 'spending']
-export const reportsTrips = () => ['reports', 'trips']
-
-export const chatTail = () => ['chat-tail']
-export const chatSearch = () => ['chat-search']
-
-export const kioskItems = () => ['kiosk', 'items']
-
-/** Invalida todo lo que puede cambiar con ítems (lista, mío, calendario…). */
-export function itemsInvalidate() {
-  return [
-    { queryKey: items() },
-    { queryKey: ['items'] },
-  ]
+export interface QueryClientLike {
+  invalidateQueries(opts: { queryKey: unknown[] }): unknown
 }

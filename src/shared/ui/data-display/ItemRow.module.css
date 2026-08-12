@@ -7,20 +7,15 @@
   border-radius: var(--gp-radius-lg);
   background: var(--gp-surface);
   transform-origin: center;
-  animation: gp-rise 0.4s var(--gp-ease-out) backwards;
-  transition:
-    background-color var(--gp-duration-fast) var(--gp-ease-out),
-    transform var(--gp-duration-normal) var(--gp-ease-spring);
+  transition: background-color var(--gp-duration-fast) var(--gp-ease-out);
 }
 
 .row:hover {
   background: var(--gp-surface-raised);
-  transform: translateY(-1px);
 }
 
 .carried {
   background: var(--gp-primary-subtle);
-  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-bounce);
 }
 
 .carried:hover {
@@ -137,12 +132,17 @@
   background: var(--gp-touch);
 }
 
-.quit:active {
-  transform: scale(0.92);
-}
-
 /* --- Densidad --- */
 .compact {
   padding: var(--gp-space-2) var(--gp-space-3);
   border-radius: var(--gp-radius-md);
+}
+
+/* --- TV (10-foot) --- */
+:global([data-mode='tv']) .row {
+  min-height: 72px;
+}
+
+:global([data-mode='tv']) .name {
+  font-size: 28px;
 }

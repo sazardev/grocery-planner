@@ -5,7 +5,7 @@
  * bordes-separador; zonas táctiles ≥44px en acciones frecuentes; modo oscuro
  * con tinte verde (no gris neutro).
  */
-import { api, register, launch, goto, check, done } from './harness.mjs'
+import { api, register, launch, goto, check, checkNoUnexpected4xx, done } from './harness.mjs'
 
 const suffix = Date.now().toString().slice(-6)
 
@@ -19,7 +19,7 @@ async function main() {
     body: { name: 'diseño pollo', quantity: 2, unit: 'kg', requestedBy: me.name },
   })
 
-  const { browser, page, jsErrors } = await launch({ token })
+  const { browser, page, jsErrors, badResponses } = await launch({ token })
   await goto(page, '/home', { waitFor: '¿Qué falta?' })
 
   // ── Anti-pauta: sombras decorativas en superficies principales.
@@ -82,12 +82,15 @@ async function main() {
     const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
     if (!m) return false
     const [r, g, b] = [Number(m[1]), Number(m[2]), Number(m[3])]
-    return g >= r && g >= b // tinte verde, no gris (r≈g≈b)
+    // Dominancia estricta del verde: un gris neutro (r≈g≈b) NO pasa.
+    return g > r && g > b
   })
-  check('Modo oscuro con fondo de tinte verde', darkIsGreenTinted, darkBg)
+  const darkChanged = darkBg !== 'rgb(248, 250, 249)' && darkBg !== 'rgba(248, 250, 249, 1)'
+  check('Modo oscuro con fondo de tinte verde', darkChanged && darkIsGreenTinted, darkBg)
   await page.evaluate(() => document.documentElement.removeAttribute('data-theme'))
 
   check('Sin errores JS', jsErrors.length === 0, jsErrors.join(' | '))
+  checkNoUnexpected4xx(badResponses)
 
   await done(browser)
 }

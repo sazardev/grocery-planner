@@ -1,0 +1,11 @@
+node_modules
+dist
+src-tauri/target
+.git
+.github
+.agents
+.claude
+.gitignore
+*.md
+screenshots
+npm-debug.log

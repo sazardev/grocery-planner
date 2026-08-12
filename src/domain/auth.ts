@@ -19,4 +19,6 @@ export interface Session {
   lastUsedAt: string
   revoked: boolean
   current: boolean
+  /** ISO UTC; la sesión se renueva al usarse (30 días de inactividad y caduca). */
+  expiresAt?: string
 }

@@ -56,6 +56,10 @@ pub fn chat_send_core(
     let resolved = resolve_refs(store, refs);
     let message = ChatMessage::user_message(by, body, photo, item_id, item_name, &members, resolved)?;
     for mention in &message.mentions {
+        // No te avisas a ti mismo por mencionarte (SPEC §13).
+        if mention == by {
+            continue;
+        }
         crate::commands::notify::push_managed(
             &mut store.rules,
             mention,
@@ -165,7 +169,8 @@ fn system_messages(store: &AppStore) -> Vec<ChatMessage> {
                 _ => continue,
             };
             out.push(ChatMessage {
-                id: format!("sys-{}-{}", item.id, ev.at),
+                // Sufijo único para que dos eventos del mismo segundo no colisionen.
+                id: format!("sys-{}-{}-{}", item.id, ev.at, out.len()),
                 at: ev.at.clone(),
                 by: ev.by.clone(),
                 kind: ChatMessageKind::System,
@@ -267,12 +272,6 @@ fn format_qty(qty: f64) -> String {
     }
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ChatStats {
-    pub total: usize,
-}
-
 /// Cantidad de mensajes del chat (para badges, sin derivar el sistema).
 #[tauri::command]
 pub fn chat_count(state: AppStateRef) -> Result<usize, AppError> {
@@ -311,11 +310,27 @@ pub fn chat_page(
 }
 
 /// Lógica compartida de paginación (IPC y HTTP).
+///
+/// El cursor puede ser un timestamp ISO (compatibilidad) o `at|id`: con el id
+/// se desempata el orden de mensajes del mismo segundo (ordenado por `at` y
+/// luego por `id`) para no saltarlos ni duplicarlos entre páginas.
 pub fn chat_page_core(store: &AppStore, limit: Option<usize>, before: Option<String>) -> ChatPage {
     let limit = limit.unwrap_or(30).clamp(1, 100);
-    let all = compute_chat(store);
+    let mut all = compute_chat(store);
+    all.sort_by(|a, b| a.at.cmp(&b.at).then(a.id.cmp(&b.id)));
     let older: Vec<ChatMessage> = match &before {
-        Some(cursor) => all.into_iter().filter(|m| &m.at < cursor).collect(),
+        Some(cursor) => {
+            let (at, id) = cursor
+                .split_once('|')
+                .map(|(a, i)| (a.to_string(), Some(i.to_string())))
+                .unwrap_or_else(|| (cursor.clone(), None));
+            all.into_iter()
+                .filter(|m| match &id {
+                    Some(cid) => m.at < at || (m.at == at && m.id < *cid),
+                    None => m.at < at,
+                })
+                .collect()
+        }
         None => all,
     };
     let start = older.len().saturating_sub(limit);

@@ -1,3 +1,4 @@
+import { ME } from '../me'
 import { request } from './transport'
 
 /** Datos completos del hogar para respaldo (SPEC §15). */
@@ -22,9 +23,9 @@ export interface BackupData {
 }
 
 export function exportBackup(): Promise<BackupData> {
-  return request<BackupData>('backup_export')
+  return request<BackupData>('backup_export', { by: ME })
 }
 
 export function importBackup(data: BackupData): Promise<void> {
-  return request<void>('backup_import', { data })
+  return request<void>('backup_import', { by: ME, data })
 }

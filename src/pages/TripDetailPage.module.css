@@ -25,3 +25,16 @@
 .assignRow > :first-child {
   flex: 1 1 180px;
 }
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gp-space-3);
+  min-height: var(--gp-touch-min);
+}
+
+.itemRow > :first-child {
+  flex: 1;
+  min-width: 0;
+}

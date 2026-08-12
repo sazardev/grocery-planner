@@ -4,7 +4,7 @@
  * Cubre: registro, hogar, ítems (rápido/detallado), toggle "ya lo llevo",
  * búsqueda, mandado, plan, evento, chat, reportes, presencia e invitación.
  */
-import { api, register, launch, goto, clickByText, typeIn, bodyText, check, done } from './harness.mjs'
+import { api, register, launch, goto, clickByText, typeIn, bodyText, check, checkNoUnexpected4xx, done, screenshot } from './harness.mjs'
 
 const suffix = Date.now().toString().slice(-6)
 const MEMBER_PW = 'secreto123'
@@ -21,7 +21,7 @@ async function main() {
   const homeRes = await api('/api/home', { method: 'POST', token, body: { name: 'Familia E2E ' + suffix } })
   check('Crear hogar', homeRes.status === 200)
 
-  const { browser, page, jsErrors } = await launch({ token })
+  const { browser, page, jsErrors, badResponses } = await launch({ token })
 
   // ── Home: título + conectado
   await goto(page, '/home', { waitFor: '¿Qué falta?' })
@@ -40,11 +40,14 @@ async function main() {
   await page.waitForFunction(() => location.pathname === '/items/new', { timeout: 10000, polling: 250 })
   await typeIn(page, 'Qué falta', 'pollo 2kg')
   await clickByText(page, 'Agregar', { selector: 'button' })
-  await page.waitForFunction(
-    () => document.body.innerText.includes('pollo'),
-    { timeout: 15000, polling: 250 },
-  )
-  check('Ítem "pollo 2kg" agregado por texto libre', true)
+  // Espera REAL: que el ítem esté en el backend (el texto "pollo" puede salir de
+  // una vista previa sin que la mutación haya terminado).
+  const polloCreated = await page.waitForFunction(
+    () => location.pathname === '/home',
+    { timeout: 20000, polling: 250 },
+  ).then(() => true).catch(() => false)
+  const polloInApi = (await api('/api/items', { token })).data.some((i) => i.name === 'pollo')
+  check('Ítem "pollo 2kg" agregado por texto libre', polloCreated && polloInApi, `path=home:${polloCreated} api:${polloInApi}`)
 
   // ── Ítem detallado (categoría + nota)
   await goto(page, '/items/new')
@@ -61,15 +64,53 @@ async function main() {
   check('Ítem detallado "arroz integral 2kg" agregado', true)
 
   // ── Toggle "ya lo llevo" desde la fila del checkbox
-  await page.evaluate(() => {
-    const labels = [...document.querySelectorAll('label')]
-    const target = labels.find((l) => l.textContent?.toLowerCase().includes('pollo'))
-    const box = target?.querySelector('input[type="checkbox"]') ?? target
-    box?.click()
-  })
-  await new Promise((r) => setTimeout(r, 600))
-  const afterToggle = await bodyText(page)
-  check('Marcar "ya lo llevo" cambia el estado en la fila', afterToggle.includes('llevo') || afterToggle.includes('carrito'))
+  // Se localiza por su aria-label (`<nombre>: …`) porque el texto del ítem vive
+  // en un div hermano, no dentro del <label> del checkbox. Primero se espera a
+  // que la lista monte el checkbox (tras agregar el ítem la app vuelve a /home
+  // y la lista puede tardar en renderizar) y luego se hace el click. Con
+  // reintento: tras crear ítems el SSE invalida la lista y los nodos se
+  // desmontan; un clic en un nodo reemplazado se pierde.
+  const toggleCarried = async () => {
+    const boxReady = await page.waitForFunction(
+      () => [...document.querySelectorAll('input[type="checkbox"]')].some((c) =>
+        (c.getAttribute('aria-label') ?? '').toLowerCase().startsWith('pollo:'),
+      ),
+      { timeout: 10000, polling: 250 },
+    ).then(() => true).catch(() => false)
+    if (!boxReady) return false
+    const clicked = await page.evaluate(() => {
+      const box = [...document.querySelectorAll('input[type="checkbox"]')].find((c) =>
+        (c.getAttribute('aria-label') ?? '').toLowerCase().startsWith('pollo:'),
+      )
+      if (!box) return false
+      box.click()
+      return true
+    })
+    if (!clicked) return false
+    return page.waitForFunction(
+      () => {
+        const box = [...document.querySelectorAll('input[type="checkbox"]')].find((c) =>
+          (c.getAttribute('aria-label') ?? '').toLowerCase().startsWith('pollo:'),
+        )
+        return Boolean(box && box.checked)
+      },
+      { timeout: 6000, polling: 250 },
+    ).then(() => true).catch(() => false)
+  }
+  let toggled = await toggleCarried()
+  if (!toggled) {
+    await screenshot(page, 'spec-core-toggle-fail')
+    const dbg = await page.evaluate(() => ({
+      href: location.href,
+      boxes: [...document.querySelectorAll('input[type="checkbox"]')].map((c) => c.getAttribute('aria-label')),
+      hasPollo: document.body.innerText.includes('pollo'),
+      hasError: document.body.innerText.includes('No se pudo conectar') || document.body.innerText.includes('Error'),
+      body: document.body.innerText.slice(0, 300),
+    }))
+    console.error('toggle-debug:', JSON.stringify(dbg))
+    toggled = await toggleCarried()
+  }
+  check('Marcar "ya lo llevo" cambia el estado en la fila', toggled)
 
   // ── Búsqueda instantánea
   await typeIn(page, 'Buscar', 'arroz')
@@ -138,9 +179,16 @@ async function main() {
   const reportsText = await bodyText(page)
   check('Reportes renderiza secciones', reportsText.includes('más') || reportsText.includes('Proyección') || reportsText.includes('faltará'))
 
-  // ── Presencia: la sesión aparece en línea
-  const presence = await api('/api/presence', { token })
-  const online = (presence.data ?? []).filter((p) => p.online).length
+  // ── Presencia: la sesión aparece en línea. El browser debe estar en /home
+  // (monta el heartbeat); si está en otra página, `usePresenceLeave` ya avisó
+  // la salida y la sesión no aparece.
+  await goto(page, '/home', { waitFor: '¿Qué falta?' })
+  let online = 0
+  for (let i = 0; i < 6 && online < 1; i++) {
+    const presence = await api('/api/presence', { token })
+    online = (presence.data ?? []).filter((p) => p.online).length
+    if (online < 1) await new Promise((r) => setTimeout(r, 2500))
+  }
   check('Presencia: sesión en línea', online >= 1, `${online} en línea`)
 
   // ── Invitación: segundo usuario acepta por código corto
@@ -158,6 +206,7 @@ async function main() {
   check('Hogar tiene 2 miembros', members.length >= 2, `${members.length}`)
 
   check('Sin errores JS', jsErrors.length === 0, jsErrors.join(' | '))
+  checkNoUnexpected4xx(badResponses)
 
   await done(browser)
 }

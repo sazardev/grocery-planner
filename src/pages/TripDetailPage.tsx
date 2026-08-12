@@ -2,8 +2,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'react-router-dom'
 import { useState } from 'react'
 import { useGoBack } from '../lib/hooks/useGoBack.ts'
-import { ArrowLeft, CheckCircle2, Play, ShoppingCart, XCircle } from 'lucide-react'
-import { activateTrip, assignTrip, cancelTrip, completeTrip, getHome, getTrip, listItems } from '../lib/api'
+import { ArrowLeft, CheckCircle2, Play, Plus, ShoppingCart, Trash2, XCircle } from 'lucide-react'
+import {
+  activateTrip,
+  addItemToTrip,
+  assignTrip,
+  cancelTrip,
+  completeTrip,
+  getHome,
+  getTrip,
+  listItems,
+  removeItemFromTrip,
+} from '../lib/api'
 import type { TripStatus } from '../domain/trip'
 import Text from '../shared/ui/primitives/Text.tsx'
 import Button from '../shared/ui/primitives/Button.tsx'
@@ -13,6 +23,7 @@ import Skeleton from '../shared/ui/primitives/Skeleton.tsx'
 import Alert from '../shared/ui/feedback/Alert.tsx'
 import { Card, Select, Stack } from '../shared/ui/index.ts'
 import { useMeta } from '../lib/hooks/useMeta.ts'
+import { invalidateCalendar } from '../lib/queryKeys.ts'
 import ShareButton from '../shared/ui/navigation/ShareButton.tsx'
 import styles from './TripDetailPage.module.css'
 
@@ -27,6 +38,7 @@ export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>()
   const queryClient = useQueryClient()
   const [assignTarget, setAssignTarget] = useState('')
+  const [itemToAdd, setItemToAdd] = useState('')
 
   const { data: trip, isLoading, isError, error } = useQuery({
     queryKey: ['trip', id],
@@ -46,6 +58,7 @@ export default function TripDetailPage() {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['trips'] })
     queryClient.invalidateQueries({ queryKey: ['trip', id] })
+    invalidateCalendar(queryClient)
   }
 
   const assignMutation = useMutation({
@@ -70,6 +83,19 @@ export default function TripDetailPage() {
 
   const cancelMutation = useMutation({
     mutationFn: () => cancelTrip(trip!.id),
+    onSuccess: invalidate,
+  })
+
+  const addItemMutation = useMutation({
+    mutationFn: (itemId: string) => addItemToTrip(trip!.id, itemId),
+    onSuccess: () => {
+      setItemToAdd('')
+      invalidate()
+    },
+  })
+
+  const removeItemMutation = useMutation({
+    mutationFn: (itemId: string) => removeItemFromTrip(trip!.id, itemId),
     onSuccess: invalidate,
   })
 
@@ -157,21 +183,61 @@ export default function TripDetailPage() {
       </Card>
 
       <Card padding="md">
-        <Stack gap="2">
+        <Stack gap="3">
           <Text variant="item">
             <ShoppingCart size={18} strokeWidth={2} aria-hidden="true" /> Ítems
           </Text>
           {trip.itemIds.length === 0 ? (
             <Text as="p" variant="note" tone="secondary">
-              Aún no tiene ítems. Los ítems se agregan desde la lista de compras.
+              Aún no tiene ítems. Agrega los que toca comprar desde la lista.
             </Text>
           ) : (
-            trip.itemIds.map((itemId) => (
-              <Text key={itemId} variant="body">
-                {itemName(itemId)}
-              </Text>
-            ))
+            <Stack gap="2">
+              {trip.itemIds.map((itemId) => (
+                <div key={itemId} className={styles.itemRow}>
+                  <Text variant="body">{itemName(itemId)}</Text>
+                  {trip.status === 'planificada' || trip.status === 'activa' ? (
+                    <IconButton
+                      variant="danger"
+                      label={`Quitar ${itemName(itemId)} del mandado`}
+                      onClick={() => removeItemMutation.mutate(itemId)}
+                      disabled={removeItemMutation.isPending}
+                    >
+                      <Trash2 size={18} strokeWidth={2} />
+                    </IconButton>
+                  ) : null}
+                </div>
+              ))}
+            </Stack>
           )}
+          {trip.status === 'planificada' || trip.status === 'activa' ? (
+            <div className={styles.assignRow}>
+              <Select
+                label="Agregar ítem de la lista"
+                value={itemToAdd}
+                onChange={(e) => setItemToAdd(e.target.value)}
+                aria-label="Agregar ítem de la lista"
+              >
+                <option value="">Elige un ítem…</option>
+                {(itemsQuery.data ?? [])
+                  .filter((i) => !trip.itemIds.includes(i.id))
+                  .map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name} {i.quantity} {i.unit}
+                    </option>
+                  ))}
+              </Select>
+              <Button
+                variant="secondary"
+                iconLeft={<Plus size={16} strokeWidth={2} />}
+                onClick={() => itemToAdd && addItemMutation.mutate(itemToAdd)}
+                disabled={!itemToAdd}
+                loading={addItemMutation.isPending}
+              >
+                Agregar
+              </Button>
+            </div>
+          ) : null}
         </Stack>
       </Card>
 

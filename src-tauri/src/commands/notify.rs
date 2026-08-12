@@ -79,11 +79,56 @@ fn now_hhmm_local(rules: &RulesStore) -> String {
     format!("{:02}:{:02}", now.hour(), now.minute())
 }
 
+/// Zona horaria del hogar (SPEC §14). Si no se reconoce, se usa UTC.
+pub fn home_tz(rules: &RulesStore) -> Tz {
+    rules.rules.timezone.parse().unwrap_or(chrono_tz::UTC)
+}
+
 /// Fecha local `YYYY-MM-DD` del hogar (para resúmenes y proyecciones diarias).
 pub fn today_local(rules: &RulesStore) -> String {
-    let tz: Tz = rules.rules.timezone.parse().unwrap_or(chrono_tz::UTC);
+    let tz = home_tz(rules);
     let now = chrono::Utc::now().with_timezone(&tz);
     format!("{:04}-{:02}-{:02}", now.year(), now.month(), now.day())
+}
+
+/// Semana ISO `YYYY-Www` local del hogar (clave única del resumen semanal,
+/// SPEC §13: una vez por semana, no una vez por día).
+pub fn week_local(rules: &RulesStore) -> String {
+    let tz = home_tz(rules);
+    let now = chrono::Utc::now().with_timezone(&tz);
+    let iso = now.iso_week();
+    format!("{:04}-W{:02}", iso.year(), iso.week())
+}
+
+/// Convierte `YYYY-MM-DD[ HH:MM]` (hora local del hogar, SPEC §14) a un
+/// instante UTC. Sin hora = medianoche local.
+pub fn local_datetime_utc(
+    rules: &RulesStore,
+    date: &str,
+    hhmm: Option<&str>,
+) -> Option<chrono::DateTime<chrono::Utc>> {
+    let tz = home_tz(rules);
+    let nd = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()?;
+    let nt = match hhmm {
+        Some(h) => chrono::NaiveTime::parse_from_str(h, "%H:%M").ok()?,
+        None => chrono::NaiveTime::from_hms_opt(0, 0, 0)?,
+    };
+    nd.and_time(nt)
+        .and_local_timezone(tz)
+        .earliest()
+        .map(|dt| dt.with_timezone(&chrono::Utc))
+}
+
+/// Convierte `YYYY-MM-DDTHH:MM` (local del hogar) a un instante UTC.
+pub fn plan_datetime_utc(
+    rules: &RulesStore,
+    scheduled_at: &str,
+) -> Option<chrono::DateTime<chrono::Utc>> {
+    let tz = home_tz(rules);
+    let nd = chrono::NaiveDateTime::parse_from_str(scheduled_at, "%Y-%m-%dT%H:%M").ok()?;
+    nd.and_local_timezone(tz)
+        .earliest()
+        .map(|dt| dt.with_timezone(&chrono::Utc))
 }
 
 /// Minutos transcurridos desde medianoche local del hogar.

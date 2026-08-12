@@ -707,3 +707,273 @@ spec-core 20, live-refresh 6, design 6, **spec-gaps 18**).
 
 
 
+
+---
+
+## Auditoría "al máximo": seguridad, live-refresh, DESIGN y E2E spec-full (2026-08-11)
+
+Revisión integral del repo contra SPEC/DESIGN/DATA/AGENTS con agentes de exploración + verificación
+headless. `cargo test` **119 passed** (117 + 2 de proyección) · `cargo check --features server` ✓ ·
+`npm run lint` ✓ · `npm run build` ✓ · **E2E 96/96** (spec-core 20, live-refresh 6, design 6,
+spec-gaps 18, **spec-full 46**).
+
+### F1 — Seguridad y privacidad
+- **Respaldo con autorización** (SPEC §15): `backup_export`/`backup_import` exigen rol **Admin**
+  (IPC y HTTP). Antes cualquier usuario autenticado podía leer/reemplazar todo el hogar.
+  `npm run seed` ahora crea el hogar antes de importar.
+- **Redacción completa §14**: `HomeRules::redact_item` (fuente única) aplicado a **todas** las
+  mutaciones que devuelven `GroceryItem`, a `items_purchased_between` y al **backup** (antes solo
+  list/get/query).
+- **PIN por HTTP**: `require_self_or_admin` público y usado en `auth_set_pin`/`auth_remove_pin`
+  (antes el Admin no podía gestionar el PIN de un miembro por web).
+- `home_info` devuelve **404** (no 401) si no perteneces al hogar: evita que el logout global del
+  front eche a un miembro recién registrado sin hogar.
+
+### F2 — Bugs de flujo y backend
+- **Filtro de ventana de Home**: "semana"/"mes" ahora usan `startOfWeek`/`startOfMonth` (antes
+  devolvían solo ítems de hoy).
+- **`--gp-amber` → `--gp-warning`** (token inexistente volvía invisible el punto "en el mandado").
+- **Resumen semanal**: clave por semana ISO (`YYYY-Www`) — antes se disparaba a diario.
+- **Timezone del hogar** en `background::tick`: recordatorios de evento y avance de recurrencias
+  usan la zona del hogar (`notify::home_tz`/`local_datetime_utc`/`plan_datetime_utc`), no UTC.
+- **Recurrencia mensual**: clamp al último día del mes (planes el 29/30/31 ya no encallan).
+- **Proyección**: excluye ítems soft-deleted; confirmar "Sí, falta" **crea el ítem** en la lista
+  (núcleo compartido `decide_projection_core` entre IPC y HTTP, sin duplicar lo que ya está por
+  comprar) — antes solo el IPC lo hacía.
+- **Auto-menciones/auto-asignación**: no se avisa a uno mismo (`chat_send_core`, `trips_assign`).
+- **Recuperación §2.5**: `auth_reset_password` **sin sesión** (público, la clave de respaldo es la
+  credencial) + `auth_admin_reset_password` (`/api/auth/password/regenerate`) para Organizador/Admin
+  sin clave; UI en `RecoverSection`.
+- **TripDetail**: UI para agregar/quitar ítems al mandado (antes funciones de cliente muertas).
+
+### F3 — Live-refresh "todo conectado"
+- `src/lib/queryKeys.ts` **activado** (antes código muerto): claves centralizadas + helpers de
+  invalidación (`invalidateItems`, `invalidateItemDetail`, `invalidateCalendar`, `invalidateReports`).
+- Historial/chat del ítem con claves `['item', id, 'history']`/`['item', id, 'chat']` → invalidar
+  `['item', id]` refresca todo (el historial ya no queda obsoleto tras comentar/editar).
+- Invalidación cruzada: `['mine']`/`['kiosk','items']` al cambiar estado en Home; calendario y
+  familia al crear/editar plans/events/trips; `['item', id]` al comentar/foto/precio.
+
+### F4 — Cumplimiento DESIGN
+- **Animaciones decorativas eliminadas** (§6/§11): quitados keyframes `gp-pop/rise/float/bounce/
+  halo/ping/wiggle/nudge/page-in` y los rebotes/zoom de hover; quedan solo `gp-draw` (check),
+  `gp-ripple` (press), `gp-sheet-in` (modal, sin overshoot), spinner/skeleton.
+- **Zonas táctiles ≥44px**: Button.sm, IconButton.sm, Chip.md, TabBar, ViewToggle, modeBtn, toolBtn.
+- **Modo TV §10.10 completo**: sobrescan `32px 48px`, foco D-pad como píldora menta (global
+  `[data-mode='tv'] :focus-visible`), filas de ItemRow ≥72px/28px, labels ≥18px en NavBar/Badge/
+  FilterMenu/Avatar.
+- Botón primario/FAB en `var(--gp-primary)` (#16A34A); tokens `--gp-text-disabled` añadidos.
+- Anti-pautas: `backdrop-filter` del topbar de Landing quitado, `max-width:640px` de CalendarPage →
+  mobile-first `min-width:768px`, `outline:none` en buscadores restaurado, overlays `rgba(0,0,0,.08)`
+  → `--gp-touch`, `IconButtonVariant` duplicado corregido.
+- `aria-label` en los inputs del form de detalle de ítem (eran inaccesibles: `Field` duplicado sin
+  asociación label→input).
+
+### F5 — Verificación headless al máximo
+- **Harness mejorado**: `uiLogin` (login por UI real), `isolatedPage` (contexto incógnito para dos
+  miembros con sesiones distintas), `waitText`, `screenshot`, captura de respuestas 4xx/5xx,
+  `protocolTimeout` 120s, `goto` resiliente (si `networkidle0` se cuelga sigue al `waitFor`).
+- **`--use-gl=swiftshader`** en el launch: sin software GL el **canvas 2D cuelga el renderer** del
+  chromium headless del sistema (el QR de invitación congelaba toda la página). Cambio clave para
+  cualquier test que toque `<canvas>`.
+- **Suite `spec-full` (46 checks)**: login/registro por UI, PIN, kiosk con llave, respaldo con
+  autorización y redacción, proyección decide crea ítem, fotos (upload + filtro), chat
+  mención/reacción/fijar, avisos, detalle con historial en vivo, "Lo mío", calendario, 409 por rol,
+  tiendas/secciones, QR de invitación, live-refresh entre dos miembros y modo oscuro.
+
+### F6 — Limpieza
+- Dead code removido: `ChatStats`, `store::item::set_position`, `RulesStore::clear_old_choices`.
+- Chat: cursor de paginación `at|id` (no salta ni duplica mensajes del mismo segundo) y IDs de
+  mensajes del sistema con sufijo único (sin colisiones).
+- Warnings de lint en suites E2E corregidos.
+
+### Nota de entorno
+- La máquina tiene **carga alta intermitente** por procesos del usuario (typecheck, pnpm verify,
+  varios agentes): bajo load >10 los tiempos del E2E se disparan. `spec-full` tiene presupuesto de
+  300s en `run.mjs` por eso.
+
+---
+
+## Continuación: pendientes de seguridad, §7.1 y §15 + E2E ampliado (2026-08-11)
+
+Cierre de pendientes de la auditoría previa. `cargo test` **119 passed** · `cargo check --features
+server` ✓ · `npm run lint` ✓ · `npm run build` ✓ · **E2E 105/105** (spec-core 20, live-refresh 6,
+design 6, spec-gaps 18, **spec-full 55**).
+
+### Backend
+- **`item_delete_permanent` con rol** (§3.2/§4.4): solo el dueño del ítem o un Organizador/Admin
+  puede borrar de la papelera para siempre (IPC y HTTP). Antes cualquiera.
+- **Recordatorio de planes "citar tiempos"** (§7.1): `background::tick` → `fire_plan_reminders`:
+  cuando un plan `planificado` está dentro de 60 min, avisa una vez "el mandado es en X min" (kind
+  `EventReminder`, que §13 incluye los planes de compra). Rastreado en
+  `RulesStore.plan_reminders_fired` (`#[serde(default)]`).
+- **Respaldo con cuentas** (§15): `BackupData` ahora incluye `users` (hashes de contraseña/PIN y
+  vínculo al hogar) vía `AuthStore::users_list`/`replace_users`. Importar en otra máquina ya no
+  obliga a re-registrar a la familia; `#[serde(default)]` mantiene compatibles los respaldos viejos
+  y el reset del seed (que no manda `users` → no toca las cuentas).
+
+### E2E spec-full ampliado (46 → 55 checks)
+- R: página de secciones, historial y ajustes de avisos.
+- S: enviar mensaje de chat con foto.
+- T: marca (value del input), alternativa y mover ítem.
+- U: borrado permanente 409 para un miembro (Luis ya es organizador en esa suite → se usa un
+  miembro nuevo) y 204 para el Admin.
+
+---
+
+## Fase 2: tiempo real por SSE y Docker self-hosting (2026-08-11)
+
+`cargo test --features server` **121 passed** (119 lib + 2 server) · `cargo check --features
+server` ✓ · `npm run lint` ✓ · `npm run build` ✓ · **E2E 110/110** (spec-core 20, live-refresh 6,
+design 6, spec-gaps 18, **spec-full 60**). `docker compose config` ✓.
+
+### Tiempo real (SSE) — "que refresque al momento"
+- **`AppState.changes`**: `tokio::sync::broadcast::Sender<String>` compartido por IPC y HTTP.
+- **`server.rs`**: middleware `realtime_emit` que publica un evento por dominio tras cada mutación
+  2xx del API; `change_kind_for` mapea ruta→dominio (`items/chat/plans/events/trips/home/sections/
+  rules/notifications/reports/timeline`, `all` para backup) y **excluye** las lecturas POST
+  (query/suggest/transition/validate) y `events-stream` para no provocar bucles de refetch.
+- **`GET /api/events-stream`**: SSE autenticado (Bearer por fetch, no header de EventSource) con
+  `BroadcastStream` + `KeepAlive`.
+- **`src/lib/realtime.ts`**: suscripción que invalida las queries de TanStack Query por dominio al
+  recibir cada evento; reconexión con backoff y al cambiar de token. Se inicia en `main.tsx`.
+- **Presencia NO se emite** por SSE: el heartbeat es un query que refetchea, y emitirlo habría
+  creado un bucle heartbeat→invalidate→heartbeat (el poll de 15 s de cada pantalla basta).
+- **`auth_guard`** ahora deja pasar los estáticos/SPA (solo `/api/*` exige sesión): el mismo
+  binario sirve el frontend.
+- Polling reducido a respaldo (items/mine 10 s→20 s, chat 8 s→12 s) — el SSE es el canal en vivo.
+
+### Docker self-hosting
+- **`Dockerfile`** multi-stage: frontend (node:22-alpine, `npm run build`) + backend
+  (rust:1.77-slim, `--features server`) + runtime (debian-bookworm-slim) con el binario y `dist`,
+  `GROCERY_PLANNER_DIST=/app/dist`, volumen `/data`.
+- **`docker-compose.yml`**: puerto 8787, volumen `gp-data`, `TZ` configurable.
+- **`.dockerignore`**: node_modules/target/dist/.git.
+
+### E2E bajo carga
+- La máquina corre **muchos procesos pesados en paralelo** (varios agentes, typecheck, nest):
+  el E2E es sensible a la carga y las suites necesitan tiempo. Cambios de robustez:
+  - `goto` usa `networkidle2` (≤2 conexiones) — `networkidle0` nunca llega con el SSE abierto y
+    `load` regresa antes de que carguen los datos.
+  - `clickByText` reintenta ~5 s; checks de presencia/secciones/ajustes/registro con espera o
+    reload fallback; el registro se verifica server-side (login con la cuenta nueva).
+  - Presupuestos por suite en `run.mjs` (spec-full 480 s, resto 180 s).
+- Hallazgos: `presence_leave` borra al miembro al desmontar HomePage (los checks de presencia
+  deben hacerse con /home montado); `usePresenceLeave` es fire-and-forget.
+
+### Pendiente de fase 2 (no en esta pasada)
+- Base de datos real (sqlx/diesel) y fotos a disco (los data URLs siguen en memoria/JSON).
+- Biometría y tokens con expiración/keyring.
+- Builds Windows/macOS y CI; móvil.
+
+---
+
+## Fase 2 (3ª parte): tokens con expiración, CI y fotos a disco (2026-08-11)
+
+`cargo test` **125 passed** (121 + 4 de fotos) · `cargo test --features server --bin server` 2 ✓ ·
+`cargo check --features server` ✓ · `npm run lint` ✓ · `npm run build` ✓ · **E2E 110/110**.
+
+### Tokens con expiración (SPEC §2.4)
+- `Session.expires_at: Option<String>` (`#[serde(default)]` → sesiones legacy se migran al primer
+  uso). Vida útil 30 días con **renovación deslizante**: cada uso extiende la expiración.
+- `user_by_token` rechaza y elimina las sesiones vencidas (401 → el front cierra la sesión).
+- `prune_expired_sessions` en el hilo de fondo (Tauri y server HTTP).
+- `SessionView` expone `expiresAt`; Ajustes muestra "Expira <fecha>" por dispositivo.
+
+### CI (GitHub Actions, `.github/workflows/ci.yml`)
+- Jobs: frontend (build+lint), backend (cargo test + server tests + check), **E2E headless**
+  (chromium del sistema, compila el server + `npm run e2e`) y **desktop** (matrix: deb/rpm en
+  Linux, app en macOS, msi en Windows; `continue-on-error` y sube artefactos).
+
+### Fotos a disco (SPEC §10)
+- **`commands/photo.rs`**: `store_photo` (decodifica el data URL → archivo `p-<uuid>.<ext>` en
+  `<data>/photos/`), `photo_data_url` (desktop/respaldo), `serve_photo`, `embed_photos`/
+  `extract_photos` (respaldo autocontenido), `delete_photo_file` (nombre seguro, sin rutas).
+- `item_add_photo` (IPC y HTTP) guarda el archivo y el ítem queda con el **nombre**; `remove_photo`
+  y `delete_permanent` borran el archivo.
+- HTTP: `GET /api/photos/{file}` (con sesión). Frontend: `ItemPhoto` resuelve data URLs legacy
+  directo, archivos a disco con **fetch + Bearer → blob URL** en web, o `read_photo` (IPC) en
+  desktop.
+- Respaldo: `backup_export` embebe las fotos (archivo → data URL) y `backup_import` las extrae
+  (data URL → archivo) → el backup sigue siendo autocontenido. `data.json` ya no carga las fotos.
+- `persist::photos_dir()` = `<data>/photos/`. El seed escribe las 3 fotos demo a disco.
+
+### Notas
+- Test de recordatorios de evento robusto a la hora del día (ventana de 40 h cubre siempre "ahora").
+- Q1 (registro por UI) endurecido con `form.requestSubmit()` + reintento con reload; la aserción
+  principal es server-side (login con la cuenta nueva).
+
+### Pendiente (fuera de esta pasada)
+- DB real (sqlx/diesel). Biometría (nativa/dispositivo). Keyring para el token en desktop.
+- Móvil: cancelado (requiere Android SDK/Java).
+
+---
+
+## Auditoría final "todo conectado" + armonización de docs (2026-08-12)
+
+Revisión integral del repo contra SPEC/DESIGN/DATA/AGENTS con exploración profunda
+(4 agentes) y verificación headless. `cargo test` **125 passed** (más 3 del binario
+server) · `cargo check --features server` ✓ · `npm run lint` ✓ · `npm run build` ✓ ·
+**E2E completo verde ~127/127** (spec-core 21, live-refresh 7, design 7, spec-gaps 19,
+spec-realtime 14, spec-full 59–60 con dos ramas mutuamente excluyentes).
+
+### Hallazgos y arreglos de código
+- **Fixture de foto E2E faltante (bug real)**: `spec-full` subía
+  `/tmp/opencode/gp-e2e-fixtures/foto.png` (no existía y ningún script lo creaba) →
+  F1/S1 fallaban en máquina limpia y en CI. Ahora el fixture vive en el repo
+  (`scripts/e2e/fixtures/foto.png`, PNG 1×1) y se resuelve con `import.meta.dirname`.
+- **El historial no se refrescaba por SSE (bug real)**: HistoryPage (`['timeline']`)
+  y el timeline de FamilyPage (`['family','timeline']`) no se invalidaban por SSE
+  (las mutaciones de items/chat/trips/events/plans emitían su propio dominio sin
+  incluir `timeline`/`family`); quedaban obsoletos hasta el poll de 20 s. Ahora los
+  prefijos de `realtime.ts` incluyen `timeline`/`family` → todo refresca al momento.
+- **SSE robusto**: si el stream responde 401 se dispara `triggerUnauthorized()`
+  (antes bucle de retry cada 3 s sin cerrar la sesión); `AuthProvider` llama
+  `realtimeReconnect()` tras login/logout/onUnauthorized para no dejar un stream
+  viejo ligado al token anterior.
+- **`queryKeys.ts` limpio**: se eliminaron ~40 factories muertos; quedan los
+  helpers `invalidateItems`/`invalidateItemDetail`/`invalidateCalendar`/
+  `invalidateReports`/`invalidateTimeline`, ahora SÍ usados por las páginas
+  (Home, ItemDetail, Reports, NewPlan, PlanDetail, TripDetail, Trips, Events,
+  EventDetail) en vez de invalidaciones inline repetidas.
+- **Dead code quitado**: `presence://changed` (evento Tauri nunca escuchado) y el
+  helper `uiLogin` del harness sin uso. **Paridad desktop**: comando Tauri
+  `host_mode` agregado (antes solo existía el endpoint HTTP). **`spec-realtime`**
+  ahora usa la base real del orquestador (`API`) en vez de hardcodear `:8787`.
+- La presencia en desktop ahora depende solo del polling (igual que web): se
+  eliminó la emisión que nadie consumía.
+
+### Bugs de UI y de los propios tests encontrados al verificar headless
+- **Chat: fijar/reaccionar no se reflejaban al momento (bug de UI real)**: el
+  merge de `ChatPage` solo actualizaba la lista local cuando llegaban mensajes
+  con ids NUEVOS; un cambio de flag (`pinned`/reacciones) en un mensaje existente
+  no se propagaba, así que "Fijados" no aparecía. Ahora el merge compara el
+  contenido y actualiza los mensajes modificados (G4 E2E lo valida).
+- **G4 (test)**: buscaba `'Fijados'` en `innerText`, pero el label usa
+  `text-transform: uppercase` → `innerText` devuelve `'FIJADOS'`. Ahora compara
+  sin mayúsculas.
+- **K1 (test)**: el grid mensual del calendario muestra hasta 2 eventos por día
+  (`.slice(0, 2)` + "+N más", UX intencional); en la corrida completa las suites
+  anteriores (spec-core, spec-realtime) crean eventos el MISMO día (mañana) y el
+  de spec-full quedaba oculto. El test ahora abre la vista de DÍA de la fecha si
+  no lo ve en el mes (muestra todos).
+- **spec-core toggle (test)**: esperaba el texto `'arroz'` para saber que la app
+  volvió a /home, pero el texto ya estaba en el formulario detallado → el toggle
+  corría antes de que la lista montara el checkbox. Ahora espera a que exista el
+  checkbox de `pollo` antes de hacer clic.
+
+### Documentación armonizada
+- **AGENTS.md**: se enumeran las **6** suites con conteos reales (antes "46 checks"
+  de spec-full y sin `spec-realtime`); rutas corregidas (`/home`, `/login`,
+  `/register`, `/kiosk`; `/` es el landing); gotcha de SSE ampliado (timeline/family,
+  401, `realtimeReconnect`); fase 2 corregida (DB/keyring pendientes).
+- **DATA.md**: `Session.expiresAt` (30 días deslizante + poda, ya no "sin expiración");
+  `GroceryItem.brand`/`quantityMax`/`fallbacks`; `BackupData.users`; presencia:
+  online 30 s / poda 24 h; "Notas de fase 2" actualizadas (SSE, fotos a disco y
+  tokens ya están; quedan DB real, keyring, biometría).
+- **README.md**: `npm run e2e` corre las 6 suites (~121 checks); conteo de
+  `cargo test` actualizado.
+
+### Pendiente (fuera de alcance)
+- DB real (sqlx/diesel), keyring, biometría, móvil. Over-emisión menor de
+  `notifications` en unassign/complete-batch (inofensiva, documentada en el código).

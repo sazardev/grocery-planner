@@ -97,7 +97,7 @@ export default function ChatPage() {
   const { data: tailData, isLoading, isError, error: queryError } = useQuery({
     queryKey: CHAT_KEY,
     queryFn: () => chatPage(PAGE_SIZE),
-    refetchInterval: 8_000,
+    refetchInterval: 12_000,
   })
 
   const presence = useQuery({
@@ -127,10 +127,16 @@ export default function ChatPage() {
       return
     }
     setMessages((prev) => {
-      const prevIds = new Set(prev.map((m) => m.id))
-      const hasNew = tailData.messages.some((m) => !prevIds.has(m.id))
-      if (!hasNew) return prev
-      const byId = new Map(prev.map((m) => [m.id, m]))
+      const prevById = new Map(prev.map((m) => [m.id, m]))
+      // Cambios sobre mensajes existentes (fijar, reaccionar, mensajes de
+      // sistema que se derivan del historial) también deben reflejarse: no
+      // basta con ver si llegan ids nuevos.
+      const changed = tailData.messages.some((m) => {
+        const before = prevById.get(m.id)
+        return !before || JSON.stringify(before) !== JSON.stringify(m)
+      })
+      if (!changed) return prev
+      const byId = new Map(prevById)
       for (const m of tailData.messages) byId.set(m.id, m)
       return [...byId.values()].sort((a, b) => a.at.localeCompare(b.at))
     })
@@ -175,7 +181,7 @@ export default function ChatPage() {
     if (el) scrollInfo.current = { top: el.scrollTop, height: el.scrollHeight }
     setIsLoadingOlder(true)
     try {
-      const page = await chatPage(PAGE_SIZE, messages[0].at)
+      const page = await chatPage(PAGE_SIZE, `${messages[0].at}|${messages[0].id}`)
       setMessages((prev) => {
         const byId = new Map(page.messages.map((m) => [m.id, m]))
         for (const m of prev) byId.set(m.id, m)
@@ -265,6 +271,7 @@ export default function ChatPage() {
     setBody(value)
     const m = /(?:^|\s)@([^\s@]*)$/.exec(value)
     if (m) {
+      queryClient.invalidateQueries({ queryKey: ['chat-pick'] })
       setPicker({ open: true, mode: 'all', seed: m[1], viaAt: true })
     } else if (picker.viaAt) {
       setPicker((p) => ({ ...p, open: false }))
@@ -272,6 +279,9 @@ export default function ChatPage() {
   }
 
   const openPickerMode = (mode: PickerMode) => {
+    // Los buscadores de refs (eventos/mandados) siempre abren con datos al día:
+    // en desktop no hay SSE, así que se invalidan aquí on-demand (SPEC §11.1).
+    queryClient.invalidateQueries({ queryKey: ['chat-pick'] })
     setPicker({ open: true, mode, seed: '', viaAt: false })
   }
 

@@ -92,6 +92,23 @@ invitación.
 > ⚠️ La cuenta `admin` es de desarrollo. Cámbiala antes de exponer el hogar a
 > internet.
 
+## 🐳 Self-hosted con Docker (fase 2)
+
+Un solo contenedor sirve el frontend compilado y el API (Rust + axum) en el
+puerto 8787, con los datos persistentes en un volumen:
+
+```bash
+docker compose up -d --build
+# abrir http://localhost:8787
+```
+
+- **Persistencia**: volumen `gp-data` (o ajusta el bind mount en
+  `docker-compose.yml`).
+- **Tiempo real**: el server publica cambios por SSE (`/api/events-stream`) y la
+  UI los refleja al instante entre dispositivos, sin esperar el polling.
+- **Cuenta rápida**: `admin` / `admin123` (se siembra al arrancar).
+- Imagen manual: `docker build -t grocery-planner . && docker run -p 8787:8787 -v gp-data:/data grocery-planner`
+
 ## 🧱 Arquitectura
 
 | Capa | Tecnología |
@@ -101,11 +118,14 @@ invitación.
 | Shell nativo | Tauri v2 |
 | Backend | Rust — lógica compartida entre desktop (IPC) y web (HTTP axum) |
 | Persistencia | JSON en disco (fase 1); DB sqlx/diesel en fase 2 |
+| Tiempo real | SSE de cambios por dominio (fase 2), con polling de respaldo |
 
 El mismo `AppState` alimenta los commands Tauri y el servidor HTTP:
 `src-tauri/src/` → `domain/` (lógica pura), `store/` (repositorios en memoria),
-`commands/` (commands IPC), `bin/server.rs` (HTTP axum con `auth_guard`).
-El frontend consume todo vía `src/lib/api/` (transporte = `invoke` o `fetch`).
+`commands/` (commands IPC), `bin/server.rs` (HTTP axum con `auth_guard`,
+sirve la SPA y emite eventos SSE tras cada mutación).
+El frontend consume todo vía `src/lib/api/` (transporte = `invoke` o `fetch`)
+y se suscribe a los cambios con `src/lib/realtime.ts`.
 
 Detalle operativo y gotchas: [AGENTS.md](AGENTS.md).
 
@@ -113,25 +133,27 @@ Detalle operativo y gotchas: [AGENTS.md](AGENTS.md).
 
 ```bash
 npm run verify                           # lint + build + E2E headless (chromium del sistema)
-npm run e2e                              # solo la suite E2E (spec-core + live-refresh + design)
+npm run e2e                              # las 6 suites E2E (spec-core, live-refresh, design, spec-gaps, spec-realtime, spec-full)
 npm run build                            # tsc -b + vite build
 npm run lint                             # oxlint
-cargo test                               # en src-tauri/ (107 tests)
+cargo test                               # en src-tauri/ (125 tests)
 cargo check --features server --bin server   # valida el binario HTTP
 npm run tauri:build                      # empaqueta desktop (.deb/.rpm; AppImage no en esta máquina)
 ```
 
-La suite E2E abre la app real en chromium headless: flujos completos del SPEC, refresco
-"al momento" entre dos pestañas (polling de la lista cada 10 s) y cumplimiento de DESIGN
+La suite E2E abre la app real en chromium headless: flujos completos del SPEC (~127 checks),
+refresco "al momento" por **SSE** entre dos miembros y contra el polling de respaldo
+(`spec-realtime`: <5 s en el transporte, <15 s en la UI), y cumplimiento de DESIGN
 (flat, verde protagonista, zonas táctiles ≥44 px, modo oscuro).
 
 ## 🗺️ Hoja de ruta (fase 2)
 
-- Base de datos real (sqlx/diesel) y almacenamiento de fotos en disco.
-- Docker self-hosting multi-plataforma.
-- Tiempo real por SSE/websockets (presencia y chat en vivo sin polling).
-- Builds para Windows/macOS y CI.
-- Móvil (Tauri Android/iOS).
+- ✅ **Tiempo real por SSE** (cambios al instante entre dispositivos).
+- ✅ **Docker self-hosting** (un contenedor sirve SPA + API).
+- ✅ **Fotos a disco** (archivos en `<data>/photos/`, respaldo autocontenido).
+- ✅ **Tokens con expiración** (30 días, renovación deslizante) y **CI** (verify + builds desktop).
+- Base de datos real (sqlx/diesel).
+- Biometría, keyring para el token y móvil (Tauri Android/iOS).
 
 ## 🤝 Contribuir
 

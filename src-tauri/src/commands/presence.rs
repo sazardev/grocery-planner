@@ -1,11 +1,7 @@
-use tauri::{AppHandle, Emitter};
-
 use crate::domain::presence::PresenceView;
 use crate::error::AppError;
 use crate::state::AppStateRef;
 use crate::store;
-
-const PRESENCE_EVENT: &str = "presence://changed";
 
 /// Quién está conectado ahora (SPEC §2.2 y §8).
 #[tauri::command]
@@ -14,35 +10,25 @@ pub fn presence_list(state: AppStateRef) -> Result<Vec<PresenceView>, AppError> 
     Ok(store.presence.list())
 }
 
-/// Heartbeat de un miembro conectado; emite el evento de presencia a las ventanas.
+/// Heartbeat de un miembro conectado. La presencia no se emite por evento:
+/// el heartbeat es una consulta que ya re-fetchea sola (y emitir habría creado
+/// un bucle heartbeat→invalidate→heartbeat). En desktop tampoco: las mutaciones
+/// IPC invalidan por su cuenta.
 #[tauri::command]
 pub fn presence_heartbeat(
-    app: AppHandle,
     state: AppStateRef,
     name: String,
     screen: Option<String>,
 ) -> Result<Vec<PresenceView>, AppError> {
-    let views = {
-        let mut store = store::lock(&state.store)?;
-        store.presence.heartbeat(&name, screen.as_deref())?;
-        store.presence.list()
-    };
-    let _ = app.emit(PRESENCE_EVENT, &views);
-    Ok(views)
+    let mut store = store::lock(&state.store)?;
+    store.presence.heartbeat(&name, screen.as_deref())?;
+    Ok(store.presence.list())
 }
 
 /// Un miembro se desconecta explícitamente (cierre de sesión / quiosco pausado).
 #[tauri::command]
-pub fn presence_leave(
-    app: AppHandle,
-    state: AppStateRef,
-    name: String,
-) -> Result<Vec<PresenceView>, AppError> {
-    let views = {
-        let mut store = store::lock(&state.store)?;
-        store.presence.leave(&name);
-        store.presence.list()
-    };
-    let _ = app.emit(PRESENCE_EVENT, &views);
-    Ok(views)
+pub fn presence_leave(state: AppStateRef, name: String) -> Result<Vec<PresenceView>, AppError> {
+    let mut store = store::lock(&state.store)?;
+    store.presence.leave(&name);
+    Ok(store.presence.list())
 }

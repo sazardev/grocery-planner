@@ -42,6 +42,15 @@ pub fn default_data_path() -> PathBuf {
     PathBuf::from("grocery-planner-data.json")
 }
 
+/// Directorio donde se guardan los archivos de fotos (fase 2: fotos a disco).
+/// Vive junto al `data.json` (padre de `default_data_path()`), en `photos/`.
+pub fn photos_dir() -> PathBuf {
+    default_data_path()
+        .parent()
+        .map(|p| p.join("photos"))
+        .unwrap_or_else(|| PathBuf::from("photos"))
+}
+
 pub fn load(path: &Path) -> Result<PersistedState, String> {
     let raw = std::fs::read_to_string(path)
         .map_err(|e| format!("No se pudo leer {path:?}: {e}"))?;

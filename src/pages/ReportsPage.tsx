@@ -23,6 +23,7 @@ import { useGoBack } from '../lib/hooks/useGoBack.ts'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import IconButton from '../shared/ui/primitives/IconButton.tsx'
 import { addDays, localDayRangeISO, todayISO } from '../lib/dates.ts'
+import { invalidateItems, invalidateTimeline } from '../lib/queryKeys.ts'
 import styles from './ReportsPage.module.css'
 
 export default function ReportsPage() {
@@ -73,7 +74,8 @@ export default function ReportsPage() {
           ),
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['items'] })
+      invalidateItems(queryClient)
+      invalidateTimeline(queryClient)
     },
   })
 

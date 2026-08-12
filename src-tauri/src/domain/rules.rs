@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::domain::item::GroceryItem;
+
 /// Una tienda favorita con sus pasillos (SPEC §14 y §5.4).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -86,6 +88,21 @@ pub struct HomeRules {
     pub timezone: String,
     /// Preferencias de notificación por miembro (SPEC §13).
     pub notifications: HashMap<String, NotificationSettings>,
+}
+
+impl HomeRules {
+    /// Redacta fotos/precios de un ítem según la privacidad del hogar (SPEC §14):
+    /// si no se muestran, la respuesta sale sin ellos pero el dato se conserva.
+    pub fn redact_item(&self, item: GroceryItem) -> GroceryItem {
+        let mut it = item;
+        if !self.privacy_show_photos {
+            it.photos.clear();
+        }
+        if !self.privacy_show_prices {
+            it.price = None;
+        }
+        it
+    }
 }
 
 impl Default for HomeRules {

@@ -3,7 +3,7 @@
  * soft-delete, bulk complete, editar/mover eventos, recurrencia anual,
  * notificaciones HTTP, presencia "en el mandado", privacidad y modo host.
  */
-import { api, register, launch, newPage, goto, check, done, typeIn, clickByText } from './harness.mjs'
+import { api, register, launch, goto, check, checkNoUnexpected4xx, done, clickByText } from './harness.mjs'
 
 const suffix = Date.now().toString().slice(-6)
 
@@ -36,7 +36,7 @@ async function main() {
   for (const it of pending.data) {
     await api(`/api/items/${it.id}/status`, { method: 'PATCH', token, body: { to: 'llevo' } })
   }
-  const batch = await api('/api/items/complete-batch', { method: 'POST', token, body: {} })
+  await api('/api/items/complete-batch', { method: 'POST', token, body: {} })
   const leftLlevo = await api('/api/items/query', { method: 'POST', token, body: { status: 'llevo' } })
   const comprados = await api('/api/items/query', { method: 'POST', token, body: { status: 'comprado' } })
   check(
@@ -95,8 +95,8 @@ async function main() {
   const inv = await api('/api/home/invitations', { method: 'POST', token, body: { roleGranted: 'miembro' } })
   const invToken = inv.data.token
   const b = await register('Invitado' + suffix, 'secreto123')
-  const { browser, page, jsErrors } = await launch({ token: b.token })
-  await goto(page, `/family/join#${invToken}`)
+  const { browser, page, jsErrors, badResponses } = await launch({ token: b.token })
+  await goto(page, `/family/join#${invToken}`, { waitFor: 'Unirse al hogar' })
   const codeValue = await page.evaluate(() => {
     const el = [...document.querySelectorAll('input')].find((x) => x.getAttribute('aria-label')?.includes('Código'))
     return el ? el.value : ''
@@ -107,6 +107,7 @@ async function main() {
   const homeInfo = await api('/api/home', { token: b.token })
   check('Enlace de invitación: el invitado entra al hogar', (homeInfo.data?.members ?? []).some((m) => m.name === b.name))
   check('Sin errores JS', jsErrors.length === 0, jsErrors.join(' | '))
+  checkNoUnexpected4xx(badResponses)
   await done(browser)
 }
 

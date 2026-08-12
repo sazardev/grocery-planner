@@ -41,6 +41,8 @@ export default function RulesSection() {
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: RULES_KEY })
     queryClient.invalidateQueries({ queryKey: ['home'] })
+    // El kiosko consulta el modo host; que se entere al instante del cambio.
+    queryClient.invalidateQueries({ queryKey: ['host-mode'] })
   }
 
   const [draft, setDraft] = useState<Record<string, string>>({})

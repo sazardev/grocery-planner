@@ -33,12 +33,11 @@
   left: 3px;
   border-radius: 50%;
   background: var(--gp-text-inverse);
-  transition: transform var(--gp-duration-normal) var(--gp-ease-bounce);
+  transition: transform var(--gp-duration-normal) var(--gp-ease-out);
 }
 
 .checked {
   background: var(--gp-primary);
-  animation: gp-pop var(--gp-duration-normal) var(--gp-ease-bounce);
 }
 
 .checked::after {
@@ -48,10 +47,6 @@
 .input:focus-visible + .track {
   outline: 2px solid var(--gp-primary);
   outline-offset: 2px;
-}
-
-.input:active + .track::after {
-  transform: scale(0.8);
 }
 
 /* --- Sizes --- */

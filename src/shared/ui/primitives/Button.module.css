@@ -12,16 +12,7 @@
   position: relative;
   transition:
     background-color var(--gp-duration-instant) var(--gp-ease-out),
-    color var(--gp-duration-instant) var(--gp-ease-out),
-    transform var(--gp-duration-fast) var(--gp-ease-spring);
-}
-
-.button:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.button:active:not(:disabled) {
-  transform: translateY(0) scale(0.94);
+    color var(--gp-duration-instant) var(--gp-ease-out);
 }
 
 .button:disabled {
@@ -35,7 +26,7 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--gp-touch);
   opacity: 0;
   pointer-events: none;
 }
@@ -52,16 +43,11 @@
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
-  transition: transform var(--gp-duration-normal) var(--gp-ease-spring);
-}
-
-.button:hover:not(:disabled) .icon {
-  transform: scale(1.15);
 }
 
 /* --- Sizes --- */
 .sm {
-  height: 32px;
+  height: 44px;
   padding: 0 var(--gp-space-3);
   font-size: var(--gp-text-sm);
 }
@@ -86,12 +72,12 @@
 
 /* --- Variants --- */
 .primary {
-  background: var(--gp-primary-strong);
+  background: var(--gp-primary);
   color: var(--gp-text-inverse);
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--gp-primary);
+  background: var(--gp-primary-hover);
 }
 
 .primary:active:not(:disabled) {

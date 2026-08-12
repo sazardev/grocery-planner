@@ -61,18 +61,21 @@ pub fn trips_assign(
     state: AppStateRef,
     id: String,
     member: String,
+    by: String,
 ) -> Result<ShoppingTrip, AppError> {
     let mut store = store::lock(&state.store)?;
     let title = store.trips.get(&id)?.title.clone();
     let assigned = store.trips.assign(&id, &member)?;
-    crate::commands::notify::push_managed(
-        &mut store.rules,
-        &member,
-        NotificationKind::Assigned,
-        "Te asignaron un mandado",
-        &format!("El mandado \"{title}\" es tuyo."),
-        Some(&format!("/trips/{id}")),
-    );
+    if member != by {
+        crate::commands::notify::push_managed(
+            &mut store.rules,
+            &member,
+            NotificationKind::Assigned,
+            "Te asignaron un mandado",
+            &format!("El mandado \"{title}\" es tuyo."),
+            Some(&format!("/trips/{id}")),
+        );
+    }
     Ok(assigned)
 }
 

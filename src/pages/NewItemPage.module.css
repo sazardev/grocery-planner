@@ -21,7 +21,7 @@
 
 .modeBtn {
   flex: 1;
-  height: 40px;
+  min-height: 44px;
   border: none;
   border-radius: var(--gp-radius-pill);
   background: var(--gp-surface);

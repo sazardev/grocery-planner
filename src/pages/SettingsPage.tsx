@@ -13,6 +13,7 @@ import Alert from '../shared/ui/feedback/Alert.tsx'
 import EmptyState from '../shared/ui/feedback/EmptyState.tsx'
 import { Card, Input, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { formatDateTime } from '../lib/dates.ts'
 import { useOnboarding } from '../components/onboarding/onboarding.ts'
 import { useTheme } from '../lib/theme.ts'
 import type { ThemeMode } from '../lib/theme.ts'
@@ -141,6 +142,11 @@ export default function SettingsPage() {
                     <Text variant="item">{s.device}</Text>
                     {s.current && <Chip tone="default">este dispositivo</Chip>}
                     {s.revoked && <Chip tone="danger">cerrada</Chip>}
+                    {!s.revoked && s.expiresAt && (
+                      <Text as="p" variant="note" tone="secondary">
+                        Expira {formatDateTime(s.expiresAt)}
+                      </Text>
+                    )}
                   </span>
                   {!s.revoked && !s.current && (
                     <Button

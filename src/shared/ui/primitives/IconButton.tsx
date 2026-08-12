@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import styles from './IconButton.module.css'
 
-export type IconButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger'
+export type IconButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
 interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: IconButtonVariant

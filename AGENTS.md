@@ -19,12 +19,32 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
 | Check Rust backend | `cargo check` in `src-tauri/` |
 | Check HTTP server binary | `cargo check --features server --bin server` in `src-tauri/` |
 
-> Los E2E viven en `scripts/e2e/` (`harness.mjs`, `run.mjs`, suites `spec-core`/`live-refresh`/
-> `design`/`spec-gaps`). `run.mjs` compila el binario server, arranca `vite preview` y el backend en puertos
-> libres con `GROCERY_PLANNER_DATA` aislada, corre las suites y mata los procesos (grupo detached).
-> Requiere un chromium del sistema (default `/usr/bin/chromium`, override `GP_CHROMIUM`).
-> Nota: `waitForFunction` en el harness usa `polling: 250` (el rAF por defecto no detecta
-> cambios tardíos en pestañas headless).
+> Los E2E viven en `scripts/e2e/` (`harness.mjs`, `run.mjs`, suites `spec-core`/
+> `live-refresh`/`design`/`spec-gaps`/**`spec-realtime`**/**`spec-full`**). `run.mjs`
+> compila el binario server, arranca `vite preview` y el backend en puertos libres
+> con `GROCERY_PLANNER_DATA` aislada, corre las suites y mata los procesos (grupo
+> detached). Requiere un chromium del sistema (default `/usr/bin/chromium`, override
+> `GP_CHROMIUM`). Nota: `waitForFunction` en el harness usa `polling: 250` (el rAF
+> por defecto no detecta cambios tardíos en pestañas headless). Las fotos que se
+> suben en los tests viven en el repo (`scripts/e2e/fixtures/foto.png`), no en /tmp:
+> el E2E es reproducible en cualquier máquina y en CI.
+>
+> Conteos por suite (referencia, incluye el check final de respuestas 4xx/5xx):
+> `spec-core` 21, `live-refresh` 7, `design` 7, `spec-gaps` 19, `spec-realtime`
+> 14 (SSE), `spec-full` 59–60 (dos ramas de F1/G3 son mutuamente excluyentes),
+> así que por corrida se ejecutan **~127 checks**.
+>
+> `spec-realtime` (SSE) es la prueba del claim estrella de fase 2: una mutación en
+> un cliente llega AL INSTANTE a los demás por `/api/events-stream` (<5 s en el
+> transporte, <15 s en la UI, siempre por debajo del poll de respaldo).
+> `spec-full` ejerce login/registro por **UI real**, PIN, modo host/quiosco, respaldo
+> con autorización y privacidad, proyección, fotos, chat (mención/reacción/fijar),
+> avisos, detalle de ítem con historial en vivo, "Lo mío", calendario, roles (409),
+> tiendas/secciones, QR de invitación, live-refresh entre **dos miembros** (contextos
+> incógnito) y modo oscuro.
+> El harness lanza chromium con `--use-gl=swiftshader`: sin software GL el **canvas 2D cuelga el
+> renderer** de chromium headless del sistema (el QR de invitación no se renderiza y la página se
+> congela). Cualquier test nuevo que toque `<canvas>` depende de esa flag.
 
 ## Gotchas
 
@@ -51,6 +71,19 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
   against `http://localhost:8787` (override con `VITE_API_URL`). Arranca el backend con
   `cargo run --features server --bin server` antes de probar la UI web; sin él, HomePage
   muestra "No se pudo conectar…" (esperado). En desktop (`tauri:dev`) se usa IPC, no HTTP.
+- **Tiempo real (fase 2, SSE)**: el server publica un evento por dominio en
+  `/api/events-stream` tras cada mutación 2xx (`realtime_emit` + `change_kind_for`); el front
+  (`src/lib/realtime.ts`) los recibe e invalida las queries al instante. La **presencia no se
+  emite** (evitaría un bucle heartbeat→invalidate→heartbeat). El polling queda de respaldo.
+  Los dominios items/chat/plans/events/trips invalidan también `timeline`/`family`, así el
+  **historial total y el panel de Familia se actualizan al momento**. Si el stream responde
+  401 (sesión expirada) se cierra la sesión en la UI, y tras login/logout `AuthProvider`
+  reconecta el stream al token nuevo (`realtimeReconnect`). En el E2E, `goto` usa
+  `networkidle2` (≤2 conexiones): `networkidle0` nunca llega con el SSE
+  abierto y `load` regresa antes de los datos.
+- **Self-hosting con Docker**: un contenedor sirve la SPA + el API (`Dockerfile` +
+  `docker-compose.yml`); el server sirve estáticos vía `GROCERY_PLANNER_DIST` (default `dist`),
+  `auth_guard` solo exige sesión en `/api/*`.
 - **Adding a backend command touches several layers**: add a `#[tauri::command]` under
   `src-tauri/src/commands/`, register it in `generate_handler![]` in `src-tauri/src/lib.rs`,
   expose a typed client in `src/lib/api/` that calls `request()`, AND (web) mapear el
@@ -63,6 +96,14 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
   restaura. Ubicación: `GROCERY_PLANNER_DATA` → `$XDG_DATA_HOME/grocery-planner/data.json` →
   `~/.grocery-planner/data.json`. **Reiniciar el servidor ya no borra nada.** Los handlers de
   auth guardan al instante (una sesión nueva no se pierde).
+- **Fotos a disco (fase 2)**: `item_add_photo` decodifica el data URL y guarda el archivo en
+  `<data>/photos/p-<uuid>.<ext>`; el ítem queda con el **nombre**. Web las sirve en
+  `/api/photos/{file}` (con sesión; el frontend usa fetch+Bearer→blob URL en `ItemPhoto`); desktop
+  las lee con `read_photo` (IPC). El respaldo las **embebe** (archivo→data URL) y las **extrae**
+  al importar, así sigue siendo autocontenido. Las fotos legacy (data URLs en un data.json viejo)
+  se siguen mostrando directo.
+- **Tokens con expiración**: 30 días con renovación deslizante al usarse (`Session.expires_at`).
+  Las sesiones vencidas se rechazan (401) y se podan en el hilo de fondo.
 - **Migración de datos**: los campos nuevos de los structs de dominio llevan `#[serde(default)]`
   para que un `data.json` de un binario viejo cargue sin romperse (ej. `GroceryItem.brand`/
   `quantity_max`/`fallbacks`). Si el archivo es ilegible, `persist::restore_into` lo mueve a
@@ -81,7 +122,13 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
   Si el login da 401, el server en :8787 es un binario viejo → recompilar y reiniciar.
 - **Privacidad (§14)**: `privacyShowPhotos`/`privacyShowPrices` se aplican en el server HTTP
   (`redact_item` en `server.rs`): si no se muestran, las fotos/precios se redactan en list/get/query
-  y el reporte de gasto se pone en cero. El dato se conserva.
+  y en **todas** las respuestas de mutación (create/update/status/assign/precio/sección/tienda/
+  fallbacks/fotos/recuperar), en `items_purchased_between` y en el **backup** (el dato se conserva).
+- **Respaldo (§15)**: `backup_export`/`backup_import` exigen rol **Admin** del hogar (IPC y HTTP);
+  un miembro común recibe 409. `npm run seed` crea el hogar **antes** de importar el respaldo (el
+  import exige Admin).
+- **`home_info` devuelve 404** (no 401) si no perteneces al hogar: el 401 global del front cierra
+  la sesión y un miembro sin hogar (recién registrado) quedaría fuera. 404 no revela si el hogar existe.
 - **Soft-delete (§8)**: `item_delete` marca `GroceryItem.deleted` (la lista lo oculta, el historial
   y los reportes lo conservan); `item_delete_permanent` borra de verdad (solo ítems en la papelera);
   `item_recover` trae de vuelta un ítem eliminado o cancelado → Falta.
@@ -103,8 +150,9 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
 ## Architecture (phase 1)
 
 - Frontend entry `src/main.tsx` → `App.tsx`: `AuthProvider` envuelve las rutas; `/login` y
-  `/register` públicas, `/kiosk` autenticada sin `Layout`; todo lo demás bajo `<RequireAuth>`
-  + `Layout` (nav inferior). Rutas: `/`, `/items/new`, `/items/:id`, `/trips`, `/trips/:id`,
+  `/register` públicas, `/` es el **landing** público (redirige a `/home` si ya entraste),
+  `/kiosk` autenticada sin `Layout` (modo host); todo lo demás bajo `<RequireAuth>`
+  + `Layout` (nav inferior). Rutas: `/home`, `/items/new`, `/items/:id`, `/trips`, `/trips/:id`,
   `/trips/stores`, `/trips/sections`, `/plans`, `/plans/new`, `/plans/:id`, `/events`,
   `/events/:id`, `/reports`, `/chat`, `/calendar`, `/mine`, `/history`, `/notifications`,
   `/family`, `/family/members`, `/family/invite`, `/family/join`, `/rules`, `/settings`.
@@ -122,8 +170,9 @@ Self-hosted family shopping planner. Tauri v2 desktop app (Rust backend) + React
     `presence`, `trips`, `home`, `events`, `plans`, `sections`, `reports`, `rules`, `chat`,
     `timeline`, `backup` (IPC Tauri).
   - `src-tauri/src/bin/server.rs` — servidor HTTP axum (feature `server`), mismos endpoints
-    sobre el mismo `AppState`, con `auth_guard` (deriva el actor del token).
-- DB (sqlx/diesel), docker self-hosting, SSE/websockets en tiempo real: fase 2.
+    sobre el mismo `AppState`, con `auth_guard` (deriva el actor del token), sirve la SPA
+    compilada y emite eventos SSE de cambio por dominio.
+- DB (sqlx/diesel) y keyring: fase 2 (SSE, Docker y fotos a disco ya están).
 
 ## Design system (follow `DESIGN.md` for any UI work)
 

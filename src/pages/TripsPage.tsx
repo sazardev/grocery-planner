@@ -12,6 +12,7 @@ import Alert from '../shared/ui/feedback/Alert.tsx'
 import EmptyState from '../shared/ui/feedback/EmptyState.tsx'
 import { Card, Input, Stack } from '../shared/ui/index.ts'
 import { useDocumentTitle } from '../lib/hooks/useDocumentTitle.ts'
+import { invalidateCalendar } from '../lib/queryKeys.ts'
 import { useFab } from '../shared/ui/navigation/fab.ts'
 import ShareButton from '../shared/ui/navigation/ShareButton.tsx'
 import SectionLink from '../components/SectionLink.tsx'
@@ -52,6 +53,7 @@ export default function TripsPage() {
     mutationFn: (t: string) => createTrip({ title: t, by: ME }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['trips'] })
+      invalidateCalendar(queryClient)
       setTitle('')
       setError(null)
     },

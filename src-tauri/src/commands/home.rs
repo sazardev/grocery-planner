@@ -59,8 +59,10 @@ pub fn home_create(state: AppStateRef, name: String, owner: String) -> Result<Ho
 #[tauri::command]
 pub fn home_info(state: AppStateRef, by: String) -> Result<HomeView, AppError> {
     let store = store::lock(&state.store)?;
+    // 404 (no 401) si no perteneces al hogar: el 401 global del front cierra la
+    // sesión y un miembro sin hogar se quedaría fuera. 404 no revela existencia.
     to_view_for(store.home.get()?, &by)
-        .ok_or_else(|| AppError::unauthorized("No perteneces a ningún hogar"))
+        .ok_or_else(|| AppError::not_found("Todavía no se crea el hogar"))
 }
 
 /// Agrega un miembro al hogar con un rol (solo Admin, SPEC §3.5). El miembro

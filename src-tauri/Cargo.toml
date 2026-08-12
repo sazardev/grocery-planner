@@ -17,10 +17,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
 default = []
-# Servidor HTTP self-hosted (fase 2 preview). Se compila con:
+# Servidor HTTP self-hosted (fase 2). Se compila con:
 #   cargo run --features server --bin server
-server = ["dep:axum", "dep:tokio", "dep:tower-http"]
-
+server = ["dep:axum", "dep:tower-http", "dep:tokio-stream", "dep:futures-util"]
 [[bin]]
 name = "server"
 path = "src/bin/server.rs"
@@ -40,6 +39,11 @@ chrono = { version = "0.4", features = ["clock"] }
 chrono-tz = "0.10"
 uuid = { version = "1", features = ["v4"] }
 argon2 = "0.5"
+base64 = "0.22"
+# Tokio es base (no solo server): el canal broadcast de cambios en tiempo real
+# vive en `AppState`, compartido por IPC y HTTP.
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
 axum = { version = "0.8", optional = true }
-tokio = { version = "1", optional = true, features = ["rt-multi-thread", "macros", "net", "time"] }
-tower-http = { version = "0.6", optional = true, features = ["cors"] }
+tower-http = { version = "0.6", optional = true, features = ["cors", "fs"] }
+tokio-stream = { version = "0.1", optional = true, features = ["sync"] }
+futures-util = { version = "0.3", optional = true }

@@ -35,7 +35,7 @@ export function removeItemFromTrip(id: string, itemId: string): Promise<Shopping
 }
 
 export function assignTrip(id: string, member: string): Promise<ShoppingTrip> {
-  return request<ShoppingTrip>('trips_assign', { id, member })
+  return request<ShoppingTrip>('trips_assign', { id, member, by: ME })
 }
 
 export function activateTrip(id: string): Promise<ShoppingTrip> {

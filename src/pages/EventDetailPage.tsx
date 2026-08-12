@@ -26,6 +26,7 @@ import Input from '../shared/ui/form/Input.tsx'
 import Checkbox from '../shared/ui/primitives/Checkbox.tsx'
 import { Card, Select, Stack } from '../shared/ui/index.ts'
 import { useMeta } from '../lib/hooks/useMeta.ts'
+import { invalidateCalendar } from '../lib/queryKeys.ts'
 import ShareButton from '../shared/ui/navigation/ShareButton.tsx'
 import styles from './EventDetailPage.module.css'
 
@@ -122,6 +123,9 @@ export default function EventDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['event', id] })
     queryClient.invalidateQueries({ queryKey: ['events'] })
     queryClient.invalidateQueries({ queryKey: ['items'] })
+    queryClient.invalidateQueries({ queryKey: ['mine'] })
+    queryClient.invalidateQueries({ queryKey: ['kiosk', 'items'] })
+    invalidateCalendar(queryClient)
   }
 
   const addMutation = useMutation({

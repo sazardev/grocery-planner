@@ -187,11 +187,22 @@
   background: var(--gp-primary);
 }
 
-@media (max-width: 640px) {
+/* --- Móvil (base, mobile-first): celdas compactas y semana en una columna --- */
+.dayCell {
+  min-height: 56px;
+}
+
+.weekGrid {
+  grid-template-columns: 1fr;
+}
+
+/* --- ≥768px: celdas con más aire y semana en 7 columnas (DESIGN §10.1) --- */
+@media (min-width: 768px) {
   .dayCell {
-    min-height: 56px;
+    min-height: 84px;
   }
+
   .weekGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(7, 1fr);
   }
 }

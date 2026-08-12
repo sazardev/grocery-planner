@@ -292,15 +292,25 @@ pub fn item_delete(state: AppStateRef, id: String, by: String) -> Result<(), App
     store.items.delete(&id, &by)
 }
 
-/// Borrado físico (limpieza real de la papelera). No lo usa la UI normal.
+/// Borrado físico (limpieza real de la papelera). Solo el dueño del ítem o un
+/// Organizador/Admin pueden borrar para siempre (SPEC §3.2/§4.4).
 #[tauri::command]
-pub fn item_delete_permanent(state: AppStateRef, id: String, _by: String) -> Result<(), AppError> {
+pub fn item_delete_permanent(state: AppStateRef, id: String, by: String) -> Result<(), AppError> {
     let mut store = store::lock(&state.store)?;
     let item = store.items.get(&id)?;
     if !item.deleted {
         return Err(AppError::conflict(
             "Solo se borra definitivamente un ítem que ya está en la papelera",
         ));
+    }
+    if item.requested_by != by {
+        crate::commands::require_role(&store, &by, Role::Organizador)?;
+    }
+    // Limpia también los archivos de fotos del ítem.
+    for name in &item.photos {
+        if !name.starts_with("data:") {
+            crate::commands::photo::delete_photo_file(name);
+        }
     }
     store.items.delete_permanent(&id)
 }
@@ -509,7 +519,9 @@ pub fn item_add_photo(
 ) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
     let limit = store.rules.rules.photo_limit;
-    store.items.add_photo(&id, &photo, limit, &by)
+    // Fase 2: la foto pasa a disco y el ítem guarda el nombre del archivo.
+    let name = crate::commands::photo::store_photo(&photo)?;
+    store.items.add_photo(&id, &name, limit, &by)
 }
 
 /// Quita una foto del ítem por índice (SPEC §10).
@@ -521,7 +533,14 @@ pub fn item_remove_photo(
     by: String,
 ) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
-    store.items.remove_photo(&id, index, &by)
+    let removed_name = store.items.get(&id)?.photos.get(index).cloned();
+    let removed = store.items.remove_photo(&id, index, &by)?;
+    if let Some(name) = removed_name {
+        if !name.starts_with("data:") {
+            crate::commands::photo::delete_photo_file(&name);
+        }
+    }
+    Ok(removed)
 }
 
 /// Fija la tienda donde se consigue el ítem (SPEC §4.1 y §5.4).

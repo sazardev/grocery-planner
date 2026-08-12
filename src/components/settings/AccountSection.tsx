@@ -16,7 +16,7 @@ function errMsg(e: unknown, fallback: string): string {
 
 /** Perfil de la cuenta: alias, avatar/foto y cambio de contraseña (SPEC §2.1). */
 export default function AccountSection() {
-  const { user, token } = useAuth()
+  const { user, token, refreshUser } = useAuth()
   const queryClient = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -32,8 +32,9 @@ export default function AccountSection() {
 
   const profileMutation = useMutation({
     mutationFn: (avatar?: string) => updateProfile(token ?? '', alias.trim() || undefined, avatar),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['auth-me'] })
+    onSuccess: async () => {
+      await refreshUser()
+      queryClient.invalidateQueries({ queryKey: ['home'] })
       setSaved(true)
       setError(null)
       window.setTimeout(() => setSaved(false), 2000)
