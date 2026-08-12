@@ -54,6 +54,11 @@ pub fn chat_send_core(
         None => None,
     };
     let resolved = resolve_refs(store, refs);
+    // La foto del chat es un data URL inline: se valida igual que las fotos de
+    // ítem (base64 decodificable) para no guardar basura en el historial.
+    if let Some(p) = &photo {
+        crate::commands::photo::validate_data_url(p)?;
+    }
     let message = ChatMessage::user_message(by, body, photo, item_id, item_name, &members, resolved)?;
     for mention in &message.mentions {
         // No te avisas a ti mismo por mencionarte (SPEC §13).

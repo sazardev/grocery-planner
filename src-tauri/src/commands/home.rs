@@ -47,8 +47,16 @@ fn to_view_for(home: &Home, who: &str) -> Option<HomeView> {
 /// Crea el hogar de la familia; el primer miembro queda como Admin (SPEC §3.1).
 #[tauri::command]
 pub fn home_create(state: AppStateRef, name: String, owner: String) -> Result<HomeView, AppError> {
-    let home = Home::create(&name, &owner)?;
     let mut store = store::lock(&state.store)?;
+    // SPEC §3.6: un miembro = un hogar. Crear un segundo hogar estando ya en
+    // uno reemplazaría al primero (el store guarda un solo hogar) y dejaría
+    // huérfanos a sus miembros → se rechaza.
+    if store.auth.home_of(&owner).is_some() {
+        return Err(AppError::conflict(
+            "Ya perteneces a un hogar; un miembro solo puede estar en uno (SPEC §3.6)",
+        ));
+    }
+    let home = Home::create(&name, &owner)?;
     let home = store.home.create(home);
     store.auth.link_home(&owner, &home.id);
     Ok(to_view(&home))

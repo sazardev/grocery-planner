@@ -977,3 +977,56 @@ spec-realtime 14, spec-full 59–60 con dos ramas mutuamente excluyentes).
 ### Pendiente (fuera de alcance)
 - DB real (sqlx/diesel), keyring, biometría, móvil. Over-emisión menor de
   `notifications` en unassign/complete-batch (inofensiva, documentada en el código).
+
+---
+
+## Agresión "al máximo": fuzz API + travesía UI + fixes de integridad (2026-08-12)
+
+Prueba ultra agresiva de toda la app (API + UI) buscando fallos. `cargo test`
+**129 passed** · `cargo check --features server` ✓ · `npm run verify` ✓ (E2E
+127/127). Resultado: **0 errores 5xx en 70+ endpoints + fuzzing de cuerpos y
+querystring** (el server nunca se cae), máquina de estados correcta, roles
+correctos (409 para miembro), y todas las rutas de la UI renderizan sin errores JS.
+
+### Bugs reales encontrados y arreglados
+1. **Crear un segundo hogar destruía el primero (pérdida de datos)**: el
+   `HomeStore` guarda un solo hogar; `home_create` reemplazaba al anterior y
+   dejaba huérfanos a sus miembros (404 en `home_info`). Ahora devuelve **409**
+   si el actor ya pertenece a un hogar (SPEC §3.6, "un miembro = un hogar").
+   Guard en `commands/home.rs` y en el handler HTTP (se comprueba con
+   `AuthStore::home_of`, método nuevo).
+2. **Asignar ítems/mandados a gente que no es del hogar**: `item_assign` y
+   `trips_assign` aceptaban cualquier nombre (`assignedTo` quedaba con un
+   fantasma que rompería "Lo mío" y los avisos). Ahora **400** si el nombre no
+   es miembro (`commands::require_member`, nuevo, usado en IPC y HTTP).
+3. **`quantity-max` negativo aceptado**: ahora **400** (también rechaza
+   `Infinity`/`NaN`), IPC y HTTP.
+4. **Fotos del chat sin validar**: cualquier cadena servía como "foto". Ahora se
+   valida el data URL/base64 igual que las fotos de ítem
+   (`photo::validate_data_url` en `chat_send_core`) → 400 si es basura.
+
+### Verificado y correcto (no eran bugs)
+- **Máquina de estados** §4.3: `comprado→cancelado→falta` es la única vuelta;
+   todas las transiciones inválidas dan 409 (probe con el campo real `to`).
+- **Roles** §3.2: miembro → 409 en reglas/secciones/planes/mover-ajeno/respaldo/
+  rol/expulsar/invitar/host-key/tiendas; Organizador no hace cosas de Admin.
+- **Auth**: 401 con password mala/usuario inexistente (con `device` en el body);
+  reset de password con clave mala → 401; regenerar por miembro → 409.
+- **Invitaciones**: usos=1 agota (2ª aceptación 409), revocadas 409, código
+  erróneo 404, maxUses negativo 422.
+- **Travesía UI**: 19 rutas renderizan sin errores JS; deep links a recursos
+  inexistentes → NotFound sin crash; búsqueda/filtros/toggle; calendario en
+  Día/Semana/Mes/Año; modo oscuro; nav de 6 tabs; kiosk + host-key; login
+  con validación.
+- Nota: el "detached Frame" de puppeteer en la travesía de navegación rápida es
+  una carrera del harness (no de la app); la ruta 404 renderiza bien en aislamiento.
+
+### Detalle de códigos (los 422 no son bugs)
+El server usa **422** para rechazos de deserialización de axum (enum/struct
+inválidos, campos requeridos faltantes) además de 400/401/404/409 del dominio.
+Los probes iniciales asumían códigos distintos; con bodies reales del frontend
+los códigos son correctos.
+
+### Pendiente
+- DB real, keyring, biometría, móvil. Validez de fechas laxas en timeline/
+  reports (devuelven 200 vacío con fechas basura, sin crash) — aceptado.

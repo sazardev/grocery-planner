@@ -644,6 +644,8 @@ async fn item_assign(
     Json(body): Json<AssignBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
     let mut store = store::lock(&state.store)?;
+    // Solo se puede asignar a alguien del hogar (SPEC §6).
+    grocery_planner_lib::commands::require_member(&store, &body.member)?;
     let name = store.items.get(&id)?.name.clone();
     let assigned = store.items.assign(&id, &body.member, &actor.0)?;
     if body.member != actor.0 {
@@ -964,6 +966,8 @@ async fn trips_assign(
     Json(body): Json<TripAssignBody>,
 ) -> Result<Json<ShoppingTrip>, AppError> {
     let mut store = store::lock(&state.store)?;
+    // Solo se puede asignar a alguien del hogar (SPEC §6).
+    grocery_planner_lib::commands::require_member(&store, &body.member)?;
     let title = store.trips.get(&id)?.title.clone();
     let assigned = store.trips.assign(&id, &body.member)?;
     if body.member != actor.0 {
@@ -1053,8 +1057,14 @@ async fn home_create(
     actor: AuthActor,
     Json(body): Json<HomeCreateBody>,
 ) -> Result<Json<home_cmd::HomeView>, AppError> {
-    let home = Home::create(&body.name, &actor.0)?;
     let mut store = store::lock(&state.store)?;
+    // SPEC §3.6: un miembro = un hogar (crear el segundo reemplazaría al primero).
+    if store.auth.home_of(&actor.0).is_some() {
+        return Err(AppError::conflict(
+            "Ya perteneces a un hogar; un miembro solo puede estar en uno (SPEC §3.6)",
+        ));
+    }
+    let home = Home::create(&body.name, &actor.0)?;
     let view = home_cmd::HomeView {
         id: home.id.clone(),
         name: home.name.clone(),
@@ -1909,6 +1919,13 @@ async fn item_set_quantity_max(
     actor: AuthActor,
     Json(body): Json<QuantityMaxBody>,
 ) -> Result<Json<GroceryItem>, AppError> {
+    if let Some(m) = body.max {
+        if !m.is_finite() || m < 0.0 {
+            return Err(AppError::invalid_input(
+                "La cantidad máxima debe ser un número positivo",
+            ));
+        }
+    }
     let mut store = store::lock(&state.store)?;
     Ok(Json(redact_item(
         store.items.set_quantity_max(&id, body.max, &actor.0)?,

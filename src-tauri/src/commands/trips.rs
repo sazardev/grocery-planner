@@ -64,6 +64,8 @@ pub fn trips_assign(
     by: String,
 ) -> Result<ShoppingTrip, AppError> {
     let mut store = store::lock(&state.store)?;
+    // Solo se puede asignar a alguien del hogar (SPEC §6).
+    crate::commands::require_member(&store, &member)?;
     let title = store.trips.get(&id)?.title.clone();
     let assigned = store.trips.assign(&id, &member)?;
     if member != by {

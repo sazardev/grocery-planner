@@ -7,6 +7,23 @@
 use crate::error::AppError;
 use crate::persist;
 
+/// Valida que una cadena sea un data URL de imagen con base64 decodificable
+/// (la misma regla que `store_photo`; el chat guarda su foto inline como data
+/// URL, así que aquí solo se comprueba que sea legítima).
+pub fn validate_data_url(data_url: &str) -> Result<(), AppError> {
+    let (mime, b64) = split_data_url(data_url.trim())?;
+    let bytes = base64::Engine::decode(
+        &base64::engine::general_purpose::STANDARD,
+        b64,
+    )
+    .map_err(|_| AppError::invalid_input("La foto no es un data URL válido"))?;
+    if bytes.is_empty() {
+        return Err(AppError::invalid_input("La foto está vacía"));
+    }
+    let _ = mime;
+    Ok(())
+}
+
 /// Convierte un data URL (`data:<mime>;base64,...`) en un archivo en disco y
 /// devuelve el nombre del archivo (ej. `p-<uuid>.png`).
 pub fn store_photo(data_url: &str) -> Result<String, AppError> {

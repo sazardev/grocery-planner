@@ -363,6 +363,9 @@ pub fn item_assign(
     by: String,
 ) -> Result<GroceryItem, AppError> {
     let mut store = store::lock(&state.store)?;
+    // Solo se puede asignar a alguien del hogar (SPEC §6): un nombre fantasma
+    // rompería "Lo mío" y los avisos del asignado.
+    crate::commands::require_member(&store, &member)?;
     let name = store.items.get(&id)?.name.clone();
     let assigned = store.items.assign(&id, &member, &by)?;
     if member != by {
@@ -575,6 +578,13 @@ pub fn item_set_quantity_max(
     max: Option<f64>,
     by: String,
 ) -> Result<GroceryItem, AppError> {
+    if let Some(m) = max {
+        if !m.is_finite() || m < 0.0 {
+            return Err(AppError::invalid_input(
+                "La cantidad máxima debe ser un número positivo",
+            ));
+        }
+    }
     let mut store = store::lock(&state.store)?;
     store.items.set_quantity_max(&id, max, &by)
 }

@@ -298,6 +298,13 @@ impl AuthStore {
         self.user_by_name(name).is_some()
     }
 
+    /// Hogar al que pertenece una cuenta (si alguno). SPEC §3.6: un miembro =
+    /// un hogar en esta fase, así que crear un hogar nuevo estando ya en uno
+    /// es un conflicto (crear el segundo destruiría al primero).
+    pub fn home_of(&self, name: &str) -> Option<String> {
+        self.user_by_name(name).and_then(|u| u.home_id)
+    }
+
     /// Todas las cuentas (para el respaldo completo, SPEC §15).
     pub fn users_list(&self) -> Vec<User> {
         self.users.values().cloned().collect()
@@ -421,6 +428,17 @@ mod tests {
         assert_eq!(store.sessions_of(&user.id).len(), 1);
         // la contraseña fija no se puede re-registrar como cuenta nueva
         assert!(store.register(DEFAULT_ACCOUNT, "otra-clave", "").is_err());
+    }
+
+    #[test]
+    fn home_of_refleja_el_vinculo_al_hogar() {
+        let mut store = AuthStore::new();
+        let (_, _) = store.register("Ana", "secreto123", "web").unwrap();
+        assert_eq!(store.home_of("Ana"), None);
+        store.link_home("Ana", "home-1");
+        assert_eq!(store.home_of("Ana").as_deref(), Some("home-1"));
+        // un nombre sin cuenta no tiene hogar
+        assert_eq!(store.home_of("no_existe"), None);
     }
 
     #[test]
